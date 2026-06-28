@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+*.err.log
+*.png
+.chrome-headless-profile/
+.chrome-headless-mobile-profile/
+.agents/
+.claude/
+skills-lock.json
