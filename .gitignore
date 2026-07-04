@@ -8,3 +8,7 @@ dist/
 .agents/
 .claude/
 skills-lock.json
+.vite/
+exports/
+docs/docs_bak/
+canvas/*.tmp
