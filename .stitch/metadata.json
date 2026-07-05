@@ -1,0 +1,26 @@
+{
+  "projectId": "677850474779901949",
+  "projectTitle": "极简财富模拟器",
+  "generatedBy": "stitch::code-to-design",
+  "updatedAt": "2026-07-05",
+  "designSystem": {
+    "name": "GoldQuest Finance Command Hall",
+    "assetId": "4d64ec60ddfb473788a548182e494ebd",
+    "sourceScreenInstance": {
+      "id": "12369812305000763526",
+      "sourceScreen": "projects/677850474779901949/screens/12369812305000763526"
+    },
+    "sourceFile": ".stitch/DESIGN.md"
+  },
+  "screens": [
+    {
+      "route": "/",
+      "title": "Personal Growth Compass - Economy Home",
+      "screenId": "1494921986176076570",
+      "sourceScreen": "projects/677850474779901949/screens/1494921986176076570",
+      "screenInstanceId": "1494921986176076570",
+      "sourceFile": ".stitch/home.html",
+      "strategy": "Puppeteer Strategy A"
+    }
+  ]
+}
