@@ -7,6 +7,8 @@ export type Transaction = {
   amount: number;
   date: string;
   note?: string;
+  accountId?: string;
+  accountName?: string;
 };
 
 export type Asset = {

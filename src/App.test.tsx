@@ -25,14 +25,15 @@ describe('Economy dashboard', () => {
     expect(screen.queryByText('本月动态')).not.toBeInTheDocument();
     expect(screen.queryByText('近 30 天收支趋势')).not.toBeInTheDocument();
 
-    expect(screen.getByRole('heading', { name: '本月支出去向' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('本月支出去向明细')).not.toBeInTheDocument();
+    expect(screen.getByText('本月收入支出')).toBeInTheDocument();
+    expect(screen.queryByLabelText('本月收入支出详情')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /查看分析/ }));
-    const analysisDropdown = screen.getByLabelText('本月支出去向明细');
-    expect(within(analysisDropdown).getByLabelText('本月支出去向饼图')).toBeInTheDocument();
-    expect(within(analysisDropdown).getByText('餐饮')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /收起分析/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /本月收入支出/ }));
+    const cashflowPage = screen.getByLabelText('本月收入支出详情');
+    expect(within(cashflowPage).getByLabelText('本月支出去向饼图')).toBeInTheDocument();
+    expect(within(cashflowPage).getByLabelText('本月收支分析')).toBeInTheDocument();
+    expect(within(cashflowPage).getByText('餐饮')).toBeInTheDocument();
+    expect(within(cashflowPage).getByLabelText('每日收支记录')).toBeInTheDocument();
   });
 
   it('adds a new cash account from the account dropdown', () => {
@@ -47,6 +48,31 @@ describe('Economy dashboard', () => {
     expect(screen.getByText('工商银行卡')).toBeInTheDocument();
     expect(screen.getByText('备用储蓄卡')).toBeInTheDocument();
     expect(screen.getByText('¥62,120')).toBeInTheDocument();
+  });
+
+  it('posts quick cashflow entries to the selected cash account and ledger', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /记一笔/ }));
+    fireEvent.change(screen.getByLabelText('资金账户'), { target: { value: 'wechat' } });
+    fireEvent.change(screen.getByLabelText('金额'), { target: { value: '100' } });
+    expect(screen.getByLabelText('资金账户余额预览')).toHaveTextContent('扣除后余额：¥720');
+    fireEvent.change(screen.getByLabelText('分类'), { target: { value: '饮品' } });
+    fireEvent.change(screen.getByLabelText('备注'), { target: { value: '奶茶' } });
+    fireEvent.click(screen.getByRole('button', { name: '保存记录' }));
+
+    const ledger = screen.getByLabelText('本月收入支出记录明细');
+    expect(within(ledger).getByText('奶茶')).toBeInTheDocument();
+    expect(within(ledger).getAllByText(/微信钱包/).length).toBeGreaterThan(0);
+    expect(within(ledger).getByText('-¥100')).toBeInTheDocument();
+    expect(screen.getByLabelText('本月支出金额')).toHaveTextContent('¥1,200');
+    expect(screen.getByText('¥59,020')).toBeInTheDocument();
+    expect(screen.getByText('¥720')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /微信钱包 日常小额支付 ¥720/ }));
+    const accountBills = screen.getByLabelText('账户月度流水记录');
+    expect(within(accountBills).getByText('奶茶')).toBeInTheDocument();
+    expect(within(accountBills).getByText(/余额: ¥720/)).toBeInTheDocument();
   });
 
   it('shows account records as monthly bill cards with balance after each item', () => {

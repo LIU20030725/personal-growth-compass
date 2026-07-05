@@ -3,13 +3,23 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
+  Bell,
   CalendarDays,
   ChevronDown,
   CircleDollarSign,
+  HelpCircle,
+  History,
   LineChart,
+  LogOut,
   PiggyBank,
   Plus,
   ReceiptText,
+  Settings,
+  Shield,
+  Store,
+  Target,
+  Trophy,
+  Users,
   WalletCards,
   X
 } from 'lucide-react';
@@ -63,6 +73,7 @@ type AccountGroupMeta = {
 };
 
 type EntryForm = {
+  accountId: string;
   type: TransactionType;
   amount: string;
   category: string;
@@ -113,14 +124,15 @@ const initialAccounts: Account[] = [
 ];
 
 const initialTransactions: Transaction[] = [
-  { id: 't1', type: 'income', category: '工资', amount: 12000, date: '2026-06-05', note: '六月工资' },
-  { id: 't2', type: 'expense', category: '餐饮', amount: 860, date: '2026-06-06', note: '日常餐饮' },
-  { id: 't3', type: 'expense', category: '交通', amount: 240, date: '2026-06-10', note: '通勤' },
-  { id: 't4', type: 'income', category: '副业', amount: 1800, date: '2026-05-21', note: '咨询项目' },
-  { id: 't5', type: 'expense', category: '娱乐', amount: 520, date: '2026-05-23', note: '电影与聚餐' }
+  { id: 't1', type: 'income', category: '工资', amount: 12000, date: '2026-06-05', note: '六月工资', accountId: 'cmb', accountName: '招商银行卡' },
+  { id: 't2', type: 'expense', category: '餐饮', amount: 860, date: '2026-06-06', note: '日常餐饮', accountId: 'wechat', accountName: '微信钱包' },
+  { id: 't3', type: 'expense', category: '交通', amount: 240, date: '2026-06-10', note: '通勤', accountId: 'wechat', accountName: '微信钱包' },
+  { id: 't4', type: 'income', category: '副业', amount: 1800, date: '2026-05-21', note: '咨询项目', accountId: 'cmb', accountName: '招商银行卡' },
+  { id: 't5', type: 'expense', category: '娱乐', amount: 520, date: '2026-05-23', note: '电影与聚餐', accountId: 'wechat', accountName: '微信钱包' }
 ];
 
 const emptyEntry: EntryForm = {
+  accountId: 'cmb',
   type: 'expense',
   amount: '',
   category: '餐饮',
@@ -321,6 +333,12 @@ function getMonthTransactions(transactions: Transaction[], periodValue: string) 
   };
 }
 
+function getPeriodTransactions(transactions: Transaction[], periodValue: string) {
+  return transactions
+    .filter((transaction) => transaction.date.startsWith(periodValue))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
 function MiniTrendChart({ transactions }: { transactions: Transaction[] }) {
   const points = getMonthlyTrend(transactions);
   const maxValue = Math.max(...points.flatMap((point) => [point.income, point.expense]), 1);
@@ -433,7 +451,8 @@ export default function App() {
   const [openAccountMonth, setOpenAccountMonth] = useState<string | null>(period);
   const [selectedCalendarMonth, setSelectedCalendarMonth] = useState<string | null>(null);
   const [isEntryOpen, setIsEntryOpen] = useState(false);
-  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [isCashflowPageOpen, setIsCashflowPageOpen] = useState(false);
+  const [selectedLedgerDate, setSelectedLedgerDate] = useState('2026-06-28');
   const [entry, setEntry] = useState<EntryForm>(emptyEntry);
   const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccount);
   const [activityForm, setActivityForm] = useState<ActivityForm>(emptyActivity);
@@ -452,6 +471,19 @@ export default function App() {
   const selectedAccountMonths = summarizeActivitiesByMonth(selectedAccountActivities);
   const operationLabels = getOperationLabels(selectedAccount);
   const transferTargets = selectedAccount ? accounts.filter((account) => account.id !== selectedAccount.id) : [];
+  const cashAccounts = getAccountsByGroup('cash');
+  const periodTransactions = useMemo(() => getPeriodTransactions(transactions, period), [transactions]);
+  const ledgerDates = useMemo(
+    () => Array.from(new Set(periodTransactions.map((transaction) => transaction.date))).sort((a, b) => b.localeCompare(a)),
+    [periodTransactions]
+  );
+  const activeLedgerDate = ledgerDates.includes(selectedLedgerDate) ? selectedLedgerDate : ledgerDates[0] ?? '';
+  const activeDateTransactions = periodTransactions.filter((transaction) => transaction.date === activeLedgerDate);
+  const entryAccount = accounts.find((account) => account.id === entry.accountId && account.group === 'cash') ?? null;
+  const entryAmount = Number(entry.amount);
+  const hasPreviewAmount = Number.isFinite(entryAmount) && entryAmount > 0;
+  const entryBalanceAfter =
+    entryAccount && hasPreviewAmount ? entryAccount.balance + (entry.type === 'income' ? entryAmount : -entryAmount) : null;
 
   function getAccountsByGroup(groupId: AccountGroupId): Account[] {
     return accounts.filter((account) => account.group === groupId);
@@ -464,25 +496,66 @@ export default function App() {
   function submitEntry(event: React.FormEvent) {
     event.preventDefault();
     const amount = Number(entry.amount);
+    const selectedCashAccount = accounts.find((account) => account.id === entry.accountId && account.group === 'cash');
     if (!Number.isFinite(amount) || amount <= 0) {
       setFormError('请输入大于 0 的金额');
       return;
     }
+    if (!selectedCashAccount) {
+      setFormError('请选择这笔现金流对应的资金账户');
+      return;
+    }
+    if (entry.type === 'expense' && amount > selectedCashAccount.balance) {
+      setFormError('支出金额不能大于所选资金账户余额');
+      return;
+    }
 
+    const balanceAfter = selectedCashAccount.balance + (entry.type === 'income' ? amount : -amount);
+    const transactionId = createId('transaction');
+    const category = entry.category.trim() || '其他';
+    const note = entry.note.trim() || category;
     setTransactions((current) => [
       {
-        id: createId('transaction'),
+        id: transactionId,
         type: entry.type,
-        category: entry.category.trim() || '其他',
+        category,
         amount,
         date: entry.date,
-        note: entry.note.trim() || entry.category
+        note,
+        accountId: selectedCashAccount.id,
+        accountName: selectedCashAccount.name
       },
       ...current
     ]);
+    setAccountActivities((current) => [
+      {
+        id: `${transactionId}-account`,
+        accountId: selectedCashAccount.id,
+        type: entry.type,
+        amount,
+        purpose: note,
+        date: entry.date,
+        balanceAfter
+      },
+      ...current
+    ]);
+    setAccounts((current) =>
+      current.map((account) =>
+        account.id === selectedCashAccount.id
+          ? {
+              ...account,
+              balance: balanceAfter
+            }
+          : account
+      )
+    );
+    setExpandedGroup('cash');
+    setOpenAccountMonth(entry.date.slice(0, 7));
     setEntry(emptyEntry);
     setFormError('');
     setIsEntryOpen(false);
+    setSelectedLedgerDate(entry.date);
+    setIsCashflowPageOpen(true);
   }
 
   function submitAccount(event: React.FormEvent) {
@@ -552,7 +625,9 @@ export default function App() {
         category: selectedAccount.name,
         amount,
         date: activityForm.date,
-        note: activityForm.purpose.trim()
+        note: activityForm.purpose.trim(),
+        accountId: selectedAccount.id,
+        accountName: selectedAccount.name
       },
       ...current
     ]);
@@ -617,7 +692,59 @@ export default function App() {
   }
 
   return (
-    <main className="app-shell">
+    <>
+      <header className="app-header" aria-label="全局导航">
+        <div className="brand-mark">
+          <strong>GOLDQUEST FINANCE</strong>
+          <CircleDollarSign size={24} />
+        </div>
+        <nav className="top-nav" aria-label="主导航">
+          <a className="active" href="#vault">金库</a>
+          <a href="#quests">任务</a>
+          <a href="#market">市场</a>
+        </nav>
+        <div className="header-tools">
+          <button className="round-tool" type="button" aria-label="通知"><Bell size={20} /></button>
+          <button className="round-tool" type="button" aria-label="设置"><Settings size={20} /></button>
+          <div className="avatar-badge" aria-label="角色头像">42</div>
+        </div>
+      </header>
+
+      <aside className="app-sidebar" aria-label="角色与模块导航">
+        <section className="character-card" aria-label="角色卡">
+          <div className="character-emblem"><Shield size={34} /></div>
+          <h2>42级 圣骑士</h2>
+          <p>理财大师</p>
+        </section>
+        <nav className="side-nav" aria-label="系统模块">
+          <a className="active" href="#vault"><CircleDollarSign size={19} /> 金库</a>
+          <a href="#quests"><Target size={19} /> 任务</a>
+          <a href="#market"><Store size={19} /> 市场</a>
+          <a href="#guild"><Users size={19} /> 公会</a>
+          <a href="#history"><History size={19} /> 历史</a>
+        </nav>
+        <section className="hero-stats" aria-label="英雄属性">
+          <div className="hero-stats-title"><span>英雄属性</span><Trophy size={16} /></div>
+          <div className="xp-row">
+            <span>财富力</span>
+            <div className="xp-bar"><i style={{ width: '75%' }} /></div>
+          </div>
+          <div className="xp-row">
+            <span>储蓄敏捷度</span>
+            <div className="xp-bar"><i className="emerald-fill" style={{ width: '88%' }} /></div>
+          </div>
+          <div className="xp-row">
+            <span>投资智力</span>
+            <div className="xp-bar"><i className="ruby-fill" style={{ width: '45%' }} /></div>
+          </div>
+        </section>
+        <div className="sidebar-footer">
+          <a href="#help"><HelpCircle size={18} /> 帮助</a>
+          <a href="#logout"><LogOut size={18} /> 登出</a>
+        </div>
+      </aside>
+
+      <main className="app-shell" id="vault">
       <section className="hero-panel wealth-hero">
         <div className="hero-copy">
           <div className="eyebrow"><CircleDollarSign size={18} /> 经济系统 · {releaseVersion} · {releaseDate}</div>
@@ -698,46 +825,121 @@ export default function App() {
         })}
       </section>
 
-      <section className="analysis-entry panel" aria-label="分析页入口">
-        <div className="analysis-entry-header">
-          <div>
-            <p>分析页</p>
-            <h2>本月支出去向</h2>
-            <span>分类洞察收进下拉页，首页优先服务账户管理。</span>
-          </div>
-          <button className="secondary-action" type="button" aria-expanded={isAnalysisOpen} onClick={() => setIsAnalysisOpen((current) => !current)}>
-            <BarChart3 size={18} /> {isAnalysisOpen ? '收起分析' : '查看分析'}
-          </button>
-        </div>
-        {isAnalysisOpen ? (
-          <div className="analysis-dropdown" role="region" aria-label="本月支出去向明细">
-            <div className="expense-pie-layout">
-              <div
-                className="expense-pie"
-                role="img"
-                aria-label="本月支出去向饼图"
-                style={{ background: getPieGradient(expenseCategories) }}
-              >
-                <span>支出</span>
-                <strong>{formatCurrency(overview.monthlyExpense)}</strong>
-              </div>
-              <div className="category-list pie-legend">
-                {expenseCategories.map((item, index) => (
-                  <div className="category-row" key={item.category}>
-                    <div className="category-topline">
-                      <strong><i style={{ background: getCategoryColor(index) }} /> {item.category}</strong>
-                      <span>{formatCurrency(item.amount)}</span>
-                    </div>
-                    <small>{item.share}% 的本月支出</small>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
+      <section className="cashflow-log panel" aria-label="本月收入支出">
+        <button className="cashflow-log-header" type="button" onClick={() => setIsCashflowPageOpen(true)}>
+          <span>
+            <small>Income & Expense</small>
+            <strong>本月收入支出</strong>
+          </span>
+          <span className="cashflow-log-summary">
+            <b>{periodTransactions.length} 笔</b>
+            <small>收入 {formatCurrency(overview.monthlyIncome)} / 支出 {formatCurrency(overview.monthlyExpense)}</small>
+          </span>
+          <BarChart3 size={22} />
+        </button>
       </section>
 
       <MonthlySavingsCalendar transactions={transactions} onSelectMonth={setSelectedCalendarMonth} />
+
+      {isCashflowPageOpen ? (
+        <div className="sheet-backdrop cashflow-page-backdrop" role="presentation">
+          <section className="cashflow-page" role="dialog" aria-label="本月收入支出详情">
+            <div className="cashflow-page-topbar">
+              <button className="icon-button" type="button" aria-label="关闭本月收入支出详情" onClick={() => setIsCashflowPageOpen(false)}>
+                <X size={20} />
+              </button>
+              <div>
+                <p>Income & Expense</p>
+                <h2>本月收入支出</h2>
+              </div>
+              <button className="secondary-action" type="button" onClick={() => setIsEntryOpen(true)}>
+                <Plus size={18} /> 记一笔
+              </button>
+            </div>
+
+            <div className="cashflow-filter-bar">
+              <label className="ledger-date-select">
+                <span>{period}</span>
+                <select value={activeLedgerDate} onChange={(event) => setSelectedLedgerDate(event.target.value)}>
+                  {ledgerDates.map((date) => (
+                    <option value={date} key={date}>{date}</option>
+                  ))}
+                </select>
+              </label>
+              <span>资金账户</span>
+              <span>按金额</span>
+              <button className="text-filter-button" type="button">筛选</button>
+            </div>
+
+            <div className="cashflow-page-grid">
+              <aside className="cashflow-analysis-panel">
+                <div
+                  className="expense-pie"
+                  role="img"
+                  aria-label="本月支出去向饼图"
+                  style={{ background: getPieGradient(expenseCategories) }}
+                >
+                  <span>支出</span>
+                  <strong>{formatCurrency(overview.monthlyExpense)}</strong>
+                </div>
+                <div className="analysis-summary-grid" aria-label="本月收支分析">
+                  <div>
+                    <span>总收入</span>
+                    <strong className="income">{formatCurrency(overview.monthlyIncome)}</strong>
+                  </div>
+                  <div>
+                    <span>总支出</span>
+                    <strong className="expense">{formatCurrency(overview.monthlyExpense)}</strong>
+                  </div>
+                  <div>
+                    <span>本月结余</span>
+                    <strong>{formatCurrency(overview.monthlyBalance)}</strong>
+                  </div>
+                  <div>
+                    <span>储蓄率</span>
+                    <strong>{overview.savingsRate}%</strong>
+                  </div>
+                </div>
+                <div className="category-list pie-legend">
+                  {expenseCategories.map((item, index) => (
+                    <div className="category-row" key={item.category}>
+                      <div className="category-topline">
+                        <strong><i style={{ background: getCategoryColor(index) }} /> {item.category}</strong>
+                        <span>{formatCurrency(item.amount)}</span>
+                      </div>
+                      <small>{item.share}% 的本月支出</small>
+                    </div>
+                  ))}
+                </div>
+              </aside>
+
+              <section className="ledger-day-panel" aria-label="每日收支记录">
+                <div className="ledger-day-heading">
+                  <span>{activeLedgerDate || '暂无日期'}</span>
+                  <strong>{activeDateTransactions.length} 笔记录</strong>
+                </div>
+                <div className="cashflow-record-list" role="region" aria-label="本月收入支出记录明细">
+                  {activeDateTransactions.length > 0 ? (
+                    activeDateTransactions.map((transaction) => (
+                      <div className="cashflow-record-row" key={transaction.id}>
+                        <span>
+                          <strong>{transaction.note || transaction.category}</strong>
+                          <small>
+                            {transaction.accountName || '未绑定账户'} · {transaction.date} · {transaction.category}
+                          </small>
+                        </span>
+                        <b className={transaction.type}>{formatSignedCurrency(transaction.type, transaction.amount)}</b>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="hint">这一天还没有收入或支出记录。</p>
+                  )}
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       {isEntryOpen ? (
         <div className="sheet-backdrop" role="presentation">
@@ -769,9 +971,35 @@ export default function App() {
             </fieldset>
 
             <label className="field">
+              <span>资金账户</span>
+              <select
+                value={entry.accountId}
+                onChange={(event) => setEntry((current) => ({ ...current, accountId: event.target.value }))}
+              >
+                {cashAccounts.map((account) => (
+                  <option value={account.id} key={account.id}>
+                    {account.name} · {formatCurrency(account.balance)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
               <span>金额</span>
               <input inputMode="decimal" value={entry.amount} onChange={(event) => setEntry((current) => ({ ...current, amount: event.target.value }))} />
             </label>
+            {entryAccount ? (
+              <div className="balance-preview" aria-label="资金账户余额预览">
+                <span>{entryAccount.name}</span>
+                <strong>{formatCurrency(entryAccount.balance)}</strong>
+                {entryBalanceAfter !== null ? (
+                  <small className={entryBalanceAfter >= entryAccount.balance ? 'income' : 'expense'}>
+                    {entry.type === 'income' ? '入账后余额' : '扣除后余额'}：{formatCurrency(entryBalanceAfter)}
+                  </small>
+                ) : (
+                  <small>输入金额后预览余额变化</small>
+                )}
+              </div>
+            ) : null}
             <label className="field">
               <span>分类</span>
               <input value={entry.category} onChange={(event) => setEntry((current) => ({ ...current, category: event.target.value }))} />
@@ -1040,6 +1268,7 @@ export default function App() {
           </form>
         </div>
       ) : null}
-    </main>
+      </main>
+    </>
   );
 }
