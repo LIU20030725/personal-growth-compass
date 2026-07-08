@@ -4,11 +4,12 @@ import {
   ArrowUpRight,
   BarChart3,
   Bell,
+  Brain,
   CalendarDays,
   ChevronDown,
   CircleDollarSign,
   HelpCircle,
-  History,
+  HeartPulse,
   LineChart,
   LogOut,
   PiggyBank,
@@ -16,10 +17,8 @@ import {
   ReceiptText,
   Settings,
   Shield,
-  Store,
-  Target,
+  Smile,
   Trophy,
-  Users,
   WalletCards,
   X
 } from 'lucide-react';
@@ -717,24 +716,24 @@ export default function App() {
           <p>理财大师</p>
         </section>
         <nav className="side-nav" aria-label="系统模块">
-          <a className="active" href="#vault"><CircleDollarSign size={19} /> 金库</a>
-          <a href="#quests"><Target size={19} /> 任务</a>
-          <a href="#market"><Store size={19} /> 市场</a>
-          <a href="#guild"><Users size={19} /> 公会</a>
-          <a href="#history"><History size={19} /> 历史</a>
+          <a className="active" href="#vault"><CircleDollarSign size={19} /> 财富状况</a>
+          <a href="#ability"><Brain size={19} /> 能力属性</a>
+          <a href="#body"><HeartPulse size={19} /> 健康状况</a>
+          <a href="#emotion"><Smile size={19} /> 情绪状态</a>
+          <a href="#achievements"><Trophy size={19} /> 成就收集</a>
         </nav>
         <section className="hero-stats" aria-label="英雄属性">
           <div className="hero-stats-title"><span>英雄属性</span><Trophy size={16} /></div>
           <div className="xp-row">
-            <span>财富力</span>
+            <span>财富</span>
             <div className="xp-bar"><i style={{ width: '75%' }} /></div>
           </div>
           <div className="xp-row">
-            <span>储蓄敏捷度</span>
+            <span>健康度</span>
             <div className="xp-bar"><i className="emerald-fill" style={{ width: '88%' }} /></div>
           </div>
           <div className="xp-row">
-            <span>投资智力</span>
+            <span>情绪</span>
             <div className="xp-bar"><i className="ruby-fill" style={{ width: '45%' }} /></div>
           </div>
         </section>

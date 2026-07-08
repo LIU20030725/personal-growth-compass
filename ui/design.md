@@ -12,12 +12,15 @@ This document records UI direction, visual rules, component behavior, and design
 
 ## Core Layout
 
-- Home page uses a compass-style overview with four major systems:
-  - Economy
-  - Ability
-  - Body
-  - Emotion
-- Each system should drill down into clear submodules.
+- Current GoldQuest dashboard keeps the finance command hall as the main work surface while exposing the broader personal-growth system in the sidebar.
+- Sidebar system navigation uses five growth entries:
+  - 财富状况 / Wealth
+  - 能力属性 / Ability
+  - 健康状况 / Body Health
+  - 情绪状态 / Emotion
+  - 成就收集 / Achievements
+- Finance remains the first fully implemented module; the other entries are navigation anchors and visual placeholders for the broader product architecture.
+- Each system should eventually drill down into clear submodules.
 - Mobile layout must be considered from the start.
 
 ## UI Principles
@@ -32,8 +35,9 @@ This document records UI direction, visual rules, component behavior, and design
 
 ### Dashboard
 
-- Compass overview should show current system status at a glance.
-- System cards should expose key numbers and next action.
+- The current dashboard should read as a bright RPG finance command hall: fixed header, left character/status sidebar, net-worth hero, metric cards, account cards, monthly cashflow, and savings calendar.
+- The sidebar is the bridge back to the full personal-growth compass, so icon language must cover wealth, ability, health, emotion, and achievement collection.
+- System cards and panels should expose key numbers and next action.
 
 ### Economy
 
@@ -53,9 +57,13 @@ This document records UI direction, visual rules, component behavior, and design
 
 - Stress and release records should feel lightweight and low-friction.
 
+### Achievements
+
+- Achievement collection should use trophy, medal, badge, and milestone language.
+- Achievement icons should feel collectible but still match the hard-outline GoldQuest visual system.
+
 ## Open Decisions
 
-- Exact color palette
 - Compass sector visual style
 - Skill tree interaction pattern
 - Mobile bottom navigation behavior
