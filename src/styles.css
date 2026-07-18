@@ -583,26 +583,70 @@ p {
 }
 
 .account-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
   min-height: 64px;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px;
+  gap: 8px;
+  padding: 8px;
   color: var(--ink);
   text-align: left;
 }
 
-.account-row span {
+.account-row-main {
+  display: flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  text-align: left;
+}
+
+.account-row-main span {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
 
-.account-row b {
+.account-row-main b {
   color: var(--emerald);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.account-delete-button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(210, 68, 68, 0.16);
+  border-radius: 4px;
+  color: rgba(210, 68, 68, 0.42);
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.36);
+  backdrop-filter: blur(10px) saturate(130%);
+  transition:
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.account-delete-button:hover,
+.account-delete-button:focus-visible {
+  border-color: var(--ruby);
+  color: var(--ruby);
+  background: rgba(255, 232, 232, 0.72);
+  box-shadow:
+    0 8px 18px rgba(210, 68, 68, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+  transform: translateY(-1px);
 }
 
 .cashflow-log,
@@ -629,7 +673,6 @@ p {
 
 .section-heading h2,
 .sheet-header h2,
-.transfer-panel h2,
 .cashflow-page-topbar h2 {
   font-family: "Bebas Neue", "Bricolage Grotesque", sans-serif;
   font-size: 34px;
@@ -1062,6 +1105,11 @@ p {
   background: rgba(25, 28, 29, 0.42);
 }
 
+.sheet-backdrop.cashflow-page-backdrop {
+  place-items: center;
+  padding: 24px;
+}
+
 .entry-sheet {
   width: min(460px, 100%);
   height: 100%;
@@ -1081,6 +1129,33 @@ p {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 24px;
+}
+
+.account-title-row,
+.rename-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-title-row h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rename-row {
+  flex-wrap: wrap;
+}
+
+.rename-row input {
+  min-width: min(260px, 100%);
+  min-height: 44px;
+  padding: 0 12px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--surface);
+  font-weight: 800;
 }
 
 .sheet-header p {
@@ -1158,7 +1233,10 @@ p {
 .icon-button:focus-visible,
 .primary-action:focus-visible,
 .secondary-action:focus-visible,
+.danger-action:focus-visible,
 .add-account-button:focus-visible,
+.account-row-main:focus-visible,
+.account-delete-button:focus-visible,
 .round-tool:focus-visible {
   outline: 3px solid var(--gold);
   outline-offset: 2px;
@@ -1170,8 +1248,60 @@ p {
   font-weight: 800;
 }
 
-.account-balance-panel,
-.transfer-panel {
+.confirm-backdrop {
+  place-items: center;
+  padding: 24px;
+}
+
+.confirm-dialog {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 14px;
+  padding: 22px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: var(--surface);
+  box-shadow: var(--shadow-hard);
+}
+
+.confirm-dialog h2 {
+  font-family: "Bebas Neue", "Bricolage Grotesque", sans-serif;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.confirm-dialog p {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.danger-action {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 18px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  color: var(--ink);
+  background: var(--ruby-light);
+  box-shadow: var(--shadow-hard);
+  font-weight: 900;
+}
+
+.danger-action:hover {
+  background: var(--ruby);
+}
+
+.account-balance-panel {
   display: grid;
   gap: 8px;
   margin-bottom: 18px;
@@ -1185,10 +1315,6 @@ p {
   color: var(--emerald);
   font-size: 34px;
   font-variant-numeric: tabular-nums;
-}
-
-.transfer-panel {
-  margin-top: 20px;
 }
 
 .monthly-bill-list {
@@ -1419,7 +1545,8 @@ p {
     justify-items: start;
   }
 
-  .cashflow-page-backdrop {
+  .sheet-backdrop.cashflow-page-backdrop {
+    justify-items: center;
     align-items: stretch;
     padding: 10px;
   }

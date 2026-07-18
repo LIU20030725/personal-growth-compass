@@ -36,6 +36,25 @@ describe('Economy dashboard', () => {
     expect(within(cashflowPage).getByLabelText('每日收支记录')).toBeInTheDocument();
   });
 
+  it('closes subpages when the backdrop canvas is clicked', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /本月收入支出/ }));
+    const cashflowPage = screen.getByLabelText('本月收入支出详情');
+    fireEvent.click(cashflowPage.parentElement as HTMLElement);
+    expect(screen.queryByLabelText('本月收入支出详情')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /记一笔/ }));
+    const entrySheet = screen.getByLabelText('快速记账表单');
+    fireEvent.click(entrySheet.parentElement as HTMLElement);
+    expect(screen.queryByLabelText('快速记账表单')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /招商银行卡/ }));
+    const accountDetail = screen.getByLabelText('账户详情表单');
+    fireEvent.click(accountDetail.parentElement as HTMLElement);
+    expect(screen.queryByLabelText('账户详情表单')).not.toBeInTheDocument();
+  });
+
   it('adds a new cash account from the account dropdown', () => {
     render(<App />);
 
@@ -48,6 +67,29 @@ describe('Economy dashboard', () => {
     expect(screen.getByText('工商银行卡')).toBeInTheDocument();
     expect(screen.getByText('备用储蓄卡')).toBeInTheDocument();
     expect(screen.getByText('¥62,120')).toBeInTheDocument();
+  });
+
+  it('renames accounts from the detail pencil and deletes them only after confirmation', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /招商银行卡/ }));
+    const detail = screen.getByLabelText('账户详情表单');
+    fireEvent.click(within(detail).getByRole('button', { name: /重命名招商银行卡/ }));
+    fireEvent.change(within(detail).getByLabelText('新的账户名称'), { target: { value: '主工资银行卡' } });
+    fireEvent.click(within(detail).getByRole('button', { name: '保存' }));
+    expect(within(detail).getByRole('heading', { name: '主工资银行卡' })).toBeInTheDocument();
+
+    fireEvent.click(within(detail).getByRole('button', { name: '关闭账户详情' }));
+    fireEvent.click(screen.getAllByLabelText('删除此账户')[0]);
+    const confirmDialog = screen.getByRole('dialog', { name: '是否删除此账户信息？' });
+    expect(within(confirmDialog).getByText(/主工资银行卡/)).toBeInTheDocument();
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: '否' }));
+    expect(screen.getByRole('button', { name: /主工资银行卡/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByLabelText('删除此账户')[0]);
+    fireEvent.click(screen.getByRole('button', { name: '是' }));
+    expect(screen.queryByRole('button', { name: /主工资银行卡/ })).not.toBeInTheDocument();
+    expect(screen.getByText('¥46,820')).toBeInTheDocument();
   });
 
   it('posts quick cashflow entries to the selected cash account and ledger', () => {
@@ -80,12 +122,14 @@ describe('Economy dashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /招商银行卡/ }));
     fireEvent.change(screen.getByLabelText('金额'), { target: { value: '300' } });
-    fireEvent.change(screen.getByLabelText('用途分析'), { target: { value: '工资补发' } });
+    fireEvent.change(screen.getByLabelText('用途分析'), { target: { value: '收益入账' } });
+    fireEvent.change(screen.getByLabelText('用途说明'), { target: { value: '工资补发' } });
     fireEvent.click(screen.getByLabelText('收入'));
     fireEvent.click(screen.getByRole('button', { name: '保存账户记录' }));
 
     fireEvent.change(screen.getByLabelText('金额'), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText('用途分析'), { target: { value: '充电话费' } });
+    fireEvent.change(screen.getByLabelText('用途分析'), { target: { value: '日常支出' } });
+    fireEvent.change(screen.getByLabelText('用途说明'), { target: { value: '充电话费' } });
     fireEvent.click(screen.getByLabelText('支出'));
     fireEvent.click(screen.getByRole('button', { name: '保存账户记录' }));
 
@@ -111,12 +155,12 @@ describe('Economy dashboard', () => {
     expect(within(detail).getByLabelText('盈收')).toBeInTheDocument();
     expect(within(detail).getByLabelText('亏损')).toBeInTheDocument();
 
+    fireEvent.change(within(detail).getByLabelText('金额'), { target: { value: '500' } });
+    fireEvent.change(within(detail).getByLabelText('用途分析'), { target: { value: '银行卡转账' } });
     fireEvent.change(within(detail).getByLabelText('转入账户'), { target: { value: 'wechat' } });
-    fireEvent.change(within(detail).getByLabelText('转账金额'), { target: { value: '500' } });
-    fireEvent.change(within(detail).getByLabelText('转账用途'), { target: { value: '理财账户转入微信零钱' } });
-    fireEvent.click(within(detail).getByRole('button', { name: '保存转账' }));
+    fireEvent.click(within(detail).getByRole('button', { name: '保存账户记录' }));
 
-    expect(within(detail).getByText('理财账户转入微信零钱')).toBeInTheDocument();
+    expect(within(detail).getByText('银行卡转账至 微信钱包')).toBeInTheDocument();
     expect(screen.getByLabelText('本月支出金额')).toHaveTextContent('¥1,100');
     expect(screen.getByText('¥12,000')).toBeInTheDocument();
   });

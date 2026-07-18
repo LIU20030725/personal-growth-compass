@@ -12,6 +12,7 @@ import {
   HeartPulse,
   LineChart,
   LogOut,
+  Pencil,
   PiggyBank,
   Plus,
   ReceiptText,
@@ -51,6 +52,7 @@ type Account = {
 };
 
 type ActivityType = TransactionType | 'transfer-in' | 'transfer-out';
+type ActivityPurpose = '日常支出' | '收益入账' | '账户调整' | '报销到账' | '银行卡转账' | '其他';
 
 type AccountActivity = {
   id: string;
@@ -92,14 +94,9 @@ type AccountForm = {
 type ActivityForm = {
   type: TransactionType;
   amount: string;
+  purposeType: ActivityPurpose;
   purpose: string;
-  date: string;
-};
-
-type TransferForm = {
-  toAccountId: string;
-  amount: string;
-  purpose: string;
+  transferAccountId: string;
   date: string;
 };
 
@@ -150,15 +147,10 @@ const emptyAccount: AccountForm = {
 
 const emptyActivity: ActivityForm = {
   type: 'expense',
+  purposeType: '日常支出',
   amount: '',
   purpose: '',
-  date: '2026-06-28'
-};
-
-const emptyTransfer: TransferForm = {
-  toAccountId: '',
-  amount: '',
-  purpose: '',
+  transferAccountId: '',
   date: '2026-06-28'
 };
 
@@ -455,7 +447,8 @@ export default function App() {
   const [entry, setEntry] = useState<EntryForm>(emptyEntry);
   const [accountForm, setAccountForm] = useState<AccountForm>(emptyAccount);
   const [activityForm, setActivityForm] = useState<ActivityForm>(emptyActivity);
-  const [transferForm, setTransferForm] = useState<TransferForm>(emptyTransfer);
+  const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [formError, setFormError] = useState('');
 
   const financeState = useMemo(() => buildFinanceState(accounts, transactions), [accounts, transactions]);
@@ -470,6 +463,8 @@ export default function App() {
   const selectedAccountMonths = summarizeActivitiesByMonth(selectedAccountActivities);
   const operationLabels = getOperationLabels(selectedAccount);
   const transferTargets = selectedAccount ? accounts.filter((account) => account.id !== selectedAccount.id) : [];
+  const deleteAccount = accounts.find((account) => account.id === deleteAccountId) ?? null;
+  const isTransferActivity = activityForm.purposeType === '银行卡转账';
   const cashAccounts = getAccountsByGroup('cash');
   const periodTransactions = useMemo(() => getPeriodTransactions(transactions, period), [transactions]);
   const ledgerDates = useMemo(
@@ -589,18 +584,74 @@ export default function App() {
     event.preventDefault();
     if (!selectedAccount) return;
     const amount = Number(activityForm.amount);
-    if (!Number.isFinite(amount) || amount <= 0 || !activityForm.purpose.trim()) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       setFormError('请输入金额和这笔钱的用途');
       return;
     }
 
+    if (activityForm.purposeType === '银行卡转账') {
+      const targetAccount = accounts.find((account) => account.id === activityForm.transferAccountId);
+      if (!targetAccount) {
+        setFormError('请选择转入账户');
+        return;
+      }
+      if (amount > selectedAccount.balance) {
+        setFormError('转出金额不能大于当前余额');
+        return;
+      }
+
+      const sourceBalanceAfter = selectedAccount.balance - amount;
+      const targetBalanceAfter = targetAccount.balance + amount;
+      const transferId = createId('transfer');
+
+      setAccounts((current) =>
+        current.map((account) => {
+          if (account.id === selectedAccount.id) {
+            return { ...account, balance: sourceBalanceAfter };
+          }
+          if (account.id === targetAccount.id) {
+            return { ...account, balance: targetBalanceAfter };
+          }
+          return account;
+        })
+      );
+      setAccountActivities((current) => [
+        {
+          id: `${transferId}-out`,
+          accountId: selectedAccount.id,
+          type: 'transfer-out',
+          amount,
+          purpose: `银行卡转账至 ${targetAccount.name}`,
+          date: activityForm.date,
+          balanceAfter: sourceBalanceAfter,
+          relatedAccountName: targetAccount.name
+        },
+        {
+          id: `${transferId}-in`,
+          accountId: targetAccount.id,
+          type: 'transfer-in',
+          amount,
+          purpose: `银行卡转账自 ${selectedAccount.name}`,
+          date: activityForm.date,
+          balanceAfter: targetBalanceAfter,
+          relatedAccountName: selectedAccount.name
+        },
+        ...current
+      ]);
+      setOpenAccountMonth(activityForm.date.slice(0, 7));
+      setActivityForm(emptyActivity);
+      setFormError('');
+      return;
+    }
+
+    const purposeText = activityForm.purpose.trim() || activityForm.purposeType;
     const balanceAfter = selectedAccount.balance + (activityForm.type === 'income' ? amount : -amount);
     const nextActivity: AccountActivity = {
       id: createId('activity'),
       accountId: selectedAccount.id,
       type: activityForm.type,
       amount,
-      purpose: activityForm.purpose.trim(),
+      purpose: purposeText,
       date: activityForm.date,
       balanceAfter
     };
@@ -624,7 +675,7 @@ export default function App() {
         category: selectedAccount.name,
         amount,
         date: activityForm.date,
-        note: activityForm.purpose.trim(),
+        note: purposeText,
         accountId: selectedAccount.id,
         accountName: selectedAccount.name
       },
@@ -634,59 +685,46 @@ export default function App() {
     setFormError('');
   }
 
-  function submitTransfer() {
-    if (!selectedAccount) return;
-    const amount = Number(transferForm.amount);
-    const targetAccount = accounts.find((account) => account.id === transferForm.toAccountId);
-    if (!targetAccount || !Number.isFinite(amount) || amount <= 0 || !transferForm.purpose.trim()) {
-      setFormError('请选择转入账户，并填写金额和用途');
-      return;
-    }
-    if (amount > selectedAccount.balance) {
-      setFormError('转出金额不能大于当前余额');
-      return;
-    }
-
-    const sourceBalanceAfter = selectedAccount.balance - amount;
-    const targetBalanceAfter = targetAccount.balance + amount;
-    const transferId = createId('transfer');
-
-    setAccounts((current) =>
-      current.map((account) => {
-        if (account.id === selectedAccount.id) {
-          return { ...account, balance: sourceBalanceAfter };
-        }
-        if (account.id === targetAccount.id) {
-          return { ...account, balance: targetBalanceAfter };
-        }
-        return account;
-      })
+  function confirmDeleteAccount() {
+    if (!deleteAccount) return;
+    const remainingAccounts = accounts.filter((account) => account.id !== deleteAccount.id);
+    setAccounts(remainingAccounts);
+    setTransactions((current) => current.filter((transaction) => transaction.accountId !== deleteAccount.id));
+    setAccountActivities((current) => current.filter((activity) => activity.accountId !== deleteAccount.id));
+    setEntry((current) =>
+      current.accountId === deleteAccount.id
+        ? { ...current, accountId: remainingAccounts.find((account) => account.group === 'cash')?.id ?? '' }
+        : current
     );
-    setAccountActivities((current) => [
-      {
-        id: `${transferId}-out`,
-        accountId: selectedAccount.id,
-        type: 'transfer-out',
-        amount,
-        purpose: transferForm.purpose.trim(),
-        date: transferForm.date,
-        balanceAfter: sourceBalanceAfter,
-        relatedAccountName: targetAccount.name
-      },
-      {
-        id: `${transferId}-in`,
-        accountId: targetAccount.id,
-        type: 'transfer-in',
-        amount,
-        purpose: transferForm.purpose.trim(),
-        date: transferForm.date,
-        balanceAfter: targetBalanceAfter,
-        relatedAccountName: selectedAccount.name
-      },
-      ...current
-    ]);
-    setOpenAccountMonth(transferForm.date.slice(0, 7));
-    setTransferForm(emptyTransfer);
+    if (selectedAccountId === deleteAccount.id) {
+      setSelectedAccountId(null);
+    }
+    setDeleteAccountId(null);
+    setFormError('');
+  }
+
+  function startRenameAccount() {
+    if (!selectedAccount) return;
+    setRenameValue(selectedAccount.name);
+    setFormError('');
+  }
+
+  function saveRenameAccount() {
+    if (!selectedAccount) return;
+    const nextName = renameValue.trim();
+    if (!nextName) {
+      setFormError('请输入新的账户名称');
+      return;
+    }
+    setAccounts((current) =>
+      current.map((account) => (account.id === selectedAccount.id ? { ...account, name: nextName } : account))
+    );
+    setTransactions((current) =>
+      current.map((transaction) =>
+        transaction.accountId === selectedAccount.id ? { ...transaction, accountName: nextName } : transaction
+      )
+    );
+    setRenameValue('');
     setFormError('');
   }
 
@@ -806,13 +844,29 @@ export default function App() {
               {isOpen ? (
                 <div className="account-list">
                   {getAccountsByGroup(group.id).map((account) => (
-                    <button className="account-row" type="button" key={account.id} onClick={() => setSelectedAccountId(account.id)}>
-                      <span>
-                        <strong>{account.name}</strong>
-                        <small>{account.note}</small>
-                      </span>
-                      <b>{formatCurrency(account.balance)}</b>
-                    </button>
+                    <div className="account-row" key={account.id}>
+                      <button
+                        className="account-row-main"
+                        type="button"
+                        onClick={() => setSelectedAccountId(account.id)}
+                        aria-label={`${account.name} ${account.note} ${formatCurrency(account.balance)} 打开账户详情`}
+                      >
+                        <span>
+                          <strong>{account.name}</strong>
+                          <small>{account.note}</small>
+                        </span>
+                        <b>{formatCurrency(account.balance)}</b>
+                      </button>
+                      <button
+                        className="account-delete-button"
+                        type="button"
+                        aria-label="删除此账户"
+                        title={`删除${account.name}`}
+                        onClick={() => setDeleteAccountId(account.id)}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
                   ))}
                   <button className="add-account-button" type="button" onClick={() => { setAddingGroup(group.id); setFormError(''); }}>
                     <Plus size={18} /> {group.addLabel}
@@ -841,8 +895,8 @@ export default function App() {
       <MonthlySavingsCalendar transactions={transactions} onSelectMonth={setSelectedCalendarMonth} />
 
       {isCashflowPageOpen ? (
-        <div className="sheet-backdrop cashflow-page-backdrop" role="presentation">
-          <section className="cashflow-page" role="dialog" aria-label="本月收入支出详情">
+        <div className="sheet-backdrop cashflow-page-backdrop" role="presentation" onClick={() => setIsCashflowPageOpen(false)}>
+          <section className="cashflow-page" role="dialog" aria-label="本月收入支出详情" onClick={(event) => event.stopPropagation()}>
             <div className="cashflow-page-topbar">
               <button className="icon-button" type="button" aria-label="关闭本月收入支出详情" onClick={() => setIsCashflowPageOpen(false)}>
                 <X size={20} />
@@ -941,8 +995,8 @@ export default function App() {
       ) : null}
 
       {isEntryOpen ? (
-        <div className="sheet-backdrop" role="presentation">
-          <form className="entry-sheet" onSubmit={submitEntry} aria-label="快速记账表单">
+        <div className="sheet-backdrop" role="presentation" onClick={() => setIsEntryOpen(false)}>
+          <form className="entry-sheet" onSubmit={submitEntry} aria-label="快速记账表单" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-header">
               <div>
                 <p>Quick Entry</p>
@@ -1018,8 +1072,8 @@ export default function App() {
       ) : null}
 
       {addingGroup ? (
-        <div className="sheet-backdrop" role="presentation">
-          <form className="entry-sheet" onSubmit={submitAccount} aria-label="新增账户表单">
+        <div className="sheet-backdrop" role="presentation" onClick={() => setAddingGroup(null)}>
+          <form className="entry-sheet" onSubmit={submitAccount} aria-label="新增账户表单" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-header">
               <div>
                 <p>{accountGroups.find((group) => group.id === addingGroup)?.title}</p>
@@ -1091,9 +1145,26 @@ export default function App() {
         </div>
       ) : null}
 
+      {deleteAccount ? (
+        <div className="sheet-backdrop confirm-backdrop" role="presentation" onClick={() => setDeleteAccountId(null)}>
+          <section className="confirm-dialog" role="dialog" aria-modal="true" aria-label="是否删除此账户信息？" onClick={(event) => event.stopPropagation()}>
+            <h2>是否删除此账户信息？</h2>
+            <p>{deleteAccount.name} 的账户信息和该账户关联流水会一起删除。</p>
+            <div className="confirm-actions">
+              <button className="secondary-action" type="button" onClick={() => setDeleteAccountId(null)}>
+                否
+              </button>
+              <button className="danger-action" type="button" onClick={confirmDeleteAccount}>
+                是
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {selectedCalendarMonth ? (
-        <div className="sheet-backdrop" role="presentation">
-          <div className="entry-sheet account-detail-sheet" role="dialog" aria-label="月份收支来源">
+        <div className="sheet-backdrop" role="presentation" onClick={() => setSelectedCalendarMonth(null)}>
+          <div className="entry-sheet account-detail-sheet" role="dialog" aria-label="月份收支来源" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-header">
               <div>
                 <p>月度来源</p>
@@ -1140,12 +1211,33 @@ export default function App() {
       ) : null}
 
       {selectedAccount ? (
-        <div className="sheet-backdrop" role="presentation">
-          <form className="entry-sheet account-detail-sheet" onSubmit={submitAccountActivity} aria-label="账户详情表单">
+        <div className="sheet-backdrop" role="presentation" onClick={() => setSelectedAccountId(null)}>
+          <form className="entry-sheet account-detail-sheet" onSubmit={submitAccountActivity} aria-label="账户详情表单" onClick={(event) => event.stopPropagation()}>
             <div className="sheet-header">
               <div>
                 <p>账户详情</p>
-                <h2>{selectedAccount.name}</h2>
+                {renameValue ? (
+                  <div className="rename-row">
+                    <input
+                      aria-label="新的账户名称"
+                      value={renameValue}
+                      onChange={(event) => setRenameValue(event.target.value)}
+                    />
+                    <button className="secondary-action compact" type="button" onClick={saveRenameAccount}>
+                      保存
+                    </button>
+                    <button className="icon-button" type="button" aria-label="取消重命名" onClick={() => setRenameValue('')}>
+                      <X size={18} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="account-title-row">
+                    <h2>{selectedAccount.name}</h2>
+                    <button className="icon-button" type="button" aria-label={`重命名${selectedAccount.name}`} onClick={startRenameAccount}>
+                      <Pencil size={18} />
+                    </button>
+                  </div>
+                )}
               </div>
               <button className="icon-button" type="button" aria-label="关闭账户详情" onClick={() => setSelectedAccountId(null)}>
                 <X size={20} />
@@ -1181,44 +1273,55 @@ export default function App() {
             </label>
             <label className="field">
               <span>用途分析</span>
-              <textarea value={activityForm.purpose} onChange={(event) => setActivityForm((current) => ({ ...current, purpose: event.target.value }))} placeholder="这笔钱用于什么，为什么发生" />
+              <select
+                value={activityForm.purposeType}
+                onChange={(event) =>
+                  setActivityForm((current) => ({
+                    ...current,
+                    purposeType: event.target.value as ActivityPurpose,
+                    transferAccountId: event.target.value === '银行卡转账' ? current.transferAccountId : ''
+                  }))
+                }
+              >
+                <option value="日常支出">日常支出</option>
+                <option value="收益入账">收益入账</option>
+                <option value="账户调整">账户调整</option>
+                <option value="报销到账">报销到账</option>
+                <option value="银行卡转账">银行卡转账</option>
+                <option value="其他">其他</option>
+              </select>
             </label>
+            {isTransferActivity ? (
+              <label className="field">
+                <span>转入账户</span>
+                <select
+                  value={activityForm.transferAccountId}
+                  onChange={(event) => setActivityForm((current) => ({ ...current, transferAccountId: event.target.value }))}
+                >
+                  <option value="">请选择账户</option>
+                  {transferTargets.map((account) => (
+                    <option value={account.id} key={account.id}>
+                      {account.name} · {formatCurrency(account.balance)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="field">
+                <span>用途说明</span>
+                <input
+                  value={activityForm.purpose}
+                  onChange={(event) => setActivityForm((current) => ({ ...current, purpose: event.target.value }))}
+                  placeholder="例如 工资补发 / 充电话费"
+                />
+              </label>
+            )}
             <label className="field">
               <span>日期</span>
               <input type="date" value={activityForm.date} onChange={(event) => setActivityForm((current) => ({ ...current, date: event.target.value }))} />
             </label>
             {formError ? <p className="form-error" role="alert">{formError}</p> : null}
             <button className="primary-action full" type="submit">保存账户记录</button>
-            <div className="transfer-panel" aria-label="账户转账">
-              <div className="section-heading">
-                <div>
-                  <p>Transfer</p>
-                  <h2>账户转账</h2>
-                </div>
-              </div>
-              <label className="field">
-                <span>转入账户</span>
-                <select value={transferForm.toAccountId} onChange={(event) => setTransferForm((current) => ({ ...current, toAccountId: event.target.value }))}>
-                  <option value="">请选择账户</option>
-                  {transferTargets.map((account) => (
-                    <option value={account.id} key={account.id}>{account.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>转账金额</span>
-                <input inputMode="decimal" value={transferForm.amount} onChange={(event) => setTransferForm((current) => ({ ...current, amount: event.target.value }))} placeholder="例如 1000" />
-              </label>
-              <label className="field">
-                <span>转账用途</span>
-                <input value={transferForm.purpose} onChange={(event) => setTransferForm((current) => ({ ...current, purpose: event.target.value }))} placeholder="例如 银行卡转入微信钱包" />
-              </label>
-              <label className="field">
-                <span>日期</span>
-                <input type="date" value={transferForm.date} onChange={(event) => setTransferForm((current) => ({ ...current, date: event.target.value }))} />
-              </label>
-              <button className="secondary-action full" type="button" onClick={submitTransfer}>保存转账</button>
-            </div>
             <div className="monthly-bill-list" aria-label="账户月度流水记录">
               {selectedAccountMonths.length > 0 ? (
                 selectedAccountMonths.map((month) => {
