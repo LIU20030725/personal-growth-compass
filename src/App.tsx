@@ -30,6 +30,7 @@ import {
   type Transaction,
   type TransactionType
 } from './finance/financeEngine';
+import { Button } from '@/components/ui/button';
 
 const period = '2026-06';
 const currentYear = '2026';
@@ -857,15 +858,16 @@ export default function App() {
                         </span>
                         <b>{formatCurrency(account.balance)}</b>
                       </button>
-                      <button
-                        className="account-delete-button"
+                      <Button
+                        variant="glassDestructive"
+                        size="icon"
                         type="button"
                         aria-label="删除此账户"
                         title={`删除${account.name}`}
                         onClick={() => setDeleteAccountId(account.id)}
                       >
                         <X size={18} />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                   <button className="add-account-button" type="button" onClick={() => { setAddingGroup(group.id); setFormError(''); }}>
