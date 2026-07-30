@@ -441,6 +441,9 @@ type LongTermGoal = {
   status: GoalStatus;
   createdAt: string;
   completedAt: string | null;
+  archivedAt: string | null;
+  completionReflection: string;
+  completionEvidenceLink: string;
 };
 
 type ShortTask = {
@@ -463,6 +466,7 @@ type ShortTask = {
   rewardEligible: boolean;
   status: GoalStatus;
   createdAt: string;
+  archivedAt: string | null;
 };
 
 type TaskCompletion = {
