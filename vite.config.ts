@@ -11,7 +11,14 @@ export default defineConfig({
   },
   server: {
     watch: {
-      ignored: ['**/canvas/**', '**/docs/docs_bak/**', '**/exports/**']
+      ignored: [
+        '**/canvas/**',
+        '**/docs/docs_bak/**',
+        '**/exports/**',
+        '**/habitica/**',
+        '**/历史版本/**',
+        '**/资料/**'
+      ]
     }
   },
   test: {
@@ -24,7 +31,10 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/canvas/**',
       '**/docs/docs_bak/**',
-      '**/exports/**'
+      '**/exports/**',
+      '**/habitica/**',
+      '**/历史版本/**',
+      '**/资料/**'
     ]
   }
 });

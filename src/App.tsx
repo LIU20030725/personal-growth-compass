@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Bell,
+  BookOpen,
   Brain,
   CalendarDays,
   ChevronDown,
@@ -12,13 +13,15 @@ import {
   HeartPulse,
   LineChart,
   LogOut,
+  Medal,
   Pencil,
   PiggyBank,
   Plus,
   ReceiptText,
   Settings,
-  Shield,
   Smile,
+  Sparkles,
+  Target,
   Trophy,
   WalletCards,
   X
@@ -31,15 +34,17 @@ import {
   type TransactionType
 } from './finance/financeEngine';
 import { Button } from '@/components/ui/button';
+import { TaskBoard } from './tasks/TaskBoard';
 
 const period = '2026-06';
 const currentYear = '2026';
 const releaseVersion = 'V2.0';
-const releaseDate = '2026-07-02';
+const releaseDate = '2026-08-01';
 const propertyValue = 420000;
 const liabilityValue = 2100;
 
 type AccountGroupId = 'cash' | 'investment' | 'receivable';
+type MainView = 'finance' | 'character' | 'ability' | 'body' | 'emotion' | 'quests' | 'achievements' | 'journal';
 
 type Account = {
   id: string;
@@ -433,6 +438,133 @@ function MonthlySavingsCalendar({
   );
 }
 
+function PixelHeroAvatar({ compact = false }: { compact?: boolean }) {
+  return (
+    <svg
+      className={`pixel-hero ${compact ? 'compact' : ''}`}
+      viewBox="0 0 16 20"
+      role="img"
+      aria-label="Dice Life 像素角色"
+      shapeRendering="crispEdges"
+    >
+      <rect x="5" y="1" width="6" height="1" className="pixel-hair" />
+      <rect x="4" y="2" width="8" height="4" className="pixel-hair" />
+      <rect x="5" y="4" width="6" height="4" className="pixel-skin" />
+      <rect x="6" y="5" width="1" height="1" className="pixel-eye" />
+      <rect x="9" y="5" width="1" height="1" className="pixel-eye" />
+      <rect x="7" y="7" width="2" height="1" className="pixel-mouth" />
+      <rect x="3" y="8" width="10" height="6" className="pixel-armor" />
+      <rect x="1" y="9" width="3" height="5" className="pixel-skin" />
+      <rect x="12" y="9" width="3" height="5" className="pixel-skin" />
+      <rect x="6" y="9" width="4" height="4" className="pixel-gold" />
+      <rect x="4" y="14" width="3" height="5" className="pixel-boot" />
+      <rect x="9" y="14" width="3" height="5" className="pixel-boot" />
+      <rect x="3" y="18" width="4" height="1" className="pixel-shadow" />
+      <rect x="9" y="18" width="4" height="1" className="pixel-shadow" />
+    </svg>
+  );
+}
+
+const characterAttributes = [
+  { label: '财富管理', value: 75, className: 'gold-fill', note: '稳定成长' },
+  { label: '能力成长', value: 64, className: 'blue-fill', note: '本周 +3' },
+  { label: '身体状态', value: 88, className: 'emerald-fill', note: '状态良好' },
+  { label: '情绪韧性', value: 72, className: 'violet-fill', note: '保持觉察' }
+];
+
+function CharacterStatusView() {
+  return (
+    <section className="character-status-view" aria-label="人物状态信息表">
+      <div className="character-status-hero panel">
+        <div className="character-portrait-large"><PixelHeroAvatar /></div>
+        <div className="character-status-copy">
+          <p className="eyebrow"><Sparkles size={17} /> Character Status</p>
+          <h1>人物状态</h1>
+          <div className="character-name-row">
+            <strong>42级 · 生活冒险家</strong>
+            <span>称号：稳步前行者</span>
+          </div>
+          <p>把现实里的每一次行动记录成经验值，让财富、能力、身体与情绪在同一张角色表里持续升级。</p>
+          <div className="level-progress" aria-label="当前等级经验值 68%">
+            <span><b>LV.42</b><small>6,820 / 10,000 XP</small></span>
+            <div className="xp-bar"><i style={{ width: '68%' }} /></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="character-status-grid">
+        <section className="panel status-sheet">
+          <div className="section-heading">
+            <div><p>Core Attributes</p><h2>核心属性</h2></div>
+            <Target size={22} />
+          </div>
+          <div className="attribute-list">
+            {characterAttributes.map((attribute) => (
+              <div className="attribute-row" key={attribute.label}>
+                <span><strong>{attribute.label}</strong><small>{attribute.note}</small></span>
+                <b>{attribute.value}</b>
+                <div className="xp-bar"><i className={attribute.className} style={{ width: `${attribute.value}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel status-sheet">
+          <div className="section-heading">
+            <div><p>Current Questline</p><h2>当前主线</h2></div>
+            <BookOpen size={22} />
+          </div>
+          <div className="quest-list">
+            <article><span>01</span><div><strong>建立稳定的晨间系统</strong><small>连续完成 5 / 7 天</small></div><b>+120 XP</b></article>
+            <article><span>02</span><div><strong>完成本月成长复盘</strong><small>整理财富、能力与健康记录</small></div><b>+200 XP</b></article>
+            <article><span>03</span><div><strong>推进年度核心项目</strong><small>本周进度 3 / 5</small></div><b>+300 XP</b></article>
+          </div>
+        </section>
+      </div>
+
+      <section className="panel character-table-panel">
+        <div className="section-heading">
+          <div><p>Adventure Record</p><h2>冒险档案</h2></div>
+          <Medal size={22} />
+        </div>
+        <dl className="character-info-table">
+          <div><dt>职业路径</dt><dd>个人成长规划师</dd></div>
+          <div><dt>本周连胜</dt><dd>5 天</dd></div>
+          <div><dt>已完成任务</dt><dd>128</dd></div>
+          <div><dt>解锁成就</dt><dd>24 / 60</dd></div>
+          <div><dt>当前章节</dt><dd>第三章 · 稳态进阶</dd></div>
+          <div><dt>下个里程碑</dt><dd>LV.43 · 还需 3,180 XP</dd></div>
+        </dl>
+      </section>
+    </section>
+  );
+}
+
+const moduleViewContent: Record<Exclude<MainView, 'finance' | 'character'>, { eyebrow: string; title: string; description: string; items: string[] }> = {
+  ability: { eyebrow: 'Ability Tree', title: '能力属性', description: '用技能树管理专业能力、通用能力与长期练习。', items: ['专业技能树', '本周练习', '能力里程碑'] },
+  body: { eyebrow: 'Body Status', title: '健康状况', description: '记录睡眠、运动与身体指标，保持稳定输出。', items: ['睡眠恢复', '运动计划', '身体数据'] },
+  emotion: { eyebrow: 'Mind Status', title: '情绪状态', description: '用轻量记录观察压力、能量与情绪波动。', items: ['今日情绪', '压力来源', '恢复行动'] },
+  quests: { eyebrow: 'Quest Board', title: '任务', description: '组织主线、支线与每日任务，让行动直接转化为经验值。', items: ['今日任务', '本周主线', '待领取奖励'] },
+  achievements: { eyebrow: 'Achievement Hall', title: '成就', description: '收藏真实进步形成的徽章、称号与人生里程碑。', items: ['最新解锁', '成就图鉴', '里程碑'] },
+  journal: { eyebrow: 'Adventure Journal', title: '冒险日志', description: '汇总每日行动、复盘与成长轨迹，留下可回看的个人史。', items: ['今日记录', '周度复盘', '成长时间线'] }
+};
+
+function ModuleView({ view }: { view: Exclude<MainView, 'finance' | 'character'> }) {
+  const content = moduleViewContent[view];
+  return (
+    <section className="module-view panel" aria-label={`${content.title}模块`}>
+      <p className="eyebrow">{content.eyebrow}</p>
+      <h1>{content.title}</h1>
+      <p>{content.description}</p>
+      <div className="module-preview-grid">
+        {content.items.map((item, index) => (
+          <article key={item}><span>0{index + 1}</span><strong>{item}</strong><small>模块正在构建中</small></article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
   const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
@@ -451,6 +583,7 @@ export default function App() {
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [formError, setFormError] = useState('');
+  const [activeView, setActiveView] = useState<MainView>('finance');
 
   const financeState = useMemo(() => buildFinanceState(accounts, transactions), [accounts, transactions]);
   const overview = useMemo(() => calculateFinanceOverview(financeState, period), [financeState]);
@@ -731,15 +864,16 @@ export default function App() {
 
   return (
     <>
+      <a className="skip-link" href="#main-content">跳到主要内容</a>
       <header className="app-header" aria-label="全局导航">
-        <div className="brand-mark">
-          <strong>GOLDQUEST FINANCE</strong>
-          <CircleDollarSign size={24} />
-        </div>
+        <button className="brand-mark" type="button" onClick={() => setActiveView('finance')} aria-label="Dice Life 首页">
+          <strong>Dice Life</strong>
+          <span className="brand-die" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+        </button>
         <nav className="top-nav" aria-label="主导航">
-          <a className="active" href="#vault">金库</a>
-          <a href="#quests">任务</a>
-          <a href="#market">市场</a>
+          <button className={activeView === 'quests' ? 'active' : ''} type="button" onClick={() => setActiveView('quests')}>任务</button>
+          <button className={activeView === 'achievements' ? 'active' : ''} type="button" onClick={() => setActiveView('achievements')}>成就</button>
+          <button className={activeView === 'journal' ? 'active' : ''} type="button" onClick={() => setActiveView('journal')}>冒险日志</button>
         </nav>
         <div className="header-tools">
           <button className="round-tool" type="button" aria-label="通知"><Bell size={20} /></button>
@@ -749,17 +883,22 @@ export default function App() {
       </header>
 
       <aside className="app-sidebar" aria-label="角色与模块导航">
-        <section className="character-card" aria-label="角色卡">
-          <div className="character-emblem"><Shield size={34} /></div>
-          <h2>42级 圣骑士</h2>
-          <p>理财大师</p>
-        </section>
+        <button
+          className={`character-card ${activeView === 'character' ? 'active' : ''}`}
+          type="button"
+          aria-label="打开人物状态信息表"
+          aria-pressed={activeView === 'character'}
+          onClick={() => setActiveView('character')}
+        >
+          <div className="character-emblem"><PixelHeroAvatar compact /></div>
+          <h2>42级 冒险家</h2>
+          <p>点击查看人物状态</p>
+        </button>
         <nav className="side-nav" aria-label="系统模块">
-          <a className="active" href="#vault"><CircleDollarSign size={19} /> 财富状况</a>
-          <a href="#ability"><Brain size={19} /> 能力属性</a>
-          <a href="#body"><HeartPulse size={19} /> 健康状况</a>
-          <a href="#emotion"><Smile size={19} /> 情绪状态</a>
-          <a href="#achievements"><Trophy size={19} /> 成就收集</a>
+          <button className={activeView === 'finance' ? 'active' : ''} type="button" onClick={() => setActiveView('finance')}><CircleDollarSign size={19} /> 财富状况</button>
+          <button className={activeView === 'ability' ? 'active' : ''} type="button" onClick={() => setActiveView('ability')}><Brain size={19} /> 能力属性</button>
+          <button className={activeView === 'body' ? 'active' : ''} type="button" onClick={() => setActiveView('body')}><HeartPulse size={19} /> 健康状况</button>
+          <button className={activeView === 'emotion' ? 'active' : ''} type="button" onClick={() => setActiveView('emotion')}><Smile size={19} /> 情绪状态</button>
         </nav>
         <section className="hero-stats" aria-label="英雄属性">
           <div className="hero-stats-title"><span>英雄属性</span><Trophy size={16} /></div>
@@ -782,7 +921,9 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="app-shell" id="vault">
+      <main className="app-shell" id="main-content" tabIndex={-1}>
+      {activeView === 'finance' ? (
+      <>
       <section className="hero-panel wealth-hero">
         <div className="hero-copy">
           <div className="eyebrow"><CircleDollarSign size={18} /> 经济系统 · {releaseVersion} · {releaseDate}</div>
@@ -895,6 +1036,14 @@ export default function App() {
       </section>
 
       <MonthlySavingsCalendar transactions={transactions} onSelectMonth={setSelectedCalendarMonth} />
+      </>
+      ) : activeView === 'character' ? (
+        <CharacterStatusView />
+      ) : activeView === 'quests' ? (
+        <TaskBoard />
+      ) : (
+        <ModuleView view={activeView} />
+      )}
 
       {isCashflowPageOpen ? (
         <div className="sheet-backdrop cashflow-page-backdrop" role="presentation" onClick={() => setIsCashflowPageOpen(false)}>

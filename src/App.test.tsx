@@ -3,6 +3,28 @@ import { describe, expect, it } from 'vitest';
 import App from './App';
 
 describe('Economy dashboard', () => {
+  it('uses the Dice Life shell and switches between character and system views', () => {
+    render(<App />);
+
+    expect(screen.getByRole('button', { name: 'Dice Life 首页' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '任务' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '成就' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '冒险日志' })).toBeInTheDocument();
+    expect(screen.queryByText('成就收集')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '打开人物状态信息表' }));
+    expect(screen.getByLabelText('人物状态信息表')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '人物状态' })).toBeInTheDocument();
+    expect(screen.getByText('核心属性')).toBeInTheDocument();
+    expect(screen.getByText('当前主线')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /财富状况/ }));
+    expect(screen.getByRole('heading', { name: '净资产' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /能力属性/ }));
+    expect(screen.getByLabelText('能力属性模块')).toBeInTheDocument();
+  });
+
   it('keeps the page focused on net worth and account groups without the removed formula strip', () => {
     render(<App />);
 
