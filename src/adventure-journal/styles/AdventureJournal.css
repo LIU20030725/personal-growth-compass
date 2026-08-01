@@ -1,0 +1,105 @@
+.adventure-journal {
+  --journal-sky: #83ced5;
+  --journal-cloud: #edf7ec;
+  --journal-forest: #568966;
+  --journal-grass: #86ad6d;
+  --journal-path: #e0c488;
+  --journal-wood: #5b4c32;
+  --journal-coral: #c86446;
+  display: grid;
+  gap: 20px;
+}
+
+.journal-dice-balance {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.journal-dice-balance > span:last-child { display: grid; line-height: 1; }
+.journal-dice-balance small { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: 0.12em; }
+.journal-dice-balance strong { color: var(--gold-dark); font-size: 24px; font-variant-numeric: tabular-nums; }
+.journal-dice-icon { display: grid; width: 36px; height: 36px; place-items: center; border: 2px solid var(--ink); background: var(--gold); }
+
+.journal-dialog-backdrop {
+  position: fixed;
+  z-index: 1200;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(25 28 29 / 58%);
+}
+
+.journal-dialog {
+  width: min(520px, 100%);
+  max-height: min(760px, calc(100dvh - 48px));
+  overflow: auto;
+  border: 2px solid var(--ink);
+  background: #fffdf2;
+  box-shadow: 8px 8px 0 var(--ink);
+}
+
+.journal-dialog-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px; border-bottom: 2px solid var(--ink); }
+.journal-dialog-header span { color: var(--gold-dark); font-family: ui-monospace, Consolas, monospace; font-size: 10px; font-weight: 800; letter-spacing: 0.14em; }
+.journal-dialog-header h2 { margin: 3px 0 0; font-family: "Bebas Neue", "Bricolage Grotesque", sans-serif; font-size: 34px; font-weight: 400; letter-spacing: 0.03em; }
+.journal-icon-button { display: grid; min-width: 44px; min-height: 44px; place-items: center; border: 2px solid var(--ink); background: var(--surface); }
+.journal-icon-button:hover, .journal-icon-button:focus-visible { background: var(--gold); }
+
+.journal-invest-dialog form { display: grid; gap: 16px; padding: 20px; }
+.journal-invest-target { margin: 0; font-size: 16px; }
+.journal-invest-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+.journal-invest-summary div { padding: 12px; border: 1px solid var(--outline-soft); background: var(--surface); }
+.journal-invest-summary dt { color: var(--muted); font-size: 12px; font-weight: 800; }
+.journal-invest-summary dd { margin: 5px 0 0; font-size: 20px; font-weight: 800; }
+.journal-invest-dialog label { font-weight: 800; }
+.journal-number-stepper { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; gap: 8px; }
+.journal-number-stepper button, .journal-quick-amounts button { min-height: 44px; border: 2px solid var(--ink); background: var(--surface); font-weight: 800; }
+.journal-number-stepper input { width: 100%; min-height: 48px; border: 2px solid var(--ink); background: var(--surface); font: inherit; font-size: 20px; font-weight: 800; text-align: center; }
+.journal-quick-amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.journal-quick-amounts button:disabled { cursor: not-allowed; opacity: 0.42; }
+.journal-form-error { margin: 0; padding: 10px 12px; border-left: 4px solid var(--ruby); color: var(--ruby); background: var(--ruby-light); font-weight: 800; }
+.journal-dialog-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 4px; }
+.journal-dialog-actions button { min-height: 48px; border: 2px solid var(--ink); font-weight: 800; }
+.journal-secondary-button { background: var(--surface); box-shadow: 2px 2px 0 var(--ink); }
+.journal-primary-button { color: var(--gold-dark); background: var(--gold); box-shadow: 4px 4px 0 var(--ink); }
+.journal-primary-button:disabled { cursor: not-allowed; filter: grayscale(0.6); opacity: 0.5; }
+
+.journal-ledger-dialog { width: min(680px, 100%); }
+.journal-empty-ledger { padding: 42px 24px; text-align: center; }
+.journal-empty-ledger p { color: var(--muted); }
+.journal-ledger-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.journal-ledger-list li { display: flex; min-height: 84px; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 20px; border-bottom: 1px solid var(--outline-soft); background: var(--surface); }
+.journal-ledger-list li > div:first-child { display: grid; gap: 3px; }
+.journal-ledger-list span, .journal-ledger-list time { color: var(--muted); font-size: 12px; }
+.journal-ledger-amount { display: grid; justify-items: end; font-variant-numeric: tabular-nums; }
+.journal-ledger-amount strong { font-size: 22px; }
+
+.journal-pixel-scene { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+.journal-cloud { animation: journal-cloud-drift 18s ease-in-out infinite alternate; }
+.cloud-two { animation-delay: -8s; }
+.journal-grass { transform-origin: bottom; animation: journal-grass-sway 4s ease-in-out infinite alternate; }
+.journal-walker { animation: journal-walk-bob 520ms steps(2, end) infinite; }
+.journal-mailbox { transform-origin: 740px 480px; animation: journal-mailbox-breathe 5s ease-in-out infinite; }
+.journal-pixel-scene.is-reduced-motion * { animation: none !important; }
+
+@keyframes journal-cloud-drift { to { transform: translateX(22px); } }
+@keyframes journal-grass-sway { to { transform: skewX(2deg); } }
+@keyframes journal-walk-bob { to { transform: translate(498px, 348px); } }
+@keyframes journal-mailbox-breathe { 50% { filter: brightness(1.08); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .adventure-journal *,
+  .adventure-journal *::before,
+  .adventure-journal *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
