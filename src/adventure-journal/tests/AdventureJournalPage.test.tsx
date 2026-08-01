@@ -103,6 +103,7 @@ describe('adventure journal shared interface', () => {
 
     rerender(<PermanentHomeScene reducedMotion unlockedItemIds={['home-field-desk']} />);
     expect(screen.getByRole('img', { name: '永久家园像素场景' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '永久家园像素场景' })).toHaveClass('is-reduced-motion');
     expect(screen.getByTestId('home-field-desk')).toBeInTheDocument();
   });
 });
@@ -114,13 +115,24 @@ describe('AdventureJournalPage', () => {
     render(<AdventureJournalPage options={pageOptions(storage)} />);
 
     expect(screen.getByRole('heading', { name: '冒险日志' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /旅途/ })).toHaveAttribute('aria-selected', 'true');
+    const journeyTab = screen.getByRole('tab', { name: /旅途/ });
+    expect(journeyTab).toHaveAttribute('aria-selected', 'true');
+    expect(journeyTab).toHaveAttribute('id', 'journal-journey-tab');
+    expect(screen.getByRole('tabpanel', { name: /旅途/ }))
+      .toHaveAttribute('aria-labelledby', 'journal-journey-tab');
     expect(screen.getByRole('img', { name: '晴日林径像素旅途场景' })).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
       .toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
+      .toHaveAttribute('aria-valuemin', '0');
+    expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
+      .toHaveAttribute('aria-valuemax', '30');
     expect(screen.getByText('0 / 30')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: /永久之家/ }));
+    expect(screen.getByRole('tab', { name: /永久之家/ })).toHaveAttribute('id', 'journal-home-tab');
+    expect(screen.getByRole('tabpanel', { name: /永久之家/ }))
+      .toHaveAttribute('aria-labelledby', 'journal-home-tab');
     expect(screen.getByRole('img', { name: '永久家园像素场景' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '建造田野书桌' }));
     fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '6' } });
@@ -132,6 +144,18 @@ describe('AdventureJournalPage', () => {
     expect(screen.getByRole('dialog', { name: '骰子账本' })).toBeInTheDocument();
     expect(screen.getByText('-6')).toBeInTheDocument();
     expect(screen.getByText('余额 2')).toBeInTheDocument();
+  });
+
+  it('uses a native disabled control after a route reaches its fixed price', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 30);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '投入通往风过山谷' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByRole('button', { name: /路线已准备好/ })).toBeDisabled();
   });
 
   it('keeps progress unchanged and explains when the dice balance is empty', () => {

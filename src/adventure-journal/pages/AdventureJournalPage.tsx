@@ -59,12 +59,12 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
         </div>
       </header>
       <div className={'journal-tablist'} role={'tablist'} aria-label={'冒险日志视图'}>
-        <button type={'button'} role={'tab'} aria-selected={controller.activeTab === 'journey'}
+        <button id={'journal-journey-tab'} type={'button'} role={'tab'} aria-selected={controller.activeTab === 'journey'}
           aria-controls={'journal-journey-panel'} onClick={() => controller.setActiveTab('journey')}>
           <Map size={18} aria-hidden={true} />
           <span><strong>旅途</strong><small>JOURNEY</small></span>
         </button>
-        <button type={'button'} role={'tab'} aria-selected={controller.activeTab === 'home'}
+        <button id={'journal-home-tab'} type={'button'} role={'tab'} aria-selected={controller.activeTab === 'home'}
           aria-controls={'journal-home-panel'} onClick={() => controller.setActiveTab('home')}>
           <Home size={18} aria-hidden={true} />
           <span><strong>永久之家</strong><small>PERMANENT HOME</small></span>

@@ -11,7 +11,7 @@ type JourneyViewProps = {
 export function JourneyView({ route, reducedMotion, onInvest }: JourneyViewProps) {
   const percent = Math.round((route.invested / route.price) * 100);
   return (
-    <section className={'journal-view'} id={'journal-journey-panel'} role={'tabpanel'} aria-label={'旅途'}>
+    <section className={'journal-view'} id={'journal-journey-panel'} role={'tabpanel'} aria-label={'旅途'} aria-labelledby={'journal-journey-tab'}>
       <div className={'journal-scene-card'}>
         <div className={'journal-scene-copy'}>
           <span>CHAPTER 01 · CURRENT LOCATION</span>

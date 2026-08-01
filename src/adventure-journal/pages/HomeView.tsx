@@ -48,7 +48,7 @@ function HomeItemCard({ item, index, onInvest }: {
 export function HomeView({ investments, reducedMotion, onInvest }: HomeViewProps) {
   const unlockedItemIds = investments.filter((item) => item.status === 'unlocked').map((item) => item.targetId);
   return (
-    <section className={'journal-view'} id={'journal-home-panel'} role={'tabpanel'} aria-label={'永久之家'}>
+    <section className={'journal-view'} id={'journal-home-panel'} role={'tabpanel'} aria-label={'永久之家'} aria-labelledby={'journal-home-tab'}>
       <div className={'journal-scene-card journal-home-scene-card'}>
         <div className={'journal-scene-copy'}>
           <span>PERMANENT HOME · BASE CAMP</span>
