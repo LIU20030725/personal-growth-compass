@@ -12,3 +12,4 @@ skills-lock.json
 exports/
 docs/docs_bak/
 canvas/*.tmp
+/.worktrees/
