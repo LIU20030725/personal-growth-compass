@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -35,6 +35,8 @@ import {
 } from './finance/financeEngine';
 import { Button } from '@/components/ui/button';
 import { TaskBoard } from './tasks/TaskBoard';
+import { AbilityModule } from './ability/AbilityModule';
+import { parseAbilityPath, pushAbilityTree, replaceAbilityTree } from './ability/abilityRoute';
 
 const period = '2026-06';
 const currentYear = '2026';
@@ -583,7 +585,26 @@ export default function App() {
   const [deleteAccountId, setDeleteAccountId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [formError, setFormError] = useState('');
-  const [activeView, setActiveView] = useState<MainView>('finance');
+  const [activeView, setActiveView] = useState<MainView>(() =>
+    window.location.pathname.startsWith('/ability') ? 'ability' : 'finance'
+  );
+
+  const openView = (view: MainView) => {
+    setActiveView(view);
+    if (view === 'ability') {
+      if (!window.location.pathname.startsWith('/ability')) window.history.pushState({}, '', '/ability');
+      return;
+    }
+    if (window.location.pathname.startsWith('/ability')) window.history.pushState({}, '', '/');
+  };
+
+  useEffect(() => {
+    const syncViewFromPath = () => {
+      setActiveView(window.location.pathname.startsWith('/ability') ? 'ability' : 'finance');
+    };
+    window.addEventListener('popstate', syncViewFromPath);
+    return () => window.removeEventListener('popstate', syncViewFromPath);
+  }, []);
 
   const financeState = useMemo(() => buildFinanceState(accounts, transactions), [accounts, transactions]);
   const overview = useMemo(() => calculateFinanceOverview(financeState, period), [financeState]);
@@ -598,6 +619,7 @@ export default function App() {
   const operationLabels = getOperationLabels(selectedAccount);
   const transferTargets = selectedAccount ? accounts.filter((account) => account.id !== selectedAccount.id) : [];
   const deleteAccount = accounts.find((account) => account.id === deleteAccountId) ?? null;
+  const abilityRoute = parseAbilityPath(window.location.pathname);
   const isTransferActivity = activityForm.purposeType === '银行卡转账';
   const cashAccounts = getAccountsByGroup('cash');
   const periodTransactions = useMemo(() => getPeriodTransactions(transactions, period), [transactions]);
@@ -866,14 +888,14 @@ export default function App() {
     <>
       <a className="skip-link" href="#main-content">跳到主要内容</a>
       <header className="app-header" aria-label="全局导航">
-        <button className="brand-mark" type="button" onClick={() => setActiveView('finance')} aria-label="Dice Life 首页">
+        <button className="brand-mark" type="button" onClick={() => openView('finance')} aria-label="Dice Life 首页">
           <strong>Dice Life</strong>
           <span className="brand-die" aria-hidden="true"><i /><i /><i /><i /><i /></span>
         </button>
         <nav className="top-nav" aria-label="主导航">
-          <button className={activeView === 'quests' ? 'active' : ''} type="button" onClick={() => setActiveView('quests')}>任务</button>
-          <button className={activeView === 'achievements' ? 'active' : ''} type="button" onClick={() => setActiveView('achievements')}>成就</button>
-          <button className={activeView === 'journal' ? 'active' : ''} type="button" onClick={() => setActiveView('journal')}>冒险日志</button>
+          <button className={activeView === 'quests' ? 'active' : ''} type="button" onClick={() => openView('quests')}>任务</button>
+          <button className={activeView === 'achievements' ? 'active' : ''} type="button" onClick={() => openView('achievements')}>成就</button>
+          <button className={activeView === 'journal' ? 'active' : ''} type="button" onClick={() => openView('journal')}>冒险日志</button>
         </nav>
         <div className="header-tools">
           <button className="round-tool" type="button" aria-label="通知"><Bell size={20} /></button>
@@ -888,17 +910,17 @@ export default function App() {
           type="button"
           aria-label="打开人物状态信息表"
           aria-pressed={activeView === 'character'}
-          onClick={() => setActiveView('character')}
+          onClick={() => openView('character')}
         >
           <div className="character-emblem"><PixelHeroAvatar compact /></div>
           <h2>42级 冒险家</h2>
           <p>点击查看人物状态</p>
         </button>
         <nav className="side-nav" aria-label="系统模块">
-          <button className={activeView === 'finance' ? 'active' : ''} type="button" onClick={() => setActiveView('finance')}><CircleDollarSign size={19} /> 财富状况</button>
-          <button className={activeView === 'ability' ? 'active' : ''} type="button" onClick={() => setActiveView('ability')}><Brain size={19} /> 能力属性</button>
-          <button className={activeView === 'body' ? 'active' : ''} type="button" onClick={() => setActiveView('body')}><HeartPulse size={19} /> 健康状况</button>
-          <button className={activeView === 'emotion' ? 'active' : ''} type="button" onClick={() => setActiveView('emotion')}><Smile size={19} /> 情绪状态</button>
+          <button className={activeView === 'finance' ? 'active' : ''} type="button" onClick={() => openView('finance')}><CircleDollarSign size={19} /> 财富状况</button>
+          <button className={activeView === 'ability' ? 'active' : ''} type="button" onClick={() => openView('ability')}><Brain size={19} /> 能力属性</button>
+          <button className={activeView === 'body' ? 'active' : ''} type="button" onClick={() => openView('body')}><HeartPulse size={19} /> 健康状况</button>
+          <button className={activeView === 'emotion' ? 'active' : ''} type="button" onClick={() => openView('emotion')}><Smile size={19} /> 情绪状态</button>
         </nav>
         <section className="hero-stats" aria-label="英雄属性">
           <div className="hero-stats-title"><span>英雄属性</span><Trophy size={16} /></div>
@@ -1041,6 +1063,11 @@ export default function App() {
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
         <TaskBoard />
+      ) : activeView === 'ability' ? (
+        <AbilityModule
+          initialTreeId={abilityRoute.kind === 'tree' ? abilityRoute.treeId : null}
+          onTreeChange={(treeId, mode) => mode === 'replace' ? replaceAbilityTree(treeId) : pushAbilityTree(treeId)}
+        />
       ) : (
         <ModuleView view={activeView} />
       )}

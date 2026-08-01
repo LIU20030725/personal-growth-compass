@@ -1,8 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import App from './App';
 
 describe('Economy dashboard', () => {
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
   it('uses the Dice Life shell and switches between character and system views', () => {
     render(<App />);
 

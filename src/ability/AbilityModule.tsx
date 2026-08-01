@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Layers3, Medal, Plus, Route, Sparkles } from 'lucide-react';
 import { getNodeDisplayState, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { SKILL_ROLE_LABELS } from './abilityConfig';
@@ -18,7 +18,7 @@ type Props = {
   abilityStorage?: StorageLike;
   taskStorage?: StorageLike;
   initialTreeId?: string | null;
-  onTreeChange?: (treeId: string) => void;
+  onTreeChange?: (treeId: string, mode: 'push' | 'replace') => void;
 };
 
 export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = null, onTreeChange }: Props) {
@@ -32,6 +32,13 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
   const [collapsedPhaseIds, setCollapsedPhaseIds] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<TreeNodeFilter>('all');
   const [form, setForm] = useState<FormName>(null);
+  const handledRouteTreeId = useRef<string | null | undefined>(undefined);
+  const [routeNotice, setRouteNotice] = useState(() => {
+    if (!initialTreeId) return '';
+    return ability.state.trees.some((tree) => tree.id === initialTreeId && tree.status === 'active')
+      ? ''
+      : '技能树不存在，已返回能力首页';
+  });
 
   const currentTree = ability.state.trees.find((tree) => tree.id === currentTreeId && tree.status === 'active') ?? null;
   const phases = ability.state.phases.filter((phase) => phase.skillTreeId === currentTreeId).sort((a, b) => a.order - b.order);
@@ -45,20 +52,32 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
     const next = selectDefaultTree(ability.state);
     setCurrentTreeId(next?.id ?? null);
     setSelectedNodeId(null);
-  }, [ability.state, currentTree]);
+    if (next) onTreeChange?.(next.id, 'replace');
+  }, [ability.state, currentTree, onTreeChange]);
 
   useEffect(() => {
-    if (initialTreeId && ability.state.trees.some((tree) => tree.id === initialTreeId && tree.status === 'active')) {
+    if (handledRouteTreeId.current === initialTreeId) return;
+    handledRouteTreeId.current = initialTreeId;
+    if (!initialTreeId) return;
+    if (ability.state.trees.some((tree) => tree.id === initialTreeId && tree.status === 'active')) {
       setCurrentTreeId(initialTreeId);
+      setRouteNotice('');
+      return;
     }
-  }, [ability.state.trees, initialTreeId]);
+    const fallback = selectDefaultTree(ability.state);
+    setCurrentTreeId(fallback?.id ?? null);
+    setSelectedNodeId(null);
+    setRouteNotice('技能树不存在，已返回能力首页');
+    if (fallback) onTreeChange?.(fallback.id, 'replace');
+  }, [ability.state, initialTreeId, onTreeChange]);
 
   const openTree = (treeId: string, nodeId?: string) => {
     setCurrentTreeId(treeId);
     setSelectedNodeId(nodeId ?? null);
     setCollapsedPhaseIds(new Set());
     ability.visitTree(treeId);
-    onTreeChange?.(treeId);
+    setRouteNotice('');
+    onTreeChange?.(treeId, 'push');
   };
 
   const progress = currentTree ? getTreeProgress(ability.state, currentTree.id) : null;
@@ -83,6 +102,7 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
     </header>
 
     {ability.persistenceError ? <div className="ability-error-banner" role="alert"><span>{ability.persistenceError}</span><button type="button" onClick={ability.clearPersistenceError}>关闭</button></div> : null}
+    {routeNotice ? <div className="ability-route-notice" role="status">{routeNotice}</div> : null}
 
     {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先由你创建技能树、阶段和节点。AI 辅助会在后续版本通过统一草案接口接入。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
       <nav className="ability-focus-switcher" aria-label="重点技能快速切换"><span>重点技能</span>{focusedTrees.map((tree) => <button className={tree.id === currentTree.id ? 'active' : ''} type="button" aria-label={`打开技能树 ${tree.name}`} onClick={() => openTree(tree.id)} key={tree.id}>{tree.name}</button>)}</nav>
