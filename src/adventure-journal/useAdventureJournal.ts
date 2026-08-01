@@ -12,9 +12,9 @@ import {
   type StorageLike
 } from './storage/adventureStorage';
 
-type AdventureTab = 'journey' | 'home';
+export type AdventureTab = 'journey' | 'home';
 
-type Options = {
+export type AdventureJournalOptions = {
   storage?: StorageLike;
   now?: () => string;
   idFactory?: () => string;
@@ -42,7 +42,7 @@ function systemPrefersReducedMotion(): boolean {
     window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-export function useAdventureJournal(options: Options = {}): AdventureJournalController {
+export function useAdventureJournal(options: AdventureJournalOptions = {}): AdventureJournalController {
   const storage = options.storage ?? browserStorage();
   const now = options.now ?? currentTime;
   const idFactory = options.idFactory ?? newId;
