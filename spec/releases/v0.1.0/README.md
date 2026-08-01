@@ -5,6 +5,8 @@
 **计划 schema：** `1`
 **计划内容版本：** `0.1.0`
 
+**详细实施计划：** [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md)
+
 ## 交付范围
 
 - 旅途 / 家园双页面。
