@@ -1,0 +1,129 @@
+.ability-module { display: grid; gap: 24px; color: var(--ink); }
+.ability-module button, .ability-module input, .ability-module textarea, .ability-module select { font-family: inherit; }
+.ability-hero, .ability-current-header, .ability-tree-stage, .ability-node-panel, .ability-library, .ability-empty-state { border: 2px solid var(--ink); border-radius: 4px; background: var(--surface); box-shadow: var(--shadow-hard); }
+.ability-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 26px; }
+.ability-hero h1 { margin: 6px 0 8px; font-family: "Bebas Neue", sans-serif; font-size: clamp(42px, 5vw, 68px); font-weight: 400; line-height: .9; }
+.ability-hero > div > p:last-child { max-width: 720px; color: var(--muted); }
+.ability-primary, .ability-secondary, .ability-current-actions button, .ability-tree-toolbar button, .ability-library button, .ability-node-panel button, .ability-dialog button { min-height: 40px; padding: 8px 13px; border: 2px solid var(--ink); border-radius: 3px; color: var(--ink); background: var(--surface); font-weight: 800; }
+.ability-primary { background: var(--gold); box-shadow: 3px 3px 0 var(--ink); }
+.ability-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.ability-secondary { background: var(--surface-mid); }
+.ability-wide { width: 100%; }
+.ability-error-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border: 2px solid var(--ruby); background: var(--ruby-light); font-weight: 700; }
+.ability-error-banner button { border: 0; background: transparent; font-weight: 800; }
+.ability-empty-state { display: grid; justify-items: center; gap: 12px; padding: 64px 24px; text-align: center; }
+.ability-empty-state svg { color: var(--gold-dark); }
+.ability-empty-state small, .ability-library-header small, .ability-node-panel header small, .ability-dialog header small { color: var(--gold-dark); font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.ability-empty-state h2 { font-family: "Bebas Neue", sans-serif; font-size: 36px; font-weight: 400; }
+.ability-empty-state p { max-width: 600px; color: var(--muted); }
+.ability-focus-switcher { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding: 8px; border: 2px solid var(--outline-soft); background: var(--surface-low); }
+.ability-focus-switcher > span { padding: 0 8px; color: var(--muted); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.ability-focus-switcher button { min-width: max-content; padding: 9px 13px; border: 2px solid transparent; background: transparent; font-weight: 800; }
+.ability-focus-switcher button.active { border-color: var(--ink); background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.ability-current-header { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 22px; align-items: center; padding: 20px; }
+.ability-current-header > div:first-child > span { display: inline-block; margin-bottom: 5px; padding: 3px 7px; border: 1px solid var(--ink); background: var(--surface-mid); font-size: 11px; font-weight: 800; }
+.ability-current-header h2 { font-family: "Bebas Neue", sans-serif; font-size: 40px; font-weight: 400; }
+.ability-current-header p { color: var(--muted); }
+.ability-current-stats { display: grid; padding-left: 18px; border-left: 2px solid var(--outline-soft); }
+.ability-current-stats strong { font-family: "Bebas Neue", sans-serif; font-size: 42px; font-weight: 400; line-height: 1; }
+.ability-current-stats span { font-weight: 800; }
+.ability-current-stats small { color: var(--muted); }
+.ability-current-actions { display: flex; max-width: 360px; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.ability-current-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.ability-current-actions button:disabled, .ability-module button:disabled { cursor: not-allowed; opacity: .45; }
+.ability-tree-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.ability-tree-toolbar button { min-height: 34px; padding: 6px 11px; border-color: var(--outline-soft); color: var(--muted); }
+.ability-tree-toolbar button.active { border-color: var(--ink); color: var(--ink); background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.ability-workbench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); gap: 20px; align-items: start; }
+.ability-tree-stage { min-width: 0; overflow: hidden; }
+.ability-stage-scroll { overflow: auto; }
+.ability-tree-map { position: relative; margin: 0 auto; background-color: #fbfaf5; background-image: linear-gradient(var(--outline-soft) 1px, transparent 1px), linear-gradient(90deg, var(--outline-soft) 1px, transparent 1px); background-size: 38px 38px; }
+.ability-tree-edges { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.ability-tree-edges path { fill: none; stroke: var(--outline); stroke-width: 3; stroke-dasharray: 7 5; }
+.ability-phase-label { position: absolute; z-index: 3; left: 12px; }
+.ability-phase-label button { display: flex; align-items: center; gap: 7px; padding: 6px 9px; border: 2px solid var(--ink); background: var(--surface); box-shadow: 2px 2px 0 var(--ink); }
+.ability-phase-label span { color: var(--gold-dark); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.ability-phase-label strong { font-size: 12px; }
+.ability-skill-node { position: absolute; z-index: 5; display: grid; width: 142px; min-height: 82px; place-items: center; padding: 10px; border: 2px solid var(--ink); border-radius: 12px; background: var(--surface); box-shadow: 4px 4px 0 var(--ink); text-align: center; transform: translate(-50%, -50%); }
+.ability-skill-node strong { max-width: 120px; font-size: 14px; }
+.ability-skill-node small { font-size: 11px; font-weight: 800; }
+.ability-skill-node.selected { outline: 4px solid var(--gold); outline-offset: 3px; }
+.ability-skill-node.state-mastered { border-color: var(--emerald); color: var(--emerald); background: #ecfff6; box-shadow: 4px 4px 0 var(--emerald); }
+.ability-skill-node.state-in_progress { border-color: #2957a4; color: #173d7d; background: #edf4ff; box-shadow: 4px 4px 0 #2957a4; }
+.ability-skill-node.state-locked { border-color: var(--outline); color: var(--outline); background: var(--surface-mid); box-shadow: 4px 4px 0 var(--outline); }
+.ability-skill-node.state-available .ability-node-icon span { display: block; width: 15px; height: 15px; border: 3px solid var(--gold-dark); border-radius: 50%; background: var(--gold); }
+.ability-node-icon { display: grid; width: 24px; height: 24px; place-items: center; }
+.ability-outcome-node { position: absolute; z-index: 7; display: flex; max-width: 130px; align-items: center; gap: 4px; padding: 5px 8px; border: 2px solid var(--gold-dark); border-radius: 999px; color: var(--gold-dark); background: var(--gold); box-shadow: 2px 2px 0 var(--gold-dark); font-size: 10px; font-weight: 800; transform: translate(-50%, -50%); }
+.ability-mobile-route { display: none; }
+.ability-node-panel { position: sticky; top: 88px; display: grid; gap: 16px; padding: 18px; }
+.ability-node-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--outline-soft); }
+.ability-node-panel h2 { margin-top: 4px; font-family: "Bebas Neue", sans-serif; font-size: 32px; font-weight: 400; }
+.ability-node-panel > p, .ability-muted { color: var(--muted); font-size: 13px; }
+.ability-node-admin { display: flex; gap: 7px; }.ability-node-admin button { min-height: 32px; flex: 1; padding: 5px 8px; font-size: 11px; }
+.ability-node-empty { min-height: 270px; align-content: center; text-align: center; }
+.ability-node-empty > span { color: var(--gold-dark); font-weight: 800; letter-spacing: .14em; }
+.ability-state-badge { padding: 5px 8px; border: 1px solid currentColor; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ability-state-badge.state-mastered { color: var(--emerald); }.ability-state-badge.state-in_progress { color: #2957a4; }.ability-state-badge.state-locked { color: var(--outline); }.ability-state-badge.state-available { color: var(--gold-dark); background: #fff9cc; }
+.ability-warning, .ability-ready { display: flex; align-items: center; gap: 7px; padding: 8px; border: 1px solid currentColor; font-size: 12px; font-weight: 700; }
+.ability-warning { color: #8a4b00; background: #fff1d6; }.ability-ready { margin-top: 9px; color: var(--emerald); background: #ecfff6; }
+.ability-detail-section { display: grid; gap: 10px; padding-top: 4px; }
+.ability-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ability-detail-heading h3 { font-size: 14px; text-transform: uppercase; }
+.ability-detail-heading > button { display: inline-flex; min-height: 30px; align-items: center; gap: 4px; padding: 4px 7px; }
+.ability-criteria-list, .ability-linked-list, .ability-outcome-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.ability-criteria-list label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+.ability-criteria-list input { width: 17px; height: 17px; accent-color: var(--emerald); }
+.ability-inline-form, .ability-task-linker { display: flex; gap: 6px; }
+.ability-inline-form input, .ability-task-linker select { min-width: 0; flex: 1; }
+.ability-inline-form button { min-width: 40px; padding: 5px; }
+.ability-mastery-confirm { display: grid; gap: 8px; }
+.ability-mastery-confirm label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
+.ability-mastery-confirm textarea { min-height: 64px; }
+.ability-linked-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid var(--outline-soft); background: var(--surface-low); font-size: 13px; }
+.ability-linked-list button { min-width: 32px; min-height: 30px; padding: 4px; }
+.ability-outcome-list li { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--outline-soft); background: var(--surface-low); }
+.ability-outcome-list div { display: grid; gap: 3px; }.ability-outcome-list small { color: var(--muted); }.ability-outcome-list p { font-size: 12px; }
+.ability-check { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.ability-library { display: grid; gap: 16px; padding: 20px; }
+.ability-library-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.ability-library-header h2 { font-family: "Bebas Neue", sans-serif; font-size: 34px; font-weight: 400; }
+.ability-library-tools { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px; gap: 10px; }
+.ability-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 2px solid var(--ink); background: var(--surface); }
+.ability-search input { width: 100%; min-height: 40px; border: 0; outline: 0; background: transparent; }
+.ability-library-tools select, .ability-task-linker select, .ability-field input, .ability-field textarea, .ability-field select, .ability-inline-form input, .ability-mastery-confirm textarea, .ability-dialog fieldset { border: 2px solid var(--ink); border-radius: 2px; background: var(--surface); }
+.ability-library-tools select, .ability-task-linker select { min-height: 42px; padding: 7px; }
+.ability-library-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ability-library-card { display: grid; border: 2px solid var(--ink); background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
+.ability-library-card.current { outline: 3px solid var(--gold); outline-offset: 2px; }
+.ability-library-open { display: grid; min-height: 220px; align-content: start; gap: 7px; padding: 15px; border: 0 !important; background: transparent !important; box-shadow: none !important; text-align: left; }
+.ability-library-open > span { width: max-content; padding: 3px 6px; border: 1px solid var(--ink); background: var(--surface-mid); font-size: 10px; }
+.ability-library-open h3 { font-size: 20px; }.ability-library-open > p { min-height: 40px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.ability-card-progress { position: relative; height: 22px; margin: 5px 0; overflow: hidden; border: 1px solid var(--ink); background: var(--surface-mid); }
+.ability-card-progress i { display: block; height: 100%; background: var(--gold); }
+.ability-card-progress small { position: absolute; inset: 2px 6px; font-size: 10px; text-align: right; }
+.ability-library-open dl { display: grid; gap: 5px; margin: 0; }.ability-library-open dl div { display: flex; justify-content: space-between; gap: 8px; }.ability-library-open dt { color: var(--muted); font-size: 11px; }.ability-library-open dd { margin: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ability-library-card > footer { display: flex; gap: 5px; padding: 8px; border-top: 1px solid var(--outline-soft); }.ability-library-card > footer button { display: inline-flex; min-width: 36px; min-height: 32px; align-items: center; justify-content: center; gap: 4px; padding: 4px 7px; font-size: 11px; }
+.ability-library-empty { display: grid; justify-items: center; gap: 10px; padding: 30px; border: 2px dashed var(--outline); color: var(--muted); }
+.ability-dialog-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(25,28,29,.55); }
+.ability-dialog { width: min(100%, 560px); max-height: min(780px, calc(100vh - 40px)); overflow: auto; border: 2px solid var(--ink); border-radius: 4px; background: var(--surface); box-shadow: 8px 8px 0 var(--ink); }
+.ability-dialog > header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 2px solid var(--ink); background: var(--gold); }
+.ability-dialog header h2 { font-family: "Bebas Neue", sans-serif; font-size: 30px; font-weight: 400; }
+.ability-dialog header button { min-width: 36px; padding: 5px; background: var(--surface); }
+.ability-dialog form { display: grid; gap: 14px; padding: 18px; }
+.ability-field { display: grid; gap: 6px; }.ability-field > span, .ability-dialog legend { font-size: 12px; font-weight: 800; }
+.ability-field input, .ability-field textarea, .ability-field select { width: 100%; min-height: 42px; padding: 8px 10px; }.ability-field textarea { min-height: 80px; resize: vertical; }
+.ability-dialog fieldset { display: grid; gap: 8px; max-height: 190px; margin: 0; padding: 12px; overflow: auto; }.ability-dialog fieldset p { color: var(--muted); font-size: 12px; }
+.ability-dialog form > footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 5px; }.ability-form-error { color: var(--ruby); font-size: 13px; font-weight: 700; }
+
+@media (max-width: 1180px) {
+  .ability-current-header { grid-template-columns: minmax(0, 1fr) 130px; }.ability-current-actions { grid-column: 1 / -1; max-width: none; justify-content: flex-start; }
+  .ability-workbench { grid-template-columns: 1fr; }.ability-node-panel { position: static; }
+  .ability-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .ability-module { gap: 16px; }.ability-hero { align-items: stretch; flex-direction: column; padding: 18px; }.ability-hero .ability-primary { width: 100%; }
+  .ability-current-header { grid-template-columns: 1fr; padding: 16px; }.ability-current-stats { padding: 12px 0 0; border-top: 2px solid var(--outline-soft); border-left: 0; }.ability-current-actions { display: grid; grid-template-columns: 1fr 1fr; }.ability-current-actions button { justify-content: center; }
+  .ability-stage-scroll { overflow: visible; }.ability-tree-map { display: none; }.ability-mobile-route { display: grid; gap: 12px; padding: 14px; }.ability-mobile-phase { display: grid; gap: 9px; padding: 12px; border: 2px solid var(--ink); background: var(--surface-low); box-shadow: 3px 3px 0 var(--ink); }.ability-mobile-phase > header { display: flex; align-items: center; justify-content: space-between; }.ability-mobile-phase-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.ability-mobile-phase-list .ability-skill-node { position: static; width: 100%; min-height: 76px; transform: none; }.ability-mobile-phase-list .ability-outcome-node { position: static; max-width: none; transform: none; }
+  .ability-node-panel { position: relative; max-height: none; }.ability-library { padding: 14px; }.ability-library-tools { grid-template-columns: 1fr; }.ability-library-grid { grid-template-columns: 1fr; }.ability-library-header { align-items: stretch; flex-direction: column; }.ability-dialog-backdrop { align-items: end; padding: 0; }.ability-dialog { width: 100%; max-height: 90vh; border-radius: 0; box-shadow: none; }
+}
