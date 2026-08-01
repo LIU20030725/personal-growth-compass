@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialAdventureState } from '../domain/adventureEngine';
+import {
+  applyInvestment,
+  createInitialAdventureState,
+  findInvestment
+} from '../domain/adventureEngine';
 
 describe('adventure journal initial state', () => {
   it('starts on Sunny Trail with frozen V0.1 prices', () => {
@@ -19,5 +23,77 @@ describe('adventure journal initial state', () => {
       status: 'available'
     });
     expect(state.homeInvestments.map((item) => item.price)).toEqual([6, 12]);
+  });
+});
+
+describe('adventure investment rules', () => {
+  it('keeps partial progress and marks a route ready exactly at its frozen price', () => {
+    let state = createInitialAdventureState('2026-08-01T08:00:00+08:00');
+
+    state = applyInvestment(state, {
+      operationId: 'op-1',
+      targetType: 'route',
+      targetId: 'route-wind-valley',
+      amount: 11,
+      createdAt: '2026-08-01T09:00:00+08:00'
+    });
+    expect(findInvestment(state, 'route', 'route-wind-valley')).toMatchObject({
+      invested: 11,
+      status: 'building',
+      price: 30
+    });
+
+    state = applyInvestment(state, {
+      operationId: 'op-2',
+      targetType: 'route',
+      targetId: 'route-wind-valley',
+      amount: 19,
+      createdAt: '2026-08-02T09:00:00+08:00'
+    });
+    expect(findInvestment(state, 'route', 'route-wind-valley')).toMatchObject({
+      invested: 30,
+      status: 'ready',
+      price: 30,
+      unlockedAt: null
+    });
+  });
+
+  it('unlocks a home item once when its fixed price is reached', () => {
+    const initial = createInitialAdventureState('2026-08-01T08:00:00+08:00');
+    const unlocked = applyInvestment(initial, {
+      operationId: 'op-home',
+      targetType: 'home-item',
+      targetId: 'home-field-desk',
+      amount: 6,
+      createdAt: '2026-08-01T09:30:00+08:00'
+    });
+
+    expect(findInvestment(unlocked, 'home-item', 'home-field-desk')).toMatchObject({
+      invested: 6,
+      status: 'unlocked',
+      unlockedAt: '2026-08-01T09:30:00+08:00'
+    });
+    expect(() => applyInvestment(unlocked, {
+      operationId: 'op-home-again',
+      targetType: 'home-item',
+      targetId: 'home-field-desk',
+      amount: 1,
+      createdAt: '2026-08-01T10:00:00+08:00'
+    })).toThrow('该目标已经完成');
+  });
+
+  it('rejects non-positive, non-integer, overflow, and missing target investments', () => {
+    const state = createInitialAdventureState('2026-08-01T08:00:00+08:00');
+    const base = {
+      operationId: 'op-invalid',
+      targetType: 'home-item' as const,
+      targetId: 'home-field-desk',
+      createdAt: '2026-08-01T09:00:00+08:00'
+    };
+
+    expect(() => applyInvestment(state, { ...base, amount: 0 })).toThrow('投入数量必须是大于 0 的整数');
+    expect(() => applyInvestment(state, { ...base, amount: 1.5 })).toThrow('投入数量必须是大于 0 的整数');
+    expect(() => applyInvestment(state, { ...base, amount: 7 })).toThrow('本次最多还能投入 6 枚骰子');
+    expect(() => applyInvestment(state, { ...base, targetId: 'missing', amount: 1 })).toThrow('投资目标不存在');
   });
 });
