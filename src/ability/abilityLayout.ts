@@ -99,7 +99,7 @@ export function layoutSkillTree(
   const visibleSkillNodes = new Map(
     layoutNodes.filter((node) => node.kind === 'skill').map((node) => [node.id, node])
   );
-  const fallbackPhase = layoutPhases.at(-1);
+  const fallbackPhase = layoutPhases[layoutPhases.length - 1];
   let unlinkedOutcomeIndex = 0;
   for (const outcome of state.outcomes
     .filter((item) => item.skillTreeId === treeId && item.showOnTree)
