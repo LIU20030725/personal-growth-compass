@@ -104,7 +104,7 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
     {ability.persistenceError ? <div className="ability-error-banner" role="alert"><span>{ability.persistenceError}</span><button type="button" onClick={ability.clearPersistenceError}>关闭</button></div> : null}
     {routeNotice ? <div className="ability-route-notice" role="status">{routeNotice}</div> : null}
 
-    {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先由你创建技能树、阶段和节点。AI 辅助会在后续版本通过统一草案接口接入。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
+    {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准和行动任务。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
       <nav className="ability-focus-switcher" aria-label="重点技能快速切换"><span>重点技能</span>{focusedTrees.map((tree) => <button className={tree.id === currentTree.id ? 'active' : ''} type="button" aria-label={`打开技能树 ${tree.name}`} onClick={() => openTree(tree.id)} key={tree.id}>{tree.name}</button>)}</nav>
 
       <section className="ability-current-header" aria-label="当前技能树概览">

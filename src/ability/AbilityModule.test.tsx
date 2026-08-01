@@ -57,6 +57,7 @@ describe('AbilityModule', () => {
 
   it('creates a tree, phase, and dependent node manually', () => {
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    expect(screen.queryByText(/AI/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '创建第一棵技能树' }));
     fireEvent.change(screen.getByLabelText('技能树名称'), { target: { value: '摄影' } });
     fireEvent.change(screen.getByLabelText('技能角色'), { target: { value: 'side' } });
