@@ -97,14 +97,19 @@ describe('adventure journal shared interface', () => {
     expect(screen.getByText('余额 2')).toBeInTheDocument();
   });
 
-  it('provides descriptive labels for both original pixel stages', () => {
-    const { rerender } = render(<SunnyTrailScene reducedMotion={false} />);
+  it('provides descriptive labels and progress states for both pixel worlds', () => {
+    const { rerender } = render(<SunnyTrailScene reducedMotion={false} progress={50} />);
     expect(screen.getByRole('img', { name: '晴日林径像素旅途场景' })).toBeInTheDocument();
+    expect(screen.getByTestId('journey-pixel-world')).toHaveAttribute('data-progress-stage', '2');
 
-    rerender(<PermanentHomeScene reducedMotion unlockedItemIds={['home-field-desk']} />);
+    rerender(<PermanentHomeScene reducedMotion investments={[
+      { targetType: 'home-item', targetId: 'home-field-desk', price: 6, invested: 3, status: 'building', unlockedAt: null },
+      { targetType: 'home-item', targetId: 'home-memory-shelf', price: 12, invested: 12, status: 'unlocked', unlockedAt: '2026-08-01T09:30:00+08:00' }
+    ]} />);
     expect(screen.getByRole('img', { name: '永久家园像素场景' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: '永久家园像素场景' })).toHaveClass('is-reduced-motion');
-    expect(screen.getByTestId('home-field-desk')).toBeInTheDocument();
+    expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
+    expect(screen.getByTestId('home-memory-shelf')).toHaveAttribute('data-build-stage', '4');
   });
 });
 
@@ -168,5 +173,32 @@ describe('AdventureJournalPage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('骰子余额不足，还差 1 枚');
     expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
       .toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('turns a partial route investment into a visible world milestone and confirmation', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 15);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '投入通往风过山谷' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '15' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByTestId('journey-pixel-world')).toHaveAttribute('data-progress-stage', '2');
+    expect(screen.getByRole('status')).toHaveTextContent('路线推进到 50%');
+  });
+
+  it('shows partial home construction inside the top-down world', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 3);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: /永久之家/ }));
+    fireEvent.click(screen.getByRole('button', { name: '建造田野书桌' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
+    expect(screen.getByRole('status')).toHaveTextContent('田野书桌建设到 50%');
   });
 });

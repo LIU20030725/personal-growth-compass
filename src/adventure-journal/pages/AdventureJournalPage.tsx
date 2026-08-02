@@ -1,10 +1,11 @@
-import { BookOpenText, Home, Map, ReceiptText } from 'lucide-react';
+import { Home, Map, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 import { V0_1_TARGETS } from '../content/v0_1';
 import { DiceBalance } from '../components/DiceBalance';
 import { InvestDialog } from '../components/InvestDialog';
 import { LedgerDialog } from '../components/LedgerDialog';
 import type { InvestmentProgress } from '../domain/types';
+import { ADVENTURE_DISPLAY_VERSION } from '../moduleVersion';
 import '../styles/AdventureJournal.css';
 import { useAdventureJournal, type AdventureJournalOptions } from '../useAdventureJournal';
 import { HomeView } from './HomeView';
@@ -22,6 +23,7 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [activeInvestment, setActiveInvestment] = useState<InvestmentProgress | null>(null);
   const [investmentError, setInvestmentError] = useState('');
+  const [liveMessage, setLiveMessage] = useState('');
   const remaining = activeInvestment ? activeInvestment.price - activeInvestment.invested : 0;
 
   function openInvestment(target: InvestmentProgress) {
@@ -33,6 +35,11 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
     if (!activeInvestment) return;
     try {
       controller.invest(activeInvestment.targetType, activeInvestment.targetId, amount);
+      const percent = Math.round(((activeInvestment.invested + amount) / activeInvestment.price) * 100);
+      const name = TARGET_NAMES[activeInvestment.targetId] ?? activeInvestment.targetId;
+      setLiveMessage(activeInvestment.targetType === 'route'
+        ? `路线推进到 ${percent}%`
+        : `${name}建设到 ${percent}%`);
       setActiveInvestment(null);
       setInvestmentError('');
     } catch (error) {
@@ -44,12 +51,7 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
     <section className={'adventure-journal'} aria-labelledby={'adventure-journal-title'}>
       <header className={'journal-page-header'}>
         <div className={'journal-title-lockup'}>
-          <span className={'journal-title-icon'} aria-hidden={true}><BookOpenText size={24} /></span>
-          <div>
-            <p>DOCUMENTARY ADVENTURE SYSTEM · V0.1.0</p>
-            <h1 id={'adventure-journal-title'}>冒险日志</h1>
-            <span>把现实中的成长，变成一段可以回看的旅途。</span>
-          </div>
+          <div><p>ADVENTURE JOURNAL · V{ADVENTURE_DISPLAY_VERSION}</p><h1 id={'adventure-journal-title'}>冒险日志</h1></div>
         </div>
         <div className={'journal-header-tools'}>
           <DiceBalance value={controller.diceBalance} />
@@ -58,6 +60,7 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
           </button>
         </div>
       </header>
+      <p className="journal-live-message" role="status" aria-live="polite">{liveMessage}</p>
       <div className={'journal-tablist'} role={'tablist'} aria-label={'冒险日志视图'}>
         <button id={'journal-journey-tab'} type={'button'} role={'tab'} aria-selected={controller.activeTab === 'journey'}
           aria-controls={'journal-journey-panel'} onClick={() => controller.setActiveTab('journey')}>

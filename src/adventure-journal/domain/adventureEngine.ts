@@ -7,6 +7,16 @@ import type {
   InvestmentTargetType
 } from './types';
 
+export function getProgressStage(invested: number, price: number): 0 | 1 | 2 | 3 | 4 {
+  if (price <= 0 || invested <= 0) return 0;
+  const ratio = Math.min(1, invested / price);
+  if (ratio >= 1) return 4;
+  if (ratio >= 0.75) return 3;
+  if (ratio >= 0.5) return 2;
+  if (ratio >= 0.25) return 1;
+  return 0;
+}
+
 function createProgress(target: (typeof V0_1_TARGETS)[number]): InvestmentProgress {
   return {
     targetType: target.targetType,

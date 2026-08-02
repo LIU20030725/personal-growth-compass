@@ -1,4 +1,4 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Binoculars, MapPin } from 'lucide-react';
 import { SunnyTrailScene } from '../assets/maps/v0.1.0/SunnyTrailScene';
 import type { InvestmentProgress } from '../domain/types';
 
@@ -8,44 +8,50 @@ type JourneyViewProps = {
   onInvest(route: InvestmentProgress): void;
 };
 
+const MILESTONES = ['刚刚启程', '看见远山', '走入溪谷', '木桥在望', '抵达山谷'];
+
 export function JourneyView({ route, reducedMotion, onInvest }: JourneyViewProps) {
   const percent = Math.round((route.invested / route.price) * 100);
+  const stage = percent >= 100 ? 4 : percent >= 75 ? 3 : percent >= 50 ? 2 : percent >= 25 ? 1 : 0;
+
   return (
-    <section className={'journal-view'} id={'journal-journey-panel'} role={'tabpanel'} aria-label={'旅途'} aria-labelledby={'journal-journey-tab'}>
-      <div className={'journal-scene-card'}>
-        <div className={'journal-scene-copy'}>
-          <span>CHAPTER 01 · CURRENT LOCATION</span>
-          <h2>晴日林径</h2>
-          <p>把真实生活里的每一次完成，铺成通往下一片风景的路。</p>
+    <section className="journal-view journey-view" id="journal-journey-panel" role="tabpanel" aria-label="旅途" aria-labelledby="journal-journey-tab">
+      <div className="journal-world-shell">
+        <div className="journal-world-heading">
+          <div>
+            <span>CHAPTER 01 · SUNNY TRAIL</span>
+            <h2>晴日林径</h2>
+          </div>
+          <div className="journal-weather"><span aria-hidden="true">☀</span> 微风 · 24℃</div>
         </div>
-        <div className={'journal-scene-frame'}>
-          <SunnyTrailScene reducedMotion={reducedMotion} />
+        <div className="journal-scene-frame journey-scene-frame">
+          <SunnyTrailScene reducedMotion={reducedMotion} progress={percent} />
+          <div className="journey-scene-hud">
+            <div className="journey-location-chip"><MapPin size={15} aria-hidden="true" /><span>当前旅程</span><strong>{MILESTONES[stage]}</strong></div>
+            <div className="journey-distance-chip"><Binoculars size={15} aria-hidden="true" /><strong>{percent}%</strong><span>前往风过山谷</span></div>
+          </div>
         </div>
-        <div className={'journal-scene-caption'} aria-hidden={true}>
-          <span>35.6812° N</span><span>SUNNY TRAIL / 001</span><span>ALT. 184 M</span>
+        <div className="journey-route-dock">
+          <div className="journey-route-copy">
+            <span>NEXT DESTINATION · 02</span>
+            <h3>通往风过山谷</h3>
+            <p>{route.status === 'ready' ? '木桥已经完成，下一段旅途正在风里等你。' : `还需 ${route.price - route.invested} 枚成长骰子修好山谷木桥。`}</p>
+          </div>
+          <div className="journey-route-action">
+            <div className="journal-progress-track" role="progressbar" aria-label="通往风过山谷建设进度"
+              aria-valuemin={0} aria-valuemax={route.price} aria-valuenow={route.invested}
+              aria-valuetext={`${route.invested} / ${route.price}`}>
+              <span style={{ width: `${percent}%` }} />
+            </div>
+            <div className="journal-progress-meta"><strong>{route.invested} / {route.price}</strong><span>{MILESTONES[stage]}</span></div>
+            <button className="journal-build-button" type="button"
+              disabled={route.status === 'ready' || route.status === 'unlocked'} onClick={() => onInvest(route)}>
+              {route.status === 'ready' ? '路线已准备好' : '投入通往风过山谷'}
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </div>
-      <article className={'journal-investment-card journal-route-card'}>
-        <header>
-          <div><span className={'journal-card-index'}>NEXT DESTINATION · 02</span><h3>通往风过山谷</h3></div>
-          <span className={'journal-price-tag'}>固定价格 {route.price}</span>
-        </header>
-        <p>山谷入口需要一座结实的木桥。投入可以分多次进行，价格不会临时上涨。</p>
-        <div className={'journal-progress-track'} role={'progressbar'} aria-label={'通往风过山谷建设进度'}
-          aria-valuemin={0} aria-valuemax={route.price} aria-valuenow={route.invested}
-          aria-valuetext={route.invested + ' / ' + route.price}>
-          <span style={{ width: percent + '%' }} />
-        </div>
-        <div className={'journal-progress-meta'}>
-          <strong>{route.invested} / {route.price}</strong>
-          <span>{route.status === 'ready' ? '桥梁已就绪，等待启程' : '完成 ' + percent + '%'}</span>
-        </div>
-        <button className={'journal-build-button'} type={'button'}
-          disabled={route.status === 'ready' || route.status === 'unlocked'} onClick={() => onInvest(route)}>
-          {route.status === 'ready' ? '路线已准备好' : '投入通往风过山谷'}
-          <ArrowUpRight size={18} aria-hidden={true} />
-        </button>
-      </article>
     </section>
   );
 }

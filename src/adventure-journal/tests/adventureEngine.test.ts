@@ -2,8 +2,20 @@ import { describe, expect, it } from 'vitest';
 import {
   applyInvestment,
   createInitialAdventureState,
-  findInvestment
+  findInvestment,
+  getProgressStage
 } from '../domain/adventureEngine';
+
+describe('adventure visual progress stages', () => {
+  it('maps investment ratios onto stable 0/25/50/75/100 visual milestones', () => {
+    expect(getProgressStage(0, 30)).toBe(0);
+    expect(getProgressStage(7, 30)).toBe(0);
+    expect(getProgressStage(8, 30)).toBe(1);
+    expect(getProgressStage(15, 30)).toBe(2);
+    expect(getProgressStage(23, 30)).toBe(3);
+    expect(getProgressStage(30, 30)).toBe(4);
+  });
+});
 
 describe('adventure journal initial state', () => {
   it('starts on Sunny Trail with frozen V0.1 prices', () => {
@@ -11,7 +23,7 @@ describe('adventure journal initial state', () => {
 
     expect(state).toMatchObject({
       schemaVersion: 1,
-      contentVersion: '0.1.0',
+      contentVersion: '1.1.0-0802',
       currentChapterId: 'map-sunny-trail',
       viewingMapId: 'map-sunny-trail',
       unlockedMapIds: ['map-sunny-trail']
