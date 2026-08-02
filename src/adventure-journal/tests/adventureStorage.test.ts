@@ -47,6 +47,20 @@ describe('adventure journal storage', () => {
     expect(storage.getItem(backupKey!)).toBe('{broken');
   });
 
+  it('rejects structurally valid investment data whose values exceed their bounds', () => {
+    const { data, storage } = createMemoryStorage();
+    const initial = createInitialAdventureState(now);
+    saveAdventureState(storage, {
+      ...initial,
+      homeInvestments: initial.homeInvestments.map((item) => item.targetId === 'home-field-desk'
+        ? { ...item, invested: item.price + 1, status: 'building' }
+        : item)
+    });
+
+    expect(loadAdventureState(storage, now)).toEqual(initial);
+    expect([...data.keys()].some((key) => key.startsWith(`${ADVENTURE_STORAGE_KEY}.corrupt.`))).toBe(true);
+  });
+
   it('migrates the legacy task adventure seed without changing task data', () => {
     const { storage } = createMemoryStorage();
     const legacyTaskState = {

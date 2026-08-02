@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { DiceTransaction } from '../../tasks/types';
+import { useDialogFocus } from './useDialogFocus';
 
 const TYPE_LABELS: Record<DiceTransaction['type'], string> = {
   'task-reward': '任务奖励',
@@ -21,16 +22,20 @@ type LedgerDialogProps = {
 };
 
 export function LedgerDialog({ open, transactions, onClose }: LedgerDialogProps) {
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(open, onClose);
   if (!open) return null;
   const ordered = [...transactions].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
     <div className="journal-dialog-backdrop" role="presentation" onMouseDown={onClose}>
       <section
+        ref={dialogRef}
         className="journal-dialog journal-ledger-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="journal-ledger-title"
+        tabIndex={-1}
+        onKeyDown={onDialogKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="journal-dialog-header">

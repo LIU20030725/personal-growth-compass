@@ -1,5 +1,5 @@
 import { Home, Map, ReceiptText, Waves } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { V0_1_TARGETS } from '../content/v0_1';
 import { DiceBalance } from '../components/DiceBalance';
 import { InvestDialog } from '../components/InvestDialog';
@@ -47,6 +47,19 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
     }
   }
 
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    let nextTab: 'journey' | 'home' | null = null;
+    if (event.key === 'ArrowRight') nextTab = controller.activeTab === 'journey' ? 'home' : 'journey';
+    if (event.key === 'ArrowLeft') nextTab = controller.activeTab === 'journey' ? 'home' : 'journey';
+    if (event.key === 'Home') nextTab = 'journey';
+    if (event.key === 'End') nextTab = 'home';
+    if (!nextTab) return;
+
+    event.preventDefault();
+    controller.setActiveTab(nextTab);
+    document.getElementById(`journal-${nextTab}-tab`)?.focus();
+  }
+
   return (
     <section className={'adventure-journal'} aria-labelledby={'adventure-journal-title'}>
       <header className={'journal-page-header'}>
@@ -74,12 +87,14 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
       <p className="journal-live-message" role="status" aria-live="polite">{liveMessage}</p>
       <div className={'journal-tablist'} role={'tablist'} aria-label={'冒险日志视图'}>
         <button id={'journal-journey-tab'} type={'button'} role={'tab'} aria-selected={controller.activeTab === 'journey'}
-          aria-controls={'journal-journey-panel'} onClick={() => controller.setActiveTab('journey')}>
+          aria-controls={'journal-journey-panel'} tabIndex={controller.activeTab === 'journey' ? 0 : -1}
+          onKeyDown={handleTabKeyDown} onClick={() => controller.setActiveTab('journey')}>
           <Map size={18} aria-hidden={true} />
           <span><strong>旅途</strong><small>JOURNEY</small></span>
         </button>
         <button id={'journal-home-tab'} type={'button'} role={'tab'} aria-selected={controller.activeTab === 'home'}
-          aria-controls={'journal-home-panel'} onClick={() => controller.setActiveTab('home')}>
+          aria-controls={'journal-home-panel'} tabIndex={controller.activeTab === 'home' ? 0 : -1}
+          onKeyDown={handleTabKeyDown} onClick={() => controller.setActiveTab('home')}>
           <Home size={18} aria-hidden={true} />
           <span><strong>永久之家</strong><small>PERMANENT HOME</small></span>
         </button>

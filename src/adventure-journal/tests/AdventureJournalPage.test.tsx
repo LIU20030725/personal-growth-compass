@@ -70,6 +70,49 @@ describe('adventure journal shared interface', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('bounds stepper controls at one and the available maximum', () => {
+    const onConfirm = vi.fn();
+    render(
+      <InvestDialog open targetName="田野书桌" balance={3} remaining={6}
+        onClose={() => undefined} onConfirm={onConfirm} />
+    );
+
+    const input = screen.getByLabelText('投入数量');
+    const decrease = screen.getByRole('button', { name: '减少一枚骰子' });
+    const increase = screen.getByRole('button', { name: '增加一枚骰子' });
+    expect(input).toHaveValue(1);
+    expect(decrease).toBeDisabled();
+    expect(increase).toBeEnabled();
+
+    fireEvent.click(increase);
+    fireEvent.click(increase);
+    expect(input).toHaveValue(3);
+    expect(increase).toBeDisabled();
+    expect(decrease).toBeEnabled();
+
+    fireEvent.change(input, { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('骰子余额不足，还差 1 枚');
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('请输入大于 0 的整数');
+  });
+
+  it('disables all investment controls when the available maximum is zero', () => {
+    render(
+      <InvestDialog open targetName="田野书桌" balance={0} remaining={6}
+        onClose={() => undefined} onConfirm={() => undefined} />
+    );
+
+    expect(screen.getByLabelText('投入数量')).toHaveValue(0);
+    expect(screen.getByLabelText('投入数量')).toBeDisabled();
+    expect(screen.getByRole('button', { name: '减少一枚骰子' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '增加一枚骰子' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '确认投入' })).toBeDisabled();
+  });
+
   it('announces the current dice balance', () => {
     render(<DiceBalance value={12} />);
     expect(screen.getByLabelText('成长骰子余额 12')).toBeInTheDocument();
@@ -128,6 +171,79 @@ describe('adventure journal shared interface', () => {
 });
 
 describe('AdventureJournalPage', () => {
+  it('keeps investment dialog focus contained and restores its trigger on Escape', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 8);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    const trigger = screen.getByRole('button', { name: '投入通往风过山谷' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole('dialog', { name: '投入骰子' });
+    const close = screen.getByRole('button', { name: '关闭投入对话框' });
+    const confirm = screen.getByRole('button', { name: '确认投入' });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(confirm).toHaveFocus();
+    fireEvent.keyDown(confirm, { key: 'Tab' });
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '投入骰子' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('keeps ledger dialog focus contained and restores its trigger on Escape', () => {
+    const storage = createMemoryStorage();
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    const trigger = screen.getByRole('button', { name: '查看骰子账本' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const close = screen.getByRole('button', { name: '关闭骰子账本' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '骰子账本' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('supports roving focus and selection across adventure tabs', () => {
+    const storage = createMemoryStorage();
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    const journey = screen.getByRole('tab', { name: /旅途/ });
+    const home = screen.getByRole('tab', { name: /永久之家/ });
+    journey.focus();
+    expect(journey).toHaveAttribute('tabindex', '0');
+    expect(home).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(journey, { key: 'ArrowRight' });
+    expect(home).toHaveFocus();
+    expect(home).toHaveAttribute('aria-selected', 'true');
+    expect(home).toHaveAttribute('tabindex', '0');
+    expect(journey).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(home, { key: 'ArrowLeft' });
+    expect(journey).toHaveFocus();
+    expect(journey).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(journey, { key: 'End' });
+    expect(home).toHaveFocus();
+    expect(home).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(home, { key: 'Home' });
+    expect(journey).toHaveFocus();
+    expect(journey).toHaveAttribute('aria-selected', 'true');
+  });
+
   it('switches between the journey and home, then builds an item with a ledger entry', () => {
     const storage = createMemoryStorage();
     seedDice(storage, 8);

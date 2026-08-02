@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Minus, Plus, X } from 'lucide-react';
+import { useDialogFocus } from './useDialogFocus';
 
 type InvestDialogProps = {
   open: boolean;
@@ -23,6 +24,12 @@ export function InvestDialog({
   const [amount, setAmount] = useState('1');
   const [error, setError] = useState('');
   const maximum = Math.min(balance, remaining);
+  const numericAmount = Number(amount);
+  const amountIsInteger = Number.isInteger(numericAmount);
+  const noAvailableAmount = maximum < 1;
+  const decreaseDisabled = noAvailableAmount || !amountIsInteger || numericAmount <= 1;
+  const increaseDisabled = noAvailableAmount || !amountIsInteger || numericAmount >= maximum;
+  const { dialogRef, onDialogKeyDown } = useDialogFocus(open, onClose);
 
   useEffect(() => {
     if (!open) return;
@@ -33,7 +40,11 @@ export function InvestDialog({
   if (!open) return null;
 
   function updateAmount(next: number) {
-    setAmount(String(Math.max(0, next)));
+    const minimum = noAvailableAmount ? 0 : 1;
+    const normalized = Number.isFinite(next)
+      ? Math.min(maximum, Math.max(minimum, Math.trunc(next)))
+      : minimum;
+    setAmount(String(normalized));
     setError('');
   }
 
@@ -60,10 +71,13 @@ export function InvestDialog({
   return (
     <div className="journal-dialog-backdrop" role="presentation" onMouseDown={onClose}>
       <section
+        ref={dialogRef}
         className="journal-dialog journal-invest-dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="journal-invest-title"
+        tabIndex={-1}
+        onKeyDown={onDialogKeyDown}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <header className="journal-dialog-header">
@@ -83,7 +97,8 @@ export function InvestDialog({
           </dl>
           <label htmlFor="investment-amount">投入数量</label>
           <div className="journal-number-stepper">
-            <button type="button" aria-label="减少一枚骰子" onClick={() => updateAmount(Number(amount) - 1)}>
+            <button type="button" aria-label="减少一枚骰子" disabled={decreaseDisabled}
+              onClick={() => updateAmount(numericAmount - 1)}>
               <Minus size={18} />
             </button>
             <input
@@ -91,13 +106,15 @@ export function InvestDialog({
               name="investment-amount"
               type="number"
               inputMode="numeric"
-              min="1"
+              min={noAvailableAmount ? 0 : 1}
               max={maximum}
               step="1"
               value={amount}
+              disabled={noAvailableAmount}
               onChange={(event) => { setAmount(event.target.value); setError(''); }}
             />
-            <button type="button" aria-label="增加一枚骰子" onClick={() => updateAmount(Number(amount) + 1)}>
+            <button type="button" aria-label="增加一枚骰子" disabled={increaseDisabled}
+              onClick={() => updateAmount(numericAmount + 1)}>
               <Plus size={18} />
             </button>
           </div>

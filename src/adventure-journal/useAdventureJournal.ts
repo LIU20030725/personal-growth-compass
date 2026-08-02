@@ -8,6 +8,7 @@ import { completeRoute as completeRouteState } from './domain/adventureEngine';
 import { createInvestmentCoordinator } from './integrations/investmentCoordinator';
 import { createTaskLedgerAdapter } from './integrations/taskLedgerAdapter';
 import {
+  ADVENTURE_MOTION_PREFERENCE_KEY,
   loadAdventureState,
   saveAdventureState,
   type StorageLike
@@ -57,12 +58,18 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
   );
   const [state, setState] = useState<AdventureJournalState>(() => {
     const recovered = coordinator.recover(now());
-    if (recovered.preferences.reducedMotion === preferredReducedMotion) return recovered;
+    const savedMotionPreference = storage.getItem(ADVENTURE_MOTION_PREFERENCE_KEY);
+    const resolvedReducedMotion = savedMotionPreference === 'true'
+      ? true
+      : savedMotionPreference === 'false'
+        ? false
+        : preferredReducedMotion;
+    if (recovered.preferences.reducedMotion === resolvedReducedMotion) return recovered;
     const withPreference = {
       ...recovered,
       preferences: {
         ...recovered.preferences,
-        reducedMotion: preferredReducedMotion
+        reducedMotion: resolvedReducedMotion
       }
     };
     saveAdventureState(storage, withPreference);
@@ -125,6 +132,7 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
         reducedMotion
       }
     };
+    storage.setItem(ADVENTURE_MOTION_PREFERENCE_KEY, String(reducedMotion));
     saveAdventureState(storage, next);
     setState(next);
   }, [now, storage]);

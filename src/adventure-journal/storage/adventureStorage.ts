@@ -8,6 +8,7 @@ import type {
 } from '../domain/types';
 
 export const ADVENTURE_STORAGE_KEY = 'dice-life.adventure-journal.v1';
+export const ADVENTURE_MOTION_PREFERENCE_KEY = 'dice-life.adventure-journal.motion-preference.v1';
 
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
@@ -19,10 +20,15 @@ function isRecord(value: unknown): value is UnknownRecord {
 
 function isInvestment(value: unknown): value is InvestmentProgress {
   if (!isRecord(value)) return false;
+  const price = value.price;
+  const invested = value.invested;
+  const validPrice = typeof price === 'number' && Number.isInteger(price) && price > 0;
+  const validInvested = typeof invested === 'number' && Number.isInteger(invested) &&
+    invested >= 0 && typeof price === 'number' && invested <= price;
   return (value.targetType === 'route' || value.targetType === 'home-item' || value.targetType === 'gear') &&
     typeof value.targetId === 'string' &&
-    typeof value.price === 'number' &&
-    typeof value.invested === 'number' &&
+    validPrice &&
+    validInvested &&
     (value.status === 'available' || value.status === 'building' || value.status === 'ready' || value.status === 'unlocked') &&
     (value.unlockedAt === null || typeof value.unlockedAt === 'string');
 }

@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { createInitialTaskState } from '../../tasks/taskEngine';
 import { TASK_RULE_VERSION } from '../../tasks/taskConfig';
-import { saveTaskState } from '../../tasks/taskStorage';
+import { loadTaskState, saveTaskState } from '../../tasks/taskStorage';
 import { ADVENTURE_STORAGE_KEY } from '../storage/adventureStorage';
 import { useAdventureJournal } from '../useAdventureJournal';
 
@@ -88,5 +88,52 @@ describe('useAdventureJournal', () => {
     expect(result.current.state.preferences.reducedMotion).toBe(true);
     const saved = JSON.parse(storage.getItem(ADVENTURE_STORAGE_KEY) ?? '{}');
     expect(saved.preferences.reducedMotion).toBe(true);
+  });
+
+  it('preserves an explicit user motion preference across remounts', () => {
+    const storage = createMemoryStorage();
+    const firstMount = renderHook(() => useAdventureJournal({
+      storage,
+      now: () => '2026-08-01T09:00:00+08:00',
+      reducedMotion: false
+    }));
+
+    act(() => firstMount.result.current.setReducedMotion(true));
+    firstMount.unmount();
+
+    const secondMount = renderHook(() => useAdventureJournal({
+      storage,
+      now: () => '2026-08-01T10:00:00+08:00',
+      reducedMotion: false
+    }));
+    expect(secondMount.result.current.state.preferences.reducedMotion).toBe(true);
+  });
+
+  it('refreshes its balance after another module writes to the shared ledger', () => {
+    const storage = createMemoryStorage();
+    seedEightDice(storage);
+    const journal = renderHook(() => useAdventureJournal({
+      storage,
+      now: () => '2026-08-01T09:00:00+08:00'
+    }));
+    const externalTaskState = loadTaskState(storage);
+    externalTaskState.diceTransactions.push({
+      id: 'external-income',
+      type: 'task-reward',
+      amount: 5,
+      sourceId: 'task-outside-journal',
+      dimension: 'ability',
+      ruleVersion: TASK_RULE_VERSION,
+      createdAt: '2026-08-01T09:30:00+08:00',
+      balanceAfter: 13
+    });
+    saveTaskState(storage, externalTaskState);
+
+    act(() => journal.result.current.refresh());
+
+    expect(journal.result.current.diceBalance).toBe(13);
+    expect(journal.result.current.ledgerTransactions).toContainEqual(
+      expect.objectContaining({ id: 'external-income', balanceAfter: 13 })
+    );
   });
 });

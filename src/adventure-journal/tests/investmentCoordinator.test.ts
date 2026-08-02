@@ -96,4 +96,36 @@ describe('recoverable investment coordinator', () => {
     expect(ledger.getBalance()).toBe(8);
     expect(findInvestment(recovered, 'route', 'route-wind-valley').invested).toBe(0);
   });
+
+  it('recovers multiple pending operations independently', () => {
+    const storage = createMemoryStorage();
+    seedEightDice(storage);
+    const ledger = createTaskLedgerAdapter(storage);
+    ledger.spend({
+      transactionId: 'charged-spend',
+      operationId: 'charged-route',
+      targetType: 'route',
+      targetId: 'route-wind-valley',
+      amount: 3,
+      createdAt: now
+    });
+    const initial = createInitialAdventureState(now);
+    saveAdventureState(storage, {
+      ...initial,
+      operations: [
+        { id: 'charged-route', targetType: 'route', targetId: 'route-wind-valley', amount: 3, status: 'pending', createdAt: now, appliedAt: null, error: '' },
+        { id: 'uncharged-home', targetType: 'home-item', targetId: 'home-field-desk', amount: 2, status: 'pending', createdAt: now, appliedAt: null, error: '' }
+      ]
+    });
+
+    const recovered = createInvestmentCoordinator({ storage, ledger }).recover(now);
+
+    expect(recovered.operations).toEqual([
+      expect.objectContaining({ id: 'charged-route', status: 'applied', error: '' }),
+      expect.objectContaining({ id: 'uncharged-home', status: 'failed', error: '扣款未发生，请重新提交' })
+    ]);
+    expect(findInvestment(recovered, 'route', 'route-wind-valley').invested).toBe(3);
+    expect(findInvestment(recovered, 'home-item', 'home-field-desk').invested).toBe(0);
+    expect(ledger.getBalance()).toBe(5);
+  });
 });
