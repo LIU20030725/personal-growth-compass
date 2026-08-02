@@ -1,0 +1,114 @@
+{
+  "1440-empty": {
+    "viewport": [
+      1440,
+      900
+    ],
+    "scrollWidth": 1440,
+    "overflowX": false,
+    "module": {
+      "left": 256,
+      "right": 1440
+    },
+    "dock": {
+      "left": 256,
+      "right": 1440,
+      "bottom": 880
+    },
+    "nav": {
+      "left": 676,
+      "right": 1020,
+      "bottom": 880
+    },
+    "fab": {
+      "left": 1283,
+      "right": 1416,
+      "bottom": 878
+    },
+    "navFabOverlap": false
+  },
+  "1024-calendar": {
+    "viewport": [
+      1024,
+      768
+    ],
+    "scrollWidth": 1024,
+    "overflowX": false,
+    "module": {
+      "left": 0,
+      "right": 1024
+    },
+    "dock": {
+      "left": 0,
+      "right": 1024,
+      "bottom": 748
+    },
+    "nav": {
+      "left": 340,
+      "right": 684,
+      "bottom": 748
+    },
+    "fab": {
+      "left": 867,
+      "right": 1000,
+      "bottom": 746
+    },
+    "navFabOverlap": false
+  },
+  "390-journal": {
+    "viewport": [
+      390,
+      844
+    ],
+    "scrollWidth": 390,
+    "overflowX": false,
+    "module": {
+      "left": 0,
+      "right": 390
+    },
+    "dock": {
+      "left": 0,
+      "right": 390,
+      "bottom": 832
+    },
+    "nav": {
+      "left": 12,
+      "right": 302,
+      "bottom": 832
+    },
+    "fab": {
+      "left": 316,
+      "right": 378,
+      "bottom": 832
+    },
+    "navFabOverlap": false
+  },
+  "390-empty": {
+    "viewport": [
+      390,
+      844
+    ],
+    "scrollWidth": 390,
+    "overflowX": false,
+    "module": {
+      "left": 0,
+      "right": 390
+    },
+    "dock": {
+      "left": 0,
+      "right": 390,
+      "bottom": 832
+    },
+    "nav": {
+      "left": 12,
+      "right": 302,
+      "bottom": 832
+    },
+    "fab": {
+      "left": 316,
+      "right": 378,
+      "bottom": 832
+    },
+    "navFabOverlap": false
+  }
+}

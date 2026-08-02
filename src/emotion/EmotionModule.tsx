@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BookOpenText, CalendarDays, Images, Plus } from 'lucide-react';
 import { getEntriesByLocalDate } from './emotionEngine';
 import { useEmotionSystem } from './useEmotionSystem';
@@ -32,6 +32,25 @@ export function EmotionModule() {
   const [route, setRoute] = useState<EmotionRoute>({ name: 'journal' });
   const [composer, setComposer] = useState<{ mode: 'create' } | { mode: 'edit'; entryId: string } | null>(null);
   const composerTriggerRef = useRef<HTMLElement | null>(null);
+  const moduleRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const node = moduleRef.current;
+    if (!node) return;
+    const updateDockGeometry = () => {
+      const bounds = node.getBoundingClientRect();
+      node.style.setProperty('--emotion-module-left', `${Math.max(0, bounds.left)}px`);
+      node.style.setProperty('--emotion-module-right', `${Math.max(0, window.innerWidth - bounds.right)}px`);
+    };
+    updateDockGeometry();
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateDockGeometry);
+    resizeObserver?.observe(node);
+    window.addEventListener('resize', updateDockGeometry);
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateDockGeometry);
+    };
+  }, []);
 
   const mainRoute = getMainRoute(route);
   const activeTab = mainRoute.name;
@@ -90,15 +109,17 @@ export function EmotionModule() {
     attachments: editingEntry.attachments
   } : undefined;
 
-  return <section className="emotion-module" aria-label="情绪记录">
+  return <section ref={moduleRef} className="emotion-module" aria-label="情绪记录">
     <div className="emotion-module__canvas">{content}</div>
     {system.error && <div className="emotion-error-toast" aria-live="polite">{system.error}<button type="button" onClick={system.clearError}>知道了</button></div>}
-    <nav className="emotion-bottom-nav" aria-label="情绪模块导航">
-      <button type="button" aria-current={activeTab === 'journal' ? 'page' : undefined} onClick={() => switchTab('journal')}><BookOpenText /><span>日记</span></button>
-      <button type="button" aria-current={activeTab === 'library' ? 'page' : undefined} onClick={() => switchTab('library')}><Images /><span>内容库</span></button>
-      <button type="button" aria-current={activeTab === 'calendar' ? 'page' : undefined} onClick={() => switchTab('calendar')}><CalendarDays /><span>心情日历</span></button>
-    </nav>
-    <button className="emotion-fab" type="button" aria-label="记录感受" onClick={() => openComposer({ mode: 'create' })}><Plus /><span>记录感受</span></button>
+    <div className="emotion-dock">
+      <nav className="emotion-bottom-nav" aria-label="情绪模块导航">
+        <button type="button" aria-current={activeTab === 'journal' ? 'page' : undefined} onClick={() => switchTab('journal')}><BookOpenText /><span>日记</span></button>
+        <button type="button" aria-current={activeTab === 'library' ? 'page' : undefined} onClick={() => switchTab('library')}><Images /><span>内容库</span></button>
+        <button type="button" aria-current={activeTab === 'calendar' ? 'page' : undefined} onClick={() => switchTab('calendar')}><CalendarDays /><span>心情日历</span></button>
+      </nav>
+      <button className="emotion-fab" type="button" aria-label="记录感受" onClick={() => openComposer({ mode: 'create' })}><Plus /><span>记录感受</span></button>
+    </div>
     {composer && <EmotionComposer
       initial={initialDraft}
       getBlob={system.getAttachmentBlob}

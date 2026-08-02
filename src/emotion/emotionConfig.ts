@@ -22,23 +22,23 @@ export const moodGroups: Array<{ id: MoodGroup; label: string }> = [
 ];
 
 export const moodPresets: MoodPreset[] = [
-  { id: 'happy', label: '开心', group: 'uplifted', color: '#ffd85c', face: 'smile' },
-  { id: 'excited', label: '兴奋', group: 'uplifted', color: '#ffbf47', face: 'spark' },
-  { id: 'grateful', label: '感激', group: 'uplifted', color: '#ffcf70', face: 'soft' },
-  { id: 'satisfied', label: '满足', group: 'uplifted', color: '#f3c653', face: 'smile' },
-  { id: 'calm', label: '平静', group: 'steady', color: '#a9dfca', face: 'soft' },
-  { id: 'relaxed', label: '放松', group: 'steady', color: '#98d8c1', face: 'smile' },
-  { id: 'focused', label: '专注', group: 'steady', color: '#a8d9d0', face: 'flat' },
-  { id: 'tired', label: '疲惫', group: 'low-energy', color: '#c9c2e8', face: 'sleepy' },
-  { id: 'bored', label: '无聊', group: 'low-energy', color: '#d5cfdf', face: 'flat' },
-  { id: 'down', label: '低落', group: 'low-energy', color: '#bfc5dd', face: 'sad' },
-  { id: 'lonely', label: '孤独', group: 'low-energy', color: '#b5c2d8', face: 'sad' },
-  { id: 'anxious', label: '焦虑', group: 'high-pressure', color: '#f1b7a8', face: 'worried' },
-  { id: 'stressed', label: '压力', group: 'high-pressure', color: '#efaa9d', face: 'worried' },
-  { id: 'angry', label: '生气', group: 'high-pressure', color: '#ee9b88', face: 'angry' },
-  { id: 'confused', label: '迷茫', group: 'high-pressure', color: '#d9b5cd', face: 'worried' },
-  { id: 'sad', label: '悲伤', group: 'high-pressure', color: '#aebbd7', face: 'sad' },
-  { id: 'overwhelmed', label: '撑不住', group: 'high-pressure', color: '#c6acc7', face: 'sad' }
+  { id: 'happy', label: '开心', group: 'uplifted', color: '#f1d982', face: 'smile' },
+  { id: 'excited', label: '兴奋', group: 'uplifted', color: '#eecf76', face: 'spark' },
+  { id: 'grateful', label: '感激', group: 'uplifted', color: '#f3dfa0', face: 'soft' },
+  { id: 'satisfied', label: '满足', group: 'uplifted', color: '#e8cc79', face: 'smile' },
+  { id: 'calm', label: '平静', group: 'steady', color: '#b7dccf', face: 'soft' },
+  { id: 'relaxed', label: '放松', group: 'steady', color: '#aed5c7', face: 'smile' },
+  { id: 'focused', label: '专注', group: 'steady', color: '#b8d8d2', face: 'flat' },
+  { id: 'tired', label: '疲惫', group: 'low-energy', color: '#cac9dd', face: 'sleepy' },
+  { id: 'bored', label: '无聊', group: 'low-energy', color: '#d7d5de', face: 'flat' },
+  { id: 'down', label: '低落', group: 'low-energy', color: '#c8d2df', face: 'sad' },
+  { id: 'lonely', label: '孤独', group: 'low-energy', color: '#c4d2de', face: 'sad' },
+  { id: 'anxious', label: '焦虑', group: 'high-pressure', color: '#efc1b5', face: 'worried' },
+  { id: 'stressed', label: '压力', group: 'high-pressure', color: '#e9b8ae', face: 'worried' },
+  { id: 'angry', label: '生气', group: 'high-pressure', color: '#e7aa9a', face: 'angry' },
+  { id: 'confused', label: '迷茫', group: 'high-pressure', color: '#dabfd0', face: 'worried' },
+  { id: 'sad', label: '悲伤', group: 'high-pressure', color: '#bccbdf', face: 'sad' },
+  { id: 'overwhelmed', label: '撑不住', group: 'high-pressure', color: '#cfb9cd', face: 'sad' }
 ];
 
 export const activityGroups = [
@@ -59,4 +59,3 @@ export const activityPresets: ActivityPreset[] = [
 
 export const moodById = new Map(moodPresets.map((mood) => [mood.id, mood]));
 export const activityById = new Map(activityPresets.map((activity) => [activity.id, activity]));
-
