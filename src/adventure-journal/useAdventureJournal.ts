@@ -4,6 +4,7 @@ import type {
   AdventureJournalState,
   InvestmentTargetType
 } from './domain/types';
+import { completeRoute as completeRouteState } from './domain/adventureEngine';
 import { createInvestmentCoordinator } from './integrations/investmentCoordinator';
 import { createTaskLedgerAdapter } from './integrations/taskLedgerAdapter';
 import {
@@ -29,6 +30,7 @@ export type AdventureJournalController = {
   setActiveTab(tab: AdventureTab): void;
   setViewingMap(mapId: string): void;
   invest(type: InvestmentTargetType, targetId: string, amount: number): void;
+  completeRoute(targetId: string): void;
   refresh(): void;
 };
 
@@ -106,6 +108,13 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
     setState(next);
   }, [now, storage]);
 
+  const completeRoute = useCallback((targetId: string) => {
+    const current = loadAdventureState(storage, now());
+    const next = completeRouteState(current, targetId, now());
+    saveAdventureState(storage, next);
+    setState(next);
+  }, [now, storage]);
+
   return useMemo(() => ({
     state,
     activeTab,
@@ -114,10 +123,12 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
     setActiveTab,
     setViewingMap,
     invest,
+    completeRoute,
     refresh
   }), [
     activeTab,
     diceBalance,
+    completeRoute,
     invest,
     ledgerTransactions,
     refresh,

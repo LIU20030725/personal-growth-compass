@@ -10,6 +10,7 @@ const ITEM_COPY: Record<string, { title: string; description: string }> = {
 type HomeViewProps = {
   investments: InvestmentProgress[];
   reducedMotion: boolean;
+  hasWindValleyDiscovery: boolean;
   onInvest(target: InvestmentProgress): void;
 };
 
@@ -40,7 +41,7 @@ function HomeItemCard({ item, onInvest }: { item: InvestmentProgress; onInvest(t
   );
 }
 
-export function HomeView({ investments, reducedMotion, onInvest }: HomeViewProps) {
+export function HomeView({ investments, reducedMotion, hasWindValleyDiscovery, onInvest }: HomeViewProps) {
   const completed = investments.filter((item) => item.status === 'unlocked').length;
   return (
     <section className="journal-view home-view" id="journal-home-panel" role="tabpanel" aria-label="永久之家" aria-labelledby="journal-home-tab">
@@ -57,6 +58,12 @@ export function HomeView({ investments, reducedMotion, onInvest }: HomeViewProps
       <aside className="home-project-panel" aria-label="家园建造项目">
         <header><span>HOME PROJECTS</span><h2>让院子慢慢长大</h2></header>
         {investments.map((item) => <HomeItemCard key={item.targetId} item={item} onInvest={onInvest} />)}
+        {hasWindValleyDiscovery ? (
+          <article className="home-discovery-card">
+            <span aria-hidden="true">♬</span>
+            <div><small>JOURNEY DISCOVERY</small><h3>山谷风铃</h3><p>从风过山谷带回的第一件纪念物。微风经过院子时，它会轻轻响起。</p></div>
+          </article>
+        ) : null}
         <div className="journal-mail-teaser"><Mail size={21} aria-hidden="true" /><div><strong>远方来信</strong><span>下一次更新</span></div><p>未来的旅人会把你的成长片段写成信，投进门口的蓝色邮箱。</p></div>
       </aside>
     </section>

@@ -5,12 +5,15 @@ import type { InvestmentProgress } from '../domain/types';
 type JourneyViewProps = {
   route: InvestmentProgress;
   reducedMotion: boolean;
+  arrived: boolean;
   onInvest(route: InvestmentProgress): void;
+  onDepart(): void;
+  onGoHome(): void;
 };
 
 const MILESTONES = ['刚刚启程', '看见远山', '走入溪谷', '木桥在望', '抵达山谷'];
 
-export function JourneyView({ route, reducedMotion, onInvest }: JourneyViewProps) {
+export function JourneyView({ route, reducedMotion, arrived, onInvest, onDepart, onGoHome }: JourneyViewProps) {
   const percent = Math.round((route.invested / route.price) * 100);
   const stage = percent >= 100 ? 4 : percent >= 75 ? 3 : percent >= 50 ? 2 : percent >= 25 ? 1 : 0;
 
@@ -30,6 +33,14 @@ export function JourneyView({ route, reducedMotion, onInvest }: JourneyViewProps
             <div className="journey-location-chip"><MapPin size={15} aria-hidden="true" /><span>当前旅程</span><strong>{MILESTONES[stage]}</strong></div>
             <div className="journey-distance-chip"><Binoculars size={15} aria-hidden="true" /><strong>{percent}%</strong><span>前往风过山谷</span></div>
           </div>
+          {arrived ? (
+            <div className="journey-arrival-card">
+              <span>CHAPTER COMPLETE</span>
+              <h2>抵达风过山谷</h2>
+              <p>新发现：山谷风铃</p>
+              <button type="button" onClick={onGoHome}>带着发现回家</button>
+            </div>
+          ) : null}
         </div>
         <div className="journey-route-dock">
           <div className="journey-route-copy">
@@ -45,8 +56,9 @@ export function JourneyView({ route, reducedMotion, onInvest }: JourneyViewProps
             </div>
             <div className="journal-progress-meta"><strong>{route.invested} / {route.price}</strong><span>{MILESTONES[stage]}</span></div>
             <button className="journal-build-button" type="button"
-              disabled={route.status === 'ready' || route.status === 'unlocked'} onClick={() => onInvest(route)}>
-              {route.status === 'ready' ? '路线已准备好' : '投入通往风过山谷'}
+              disabled={arrived}
+              onClick={() => route.status === 'ready' ? onDepart() : onInvest(route)}>
+              {arrived ? '已经抵达风过山谷' : route.status === 'ready' ? '启程前往风过山谷' : '投入通往风过山谷'}
               <ArrowUpRight size={18} aria-hidden="true" />
             </button>
           </div>

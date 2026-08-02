@@ -75,10 +75,19 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
       </div>
       {controller.activeTab === 'journey' ? (
         <JourneyView route={controller.state.routeInvestments[0]}
-          reducedMotion={controller.state.preferences.reducedMotion} onInvest={openInvestment} />
+          reducedMotion={controller.state.preferences.reducedMotion}
+          arrived={controller.state.unlockedMapIds.includes('map-wind-valley')}
+          onInvest={openInvestment}
+          onDepart={() => {
+            controller.completeRoute('route-wind-valley');
+            setLiveMessage('抵达风过山谷，发现山谷风铃');
+          }}
+          onGoHome={() => controller.setActiveTab('home')} />
       ) : (
         <HomeView investments={controller.state.homeInvestments}
-          reducedMotion={controller.state.preferences.reducedMotion} onInvest={openInvestment} />
+          reducedMotion={controller.state.preferences.reducedMotion}
+          hasWindValleyDiscovery={controller.state.unlockedMapIds.includes('map-wind-valley')}
+          onInvest={openInvestment} />
       )}
       <InvestDialog open={activeInvestment !== null}
         targetName={activeInvestment ? TARGET_NAMES[activeInvestment.targetId] ?? activeInvestment.targetId : ''}

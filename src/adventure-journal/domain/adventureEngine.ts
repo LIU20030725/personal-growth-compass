@@ -109,3 +109,31 @@ export function applyInvestment(
   }
   return { ...state, gearInvestments: update(state.gearInvestments) };
 }
+
+const ROUTE_DESTINATIONS: Record<string, string> = {
+  'route-wind-valley': 'map-wind-valley'
+};
+
+export function completeRoute(
+  state: AdventureJournalState,
+  targetId: string,
+  completedAt: string
+): AdventureJournalState {
+  const route = findInvestment(state, 'route', targetId);
+  if (route.status === 'unlocked') return state;
+  if (route.status !== 'ready') throw new Error('路线尚未准备好');
+  const destinationId = ROUTE_DESTINATIONS[targetId];
+  if (!destinationId) throw new Error('路线目的地不存在');
+
+  return {
+    ...state,
+    currentChapterId: destinationId,
+    viewingMapId: destinationId,
+    unlockedMapIds: state.unlockedMapIds.includes(destinationId)
+      ? state.unlockedMapIds
+      : [...state.unlockedMapIds, destinationId],
+    routeInvestments: state.routeInvestments.map((item) => item.targetId === targetId
+      ? { ...item, status: 'unlocked', unlockedAt: completedAt }
+      : item)
+  };
+}

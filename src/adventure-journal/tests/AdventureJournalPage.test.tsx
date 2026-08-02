@@ -151,7 +151,7 @@ describe('AdventureJournalPage', () => {
     expect(screen.getByText('余额 2')).toBeInTheDocument();
   });
 
-  it('uses a native disabled control after a route reaches its fixed price', () => {
+  it('turns a ready route into a departure, arrival, and home discovery', () => {
     const storage = createMemoryStorage();
     seedDice(storage, 30);
     render(<AdventureJournalPage options={pageOptions(storage)} />);
@@ -160,7 +160,15 @@ describe('AdventureJournalPage', () => {
     fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '30' } });
     fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
 
-    expect(screen.getByRole('button', { name: /路线已准备好/ })).toBeDisabled();
+    const departButton = screen.getByRole('button', { name: '启程前往风过山谷' });
+    expect(departButton).toBeEnabled();
+    fireEvent.click(departButton);
+
+    expect(screen.getByRole('heading', { name: '抵达风过山谷' })).toBeInTheDocument();
+    expect(screen.getByText('新发现：山谷风铃')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '带着发现回家' }));
+    expect(screen.getByRole('tabpanel', { name: /永久之家/ })).toBeInTheDocument();
+    expect(screen.getByText('山谷风铃')).toBeInTheDocument();
   });
 
   it('keeps progress unchanged and explains when the dice balance is empty', () => {

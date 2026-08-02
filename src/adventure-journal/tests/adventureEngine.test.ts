@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyInvestment,
+  completeRoute,
   createInitialAdventureState,
   findInvestment,
   getProgressStage
@@ -68,6 +69,30 @@ describe('adventure investment rules', () => {
       price: 30,
       unlockedAt: null
     });
+  });
+
+  it('departs only after a route is ready and unlocks the destination once', () => {
+    const initial = createInitialAdventureState('2026-08-01T08:00:00+08:00');
+    expect(() => completeRoute(initial, 'route-wind-valley', '2026-08-02T10:00:00+08:00'))
+      .toThrow('路线尚未准备好');
+
+    const ready = applyInvestment(initial, {
+      operationId: 'op-route-ready',
+      targetType: 'route',
+      targetId: 'route-wind-valley',
+      amount: 30,
+      createdAt: '2026-08-02T09:00:00+08:00'
+    });
+    const arrived = completeRoute(ready, 'route-wind-valley', '2026-08-02T10:00:00+08:00');
+
+    expect(findInvestment(arrived, 'route', 'route-wind-valley')).toMatchObject({
+      status: 'unlocked',
+      unlockedAt: '2026-08-02T10:00:00+08:00'
+    });
+    expect(arrived.unlockedMapIds).toEqual(['map-sunny-trail', 'map-wind-valley']);
+    expect(arrived.currentChapterId).toBe('map-wind-valley');
+    expect(arrived.viewingMapId).toBe('map-wind-valley');
+    expect(completeRoute(arrived, 'route-wind-valley', '2026-08-02T11:00:00+08:00')).toEqual(arrived);
   });
 
   it('unlocks a home item once when its fixed price is reached', () => {
