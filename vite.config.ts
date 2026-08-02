@@ -28,6 +28,7 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
+      '**/.worktrees/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/canvas/**',
       '**/docs/docs_bak/**',

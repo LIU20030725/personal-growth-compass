@@ -35,6 +35,7 @@ import {
 } from './finance/financeEngine';
 import { Button } from '@/components/ui/button';
 import { TaskBoard } from './tasks/TaskBoard';
+import { EmotionModule } from './emotion/EmotionModule';
 
 const period = '2026-06';
 const currentYear = '2026';
@@ -921,7 +922,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="app-shell" id="main-content" tabIndex={-1}>
+      <main className={`app-shell${activeView === 'emotion' ? ' emotion-shell' : ''}`} id="main-content" tabIndex={-1}>
       {activeView === 'finance' ? (
       <>
       <section className="hero-panel wealth-hero">
@@ -1041,6 +1042,8 @@ export default function App() {
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
         <TaskBoard />
+      ) : activeView === 'emotion' ? (
+        <EmotionModule />
       ) : (
         <ModuleView view={activeView} />
       )}
