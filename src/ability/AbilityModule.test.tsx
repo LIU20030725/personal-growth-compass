@@ -49,7 +49,10 @@ describe('AbilityModule', () => {
     expect(screen.getByRole('group', { name: /部署网站 可开始/ })).not.toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('button', { name: /个人网站 成果/ })).toBeInTheDocument();
 
-    await waitFor(() => expect(container.querySelectorAll('.react-flow__edge')).toHaveLength(2));
+    await waitFor(() => {
+      expect(container.querySelectorAll('.react-flow__edge')).toHaveLength(2);
+      expect(container.querySelectorAll('.react-flow__edge.ability-edge-aligned')).toHaveLength(2);
+    });
 
     fireEvent.click(screen.getByRole('group', { name: /React 状态管理/ }));
     fireEvent.click(await screen.findByRole('button', { name: /查看详情 React 状态管理/ }));

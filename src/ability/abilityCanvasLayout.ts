@@ -19,6 +19,7 @@ export type AbilityCanvasEdge = {
   fromId: string;
   toId: string;
   kind: 'primary' | 'auxiliary';
+  branchX: number;
 };
 
 export type AbilityCanvasGroup = CanvasPoint & {
@@ -35,12 +36,23 @@ export type AbilityCanvasLayout = {
   groups: AbilityCanvasGroup[];
 };
 
-const COLUMN_GAP = 268;
-const ROW_GAP = 138;
-const NODE_WIDTH = 168;
-const NODE_HEIGHT = 82;
+export const CANVAS_GRID = 16;
+export const COLUMN_GAP = 272;
+export const ROW_GAP = 144;
+export const NODE_WIDTH = 176;
+export const NODE_HEIGHT = 80;
+export const BRANCH_X_OFFSET = 224;
 const GROUP_PADDING_X = 32;
-const GROUP_PADDING_Y = 48;
+const GROUP_PADDING_TOP = 64;
+const GROUP_PADDING_BOTTOM = 32;
+
+function snapCoordinate(value: number): number {
+  return Math.round(value / CANVAS_GRID) * CANVAS_GRID;
+}
+
+export function snapCanvasPoint(point: CanvasPoint): CanvasPoint {
+  return { x: snapCoordinate(point.x), y: snapCoordinate(point.y) };
+}
 
 export function layoutAbilityCanvas(
   state: AbilityState,
@@ -78,7 +90,7 @@ export function layoutAbilityCanvas(
     let y: number;
     if (children.length && !collapsed.has(nodeId)) {
       const childYs = children.map((child) => place(child.id, depth + 1, new Set(visiting)));
-      y = (childYs[0] + childYs[childYs.length - 1]) / 2;
+      y = snapCoordinate((childYs[0] + childYs[childYs.length - 1]) / 2);
     } else {
       y = nextLeafRow * ROW_GAP;
       nextLeafRow += 1;
@@ -103,12 +115,12 @@ export function layoutAbilityCanvas(
     if (!memberPositions.length) continue;
     const continuation = positions.get(group.continuationNodeId);
     if (!continuation) continue;
-    continuation.x = Math.max(...memberPositions.map((point) => point.x)) + COLUMN_GAP;
-    continuation.y = memberPositions.reduce((sum, point) => sum + point.y, 0) / memberPositions.length;
+    continuation.x = snapCoordinate(Math.max(...memberPositions.map((point) => point.x)) + COLUMN_GAP);
+    continuation.y = snapCoordinate(memberPositions.reduce((sum, point) => sum + point.y, 0) / memberPositions.length);
   }
 
   for (const [id, point] of Object.entries(options.manualPositions ?? {})) {
-    if (positions.has(id)) positions.set(id, point);
+    if (positions.has(id)) positions.set(id, snapCanvasPoint(point));
   }
 
   const nodes: AbilityCanvasNode[] = visibleNodes.map((node) => ({
@@ -136,7 +148,8 @@ export function layoutAbilityCanvas(
       id: edge.id,
       fromId: edge.prerequisiteNodeId,
       toId: edge.dependentNodeId,
-      kind: getDependencyKind(state, edge)
+      kind: getDependencyKind(state, edge),
+      branchX: (positions.get(edge.prerequisiteNodeId)?.x ?? 0) + BRANCH_X_OFFSET
     }));
   explicitGroups.forEach((group) => {
     if (!group.continuationNodeId || !visibleIds.has(group.continuationNodeId)) return;
@@ -144,7 +157,8 @@ export function layoutAbilityCanvas(
       id: `merge-${group.id}-${nodeId}`,
       fromId: nodeId,
       toId: group.continuationNodeId as string,
-      kind: 'primary'
+      kind: 'primary',
+      branchX: (positions.get(nodeId)?.x ?? 0) + BRANCH_X_OFFSET
     }));
   });
 
@@ -157,8 +171,8 @@ export function layoutAbilityCanvas(
     const points = members.map((nodeId) => positions.get(nodeId) as CanvasPoint);
     const minX = Math.min(...points.map((point) => point.x)) - GROUP_PADDING_X;
     const maxX = Math.max(...points.map((point) => point.x)) + NODE_WIDTH + GROUP_PADDING_X;
-    const minY = Math.min(...points.map((point) => point.y)) - GROUP_PADDING_Y;
-    const maxY = Math.max(...points.map((point) => point.y)) + NODE_HEIGHT + GROUP_PADDING_Y / 2;
+    const minY = Math.min(...points.map((point) => point.y)) - GROUP_PADDING_TOP;
+    const maxY = Math.max(...points.map((point) => point.y)) + NODE_HEIGHT + GROUP_PADDING_BOTTOM;
     groups.push({ id, name, nodeIds: members, x: minX, y: minY, width: maxX - minX, height: maxY - minY });
   };
   explicitGroups.forEach((group) => addGroup(group.id, group.name || '可并行', group.nodeIds));

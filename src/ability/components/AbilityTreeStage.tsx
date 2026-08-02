@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
   Handle,
   MarkerType,
@@ -11,10 +12,10 @@ import {
   ReactFlow,
   type Connection,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
   type ReactFlowInstance,
-  useEdgesState,
   useNodesState
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -33,7 +34,8 @@ import {
 } from 'lucide-react';
 import { NODE_STATE_LABELS } from '../abilityConfig';
 import { getNodeDisplayState, getPrimaryChildren } from '../abilityGraph';
-import { layoutAbilityCanvas, type CanvasPoint } from '../abilityCanvasLayout';
+import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type CanvasPoint } from '../abilityCanvasLayout';
+import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
 import { loadCanvasPreferences, saveCanvasPreferences, type CanvasPreferences } from '../abilityCanvasStorage';
 import type { StorageLike } from '../../lib/storage';
 import type { AbilityState, NodeProgress, SkillTree, TreeNodeFilter } from '../types';
@@ -56,6 +58,8 @@ type OutcomeNodeData = Record<string, unknown> & { label: string; onOpen: () => 
 type GroupNodeData = Record<string, unknown> & { label: string };
 type FlowNodeData = SkillNodeData | OutcomeNodeData | GroupNodeData;
 type FlowNode = Node<FlowNodeData>;
+type AlignedEdgeData = Record<string, unknown> & { branchX: number };
+type AlignedFlowEdge = Edge<AlignedEdgeData>;
 
 type Props = {
   state: AbilityState;
@@ -137,6 +141,19 @@ function ParallelGroupNode({ data }: NodeProps<Node<GroupNodeData>>) {
 }
 
 const nodeTypes = { skill: SkillCanvasNode, outcome: OutcomeCanvasNode, parallelGroup: ParallelGroupNode };
+
+function AlignedOrthogonalEdge({ id, sourceX, sourceY, targetX, targetY, markerEnd, style, data }: EdgeProps<AlignedFlowEdge>) {
+  const path = buildAlignedOrthogonalPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    branchX: data?.branchX ?? (sourceX + targetX) / 2
+  });
+  return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={18} />;
+}
+
+const edgeTypes = { aligned: AlignedOrthogonalEdge };
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -253,8 +270,8 @@ export function AbilityTreeStage(props: Props) {
         type: 'skill',
         ariaLabel: `${node.name} ${NODE_STATE_LABELS[getNodeDisplayState(node, props.state)]}`,
         position: { x: item.x, y: item.y },
-        width: 168,
-        height: 82,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
         selected: selectedIds.has(item.id),
         data: {
           label: node.name,
@@ -316,25 +333,53 @@ export function AbilityTreeStage(props: Props) {
     if (!filteredSkillIds.has(item.fromId) || !filteredSkillIds.has(item.toId)) return [];
     const related = selectedIds.has(item.fromId) || selectedIds.has(item.toId);
     const auxiliary = item.kind === 'auxiliary';
+    const stroke = auxiliary
+      ? (related ? '#667b91' : '#9aa7b4')
+      : (related ? '#3d4650' : '#5f6872');
     return [{
       id: item.id,
       source: item.fromId,
       target: item.toId,
-      type: 'smoothstep',
-      pathOptions: { borderRadius: 12, offset: auxiliary ? 24 : 32 },
-      markerEnd: { type: MarkerType.ArrowClosed, width: auxiliary ? 12 : 15, height: auxiliary ? 12 : 15 },
-      className: `${auxiliary ? 'ability-edge-auxiliary' : 'ability-edge-primary'} ${related ? 'is-related' : ''}`,
+      type: 'aligned',
+      data: { branchX: item.branchX },
+      markerEnd: { type: MarkerType.ArrowClosed, width: auxiliary ? 10 : 12, height: auxiliary ? 10 : 12, color: stroke },
+      className: `ability-edge-aligned ${auxiliary ? 'ability-edge-auxiliary' : 'ability-edge-primary'} ${related ? 'is-related' : ''}`,
       style: auxiliary
-        ? { stroke: related ? '#557392' : '#94a3b8', strokeWidth: related ? 2.2 : 1.35, strokeDasharray: '6 7', opacity: related ? 0.95 : 0.38 }
-        : { stroke: related || !selectedIds.size ? '#34383f' : '#747a82', strokeWidth: related ? 2.8 : 2.15, opacity: related || !selectedIds.size ? 0.92 : 0.6 },
+        ? { stroke, strokeWidth: related ? 2 : 1.35, strokeDasharray: '6 7', opacity: related ? 1 : 0.58 }
+        : { stroke, strokeWidth: related ? 2.6 : 2, opacity: selectedIds.size && !related ? 0.58 : 1 },
       zIndex: auxiliary ? 1 : 2
     }];
   }), [filteredSkillIds, layout.edges, selectedIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(computedNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(computedEdges);
-  useEffect(() => setNodes(computedNodes), [computedNodes, setNodes]);
-  useEffect(() => setEdges(computedEdges), [computedEdges, setEdges]);
+  const edges = computedEdges;
+  const localNodesById = new Map(nodes.map((node) => [node.id, node]));
+  const renderedNodes = computedNodes.map((node) => {
+    const local = localNodesById.get(node.id);
+    return local ? { ...node, position: local.position, dragging: local.dragging, measured: local.measured } : node;
+  });
+  const previousNodeIdsRef = useRef(new Set<string>());
+  const removedNodeIdsRef = useRef(new Set<string>());
+  const flowRevisionRef = useRef(0);
+  const currentNodeIds = new Set(computedNodes.map((node) => node.id));
+  previousNodeIdsRef.current.forEach((id) => {
+    if (!currentNodeIds.has(id)) removedNodeIdsRef.current.add(id);
+  });
+  let restoredNode = false;
+  currentNodeIds.forEach((id) => {
+    if (removedNodeIdsRef.current.delete(id)) restoredNode = true;
+  });
+  if (restoredNode) flowRevisionRef.current += 1;
+  previousNodeIdsRef.current = currentNodeIds;
+  useEffect(() => {
+    setNodes((current) => {
+      const currentById = new Map(current.map((node) => [node.id, node]));
+      return computedNodes.map((node) => {
+        const local = currentById.get(node.id);
+        return local?.measured ? { ...node, measured: local.measured } : node;
+      });
+    });
+  }, [computedNodes, setNodes]);
 
   const addFromKeyboard = useCallback((mode: 'child' | 'sibling' | 'parent') => {
     const id = [...selectedIds][0];
@@ -414,11 +459,12 @@ export function AbilityTreeStage(props: Props) {
       onKeyDown={handleCanvasKeyDown}
     >
       <ReactFlow<FlowNode, Edge>
-        nodes={nodes}
+        key={`${props.tree.id}:${flowRevisionRef.current}`}
+        nodes={renderedNodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
         onInit={(instance) => {
           instanceRef.current = instance;
           if (Object.keys(preferences.positions).length || preferences.viewport.x || preferences.viewport.y || preferences.viewport.zoom !== 1) {
@@ -455,7 +501,7 @@ export function AbilityTreeStage(props: Props) {
             try { props.onReparent(node.id, targetId); } catch { /* invalid cycle keeps the original parent */ }
             return;
           }
-          persistPreferences({ positions: { ...preferences.positions, [node.id]: node.position } });
+          persistPreferences({ positions: { ...preferences.positions, [node.id]: snapCanvasPoint(node.position) } });
         }}
         onConnect={(connection: Connection) => {
           if (connection.source && connection.target && connection.source !== connection.target) {
@@ -478,19 +524,21 @@ export function AbilityTreeStage(props: Props) {
         deleteKeyCode={null}
         nodesConnectable
         nodesDraggable
+        snapToGrid
+        snapGrid={[CANVAS_GRID, CANVAS_GRID]}
         elementsSelectable
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1.1} color="#d7d1c4" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#dedbd2" />
         <Controls position="bottom-right" showInteractive={false} fitViewOptions={{ padding: 0.2, maxZoom: 1.15 }} />
         <MiniMap
           position="bottom-right"
           pannable
           zoomable
           nodeStrokeWidth={2}
-          nodeColor={(node) => node.type === 'parallelGroup' ? '#fff4c7' : node.selected ? '#f4b400' : '#ddd8cc'}
-          maskColor="rgba(248, 246, 239, .72)"
+          nodeColor={(node) => node.type === 'parallelGroup' ? '#f4ead1' : node.selected ? '#f4b400' : '#d9dde0'}
+          maskColor="rgba(249, 248, 244, .76)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
           <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>

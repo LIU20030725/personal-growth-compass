@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layoutAbilityCanvas } from './abilityCanvasLayout';
+import { layoutAbilityCanvas, type AbilityCanvasEdge } from './abilityCanvasLayout';
 import type { AbilityState, SkillNode } from './types';
 
 const stamp = '2026-08-02T00:00:00.000Z';
@@ -24,6 +24,35 @@ function state(): AbilityState {
     parallelGroups: [{ id: 'group', skillTreeId: 'tree', phaseId: 'phase', name: '可并行', nodeIds: ['writing', 'video'], parentNodeId: 'root', continuationNodeId: 'growth' }],
     masteryCriteria: [], taskLinks: [], outcomes: [], lastVisitedTreeId: 'tree'
   };
+}
+
+function branchingState(childCount: number, withGrandchild = false): AbilityState {
+  const childIds = Array.from({ length: childCount }, (_, index) => `child-${index + 1}`);
+  const nodes = ['root', ...childIds, ...(withGrandchild ? ['grandchild'] : [])].map(node);
+  const dependencies = childIds.map((childId) => ({
+    id: `root-${childId}`,
+    skillTreeId: 'tree',
+    prerequisiteNodeId: 'root',
+    dependentNodeId: childId,
+    kind: 'primary' as const
+  }));
+  if (withGrandchild) dependencies.push({
+    id: 'child-1-grandchild',
+    skillTreeId: 'tree',
+    prerequisiteNodeId: 'child-1',
+    dependentNodeId: 'grandchild',
+    kind: 'primary'
+  });
+  return {
+    ...state(),
+    nodes,
+    dependencies,
+    parallelGroups: []
+  };
+}
+
+function branchX(edge: AbilityCanvasEdge): number | undefined {
+  return (edge as AbilityCanvasEdge & { branchX?: number }).branchX;
 }
 
 describe('ability canvas layout', () => {
@@ -52,7 +81,49 @@ describe('ability canvas layout', () => {
     });
 
     expect(layout.nodes.map((item) => item.id)).toEqual(['root']);
-    expect(layout.nodes[0]).toMatchObject({ x: 88, y: 144, hiddenChildCount: 3 });
+    expect(layout.nodes[0]).toMatchObject({ x: 96, y: 144, hiddenChildCount: 3 });
     expect(layout.edges).toEqual([]);
+  });
+
+  it.each([3, 5])('uses one stable branch bus for %i direct parallel children', (childCount) => {
+    const layout = layoutAbilityCanvas(branchingState(childCount), 'tree');
+    const rootEdges = layout.edges.filter((edge) => edge.fromId === 'root');
+
+    expect(rootEdges).toHaveLength(childCount);
+    expect(new Set(rootEdges.map(branchX))).toEqual(new Set([224]));
+  });
+
+  it('computes a distinct aligned branch bus for every tree depth', () => {
+    const layout = layoutAbilityCanvas(branchingState(3, true), 'tree');
+    const firstDepth = layout.edges.find((edge) => edge.id === 'root-child-1');
+    const secondDepth = layout.edges.find((edge) => edge.id === 'child-1-grandchild');
+
+    expect(branchX(firstDepth as AbilityCanvasEdge)).toBe(224);
+    expect(branchX(secondDepth as AbilityCanvasEdge)).toBe(496);
+  });
+
+  it('snaps manual positions to the 16px canvas grid before persisting layout geometry', () => {
+    const layout = layoutAbilityCanvas(branchingState(3), 'tree', {
+      manualPositions: { root: { x: 91, y: 151 }, 'child-1': { x: 353, y: 299 } }
+    });
+    const byId = new Map(layout.nodes.map((item) => [item.id, item]));
+
+    expect(byId.get('root')).toMatchObject({ x: 96, y: 144 });
+    expect(byId.get('child-1')).toMatchObject({ x: 352, y: 304 });
+    expect(branchX(layout.edges.find((edge) => edge.id === 'root-child-1') as AbilityCanvasEdge)).toBe(320);
+  });
+
+  it('restores exact depth and sibling alignment when manual positions are reset', () => {
+    const stateWithBranches = branchingState(5);
+    const moved = layoutAbilityCanvas(stateWithBranches, 'tree', {
+      manualPositions: { 'child-3': { x: 401, y: 117 } }
+    });
+    const reset = layoutAbilityCanvas(stateWithBranches, 'tree', { manualPositions: {} });
+    const movedChild = moved.nodes.find((item) => item.id === 'child-3');
+    const resetChildren = reset.nodes.filter((item) => item.id.startsWith('child-'));
+
+    expect(movedChild?.x).not.toBe(resetChildren[0]?.x);
+    expect(new Set(resetChildren.map((item) => item.x))).toEqual(new Set([272]));
+    expect(resetChildren.map((item) => item.y)).toEqual([0, 144, 288, 432, 576]);
   });
 });

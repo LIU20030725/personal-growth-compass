@@ -2,8 +2,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 async function openEmptyAbilityModule(page: Page): Promise<void> {
-  await page.addInitScript(() => window.localStorage.clear());
   await page.goto('/ability', { waitUntil: 'domcontentloaded', timeout: 15_000 });
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('region', { name: '能力属性模块' })).toBeVisible();
 }
 
@@ -23,11 +24,21 @@ async function createStarterTree(page: Page): Promise<void> {
   await expect(page.getByRole('group', { name: '内容定位 可开始', exact: true })).toBeVisible();
 }
 
+async function expectPrimaryEdgesReady(page: Page, count: number): Promise<void> {
+  const paths = page.locator('.ability-edge-primary .react-flow__edge-path');
+  const fitView = page.getByRole('button', { name: 'Fit View' });
+  await expect.poll(async () => {
+    if (await paths.count() !== count) await fitView.click();
+    return paths.count();
+  }, { timeout: 10_000 }).toBe(count);
+  await expect.poll(async () => paths.evaluateAll((items) => items.every((item) => (item.getAttribute('d') ?? '').length > 0))).toBe(true);
+}
+
 test.beforeEach(async ({ page }) => {
   await openEmptyAbilityModule(page);
 });
 
-test('同一节点可连续创建并行分支，并支持删除撤回与缩放', async ({ page }) => {
+test('同一节点的 3、5 个分支和多层分支共享对齐母线', async ({ page }) => {
   await createStarterTree(page);
   await page.getByRole('group', { name: '内容定位 可开始', exact: true }).click();
 
@@ -38,14 +49,25 @@ test('同一节点可连续创建并行分支，并支持删除撤回与缩放',
 
   const children = page.getByRole('group', { name: '新技能 可开始', exact: true });
   await expect(children).toHaveCount(3);
-  await expect(page.locator('.react-flow__edge')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await expectPrimaryEdgesReady(page, 3);
 
   await children.first().click();
   await page.getByRole('button', { name: '删除分支 新技能' }).click();
   await expect(children).toHaveCount(2);
   await page.getByRole('status').getByRole('button', { name: '撤销' }).click();
   await expect(children).toHaveCount(3);
-  await expect(page.locator('.react-flow__edge')).toHaveCount(3);
+  const restoredPrimaryDependencies = await page.evaluate(() => {
+    const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { dependencies?: Array<{ kind: string }> };
+    return ability.dependencies?.filter((edge) => edge.kind === 'primary').length ?? 0;
+  });
+  expect(restoredPrimaryDependencies).toBe(3);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await expectPrimaryEdgesReady(page, 3);
+
+  const rootBranchPaths = await page.locator('.ability-edge-primary .react-flow__edge-path').evaluateAll((paths) => paths.map((path) => path.getAttribute('d') ?? ''));
+  const rootBranchXs = rootBranchPaths.flatMap((path) => [...path.matchAll(/Q ([\d.]+) /g)].map((match) => match[1]));
+  expect(new Set(rootBranchXs).size).toBe(1);
 
   const viewport = page.locator('.react-flow__viewport');
   const beforeZoom = await viewport.getAttribute('style');
@@ -53,9 +75,72 @@ test('同一节点可连续创建并行分支，并支持删除撤回与缩放',
   await expect.poll(() => viewport.getAttribute('style')).not.toBe(beforeZoom);
 
   await page.getByRole('button', { name: 'Fit View' }).click();
-  await expect(page.getByRole('group', { name: '自媒体创作交互画布', exact: true })).toHaveScreenshot('parallel-branches.png', {
-    animations: 'disabled'
+  const canvas = page.getByRole('group', { name: '自媒体创作交互画布', exact: true });
+  await expect(canvas).toHaveScreenshot('aligned-3-branches.png', {
+    animations: 'disabled',
+    maxDiffPixels: 100
   });
+
+  await page.getByRole('group', { name: '内容定位 可开始', exact: true }).click();
+  await addChild.click();
+  await addChild.click();
+  await expect(children).toHaveCount(5);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await expectPrimaryEdgesReady(page, 5);
+  await expect(canvas).toHaveScreenshot('aligned-5-branches.png', { animations: 'disabled', maxDiffPixels: 100 });
+
+  await children.first().dblclick();
+  const rename = page.getByRole('textbox', { name: '编辑节点名称' });
+  await rename.fill('手动拖拽分支');
+  await rename.press('Enter');
+  const movedChild = page.getByRole('group', { name: '手动拖拽分支 可开始', exact: true });
+  await movedChild.click();
+  const addGrandchild = page.getByRole('button', { name: '为 手动拖拽分支 添加子节点' });
+  await addGrandchild.click();
+  await addGrandchild.click();
+  await expect(children).toHaveCount(6);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await expectPrimaryEdgesReady(page, 7);
+  await expect(canvas).toHaveScreenshot('aligned-multi-level.png', { animations: 'disabled', maxDiffPixels: 100 });
+});
+
+test('拖拽位置吸附网格，刷新后保持，并可由自动布局复位', async ({ page }) => {
+  await createStarterTree(page);
+  const root = page.getByRole('group', { name: '内容定位 可开始', exact: true });
+  await root.click();
+  await page.getByRole('button', { name: '为 内容定位 添加子节点' }).click();
+  const child = page.getByRole('group', { name: '新技能 可开始', exact: true });
+  const box = await child.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.move((box?.x ?? 0) + 40, (box?.y ?? 0) + 30);
+  await page.mouse.down();
+  await page.mouse.move((box?.x ?? 0) + 83, (box?.y ?? 0) + 57, { steps: 6 });
+  await page.mouse.up();
+
+  const saved = await page.evaluate(() => {
+    const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
+    const canvasStore = JSON.parse(window.localStorage.getItem('dice-life.ability-canvas.v1') ?? '{}') as { trees: Record<string, { positions: Record<string, { x: number; y: number }> }> };
+    return Object.values(canvasStore.trees[ability.lastVisitedTreeId].positions)[0];
+  });
+  expect(saved.x % 16).toBe(0);
+  expect(saved.y % 16).toBe(0);
+
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('region', { name: '能力属性模块' })).toBeVisible();
+  const persisted = await page.evaluate(() => {
+    const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
+    const canvasStore = JSON.parse(window.localStorage.getItem('dice-life.ability-canvas.v1') ?? '{}') as { trees: Record<string, { positions: Record<string, { x: number; y: number }> }> };
+    return Object.values(canvasStore.trees[ability.lastVisitedTreeId].positions)[0];
+  });
+  expect(persisted).toEqual(saved);
+
+  await page.getByRole('button', { name: '重新自动布局' }).click();
+  const positionsAfterReset = await page.evaluate(() => {
+    const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
+    const canvasStore = JSON.parse(window.localStorage.getItem('dice-life.ability-canvas.v1') ?? '{}') as { trees: Record<string, { positions: Record<string, { x: number; y: number }> }> };
+    return canvasStore.trees[ability.lastVisitedTreeId].positions;
+  });
+  expect(positionsAfterReset).toEqual({});
 });
 
 test('键盘快捷键只在画布聚焦时生效，弹窗会困住并恢复焦点', async ({ page }) => {
