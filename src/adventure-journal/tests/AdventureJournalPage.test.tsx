@@ -111,6 +111,20 @@ describe('adventure journal shared interface', () => {
     expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
     expect(screen.getByTestId('home-memory-shelf')).toHaveAttribute('data-build-stage', '4');
   });
+
+  it('turns unfinished home build sites into accessible scene hotspots', () => {
+    const onSelect = vi.fn();
+    const desk = { targetType: 'home-item' as const, targetId: 'home-field-desk', price: 6, invested: 3, status: 'building' as const, unlockedAt: null };
+    render(<PermanentHomeScene reducedMotion={false} investments={[
+      desk,
+      { targetType: 'home-item', targetId: 'home-memory-shelf', price: 12, invested: 12, status: 'unlocked', unlockedAt: '2026-08-01T09:30:00+08:00' }
+    ]} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '建造田野书桌，当前 50%' }));
+
+    expect(onSelect).toHaveBeenCalledWith(desk);
+    expect(screen.getByTestId('home-memory-shelf')).toHaveAttribute('aria-label', '记忆陈列架，已建成');
+  });
 });
 
 describe('AdventureJournalPage', () => {
@@ -208,5 +222,16 @@ describe('AdventureJournalPage', () => {
 
     expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
     expect(screen.getByRole('status')).toHaveTextContent('田野书桌建设到 50%');
+  });
+
+  it('lets the user reduce motion without leaving the adventure world', () => {
+    const storage = createMemoryStorage();
+    render(<AdventureJournalPage options={{ ...pageOptions(storage), reducedMotion: false }} />);
+
+    expect(screen.getByTestId('journey-pixel-world')).not.toHaveClass('is-reduced-motion');
+    fireEvent.click(screen.getByRole('button', { name: '减少动态' }));
+
+    expect(screen.getByTestId('journey-pixel-world')).toHaveClass('is-reduced-motion');
+    expect(screen.getByRole('button', { name: '恢复动态' })).toHaveAttribute('aria-pressed', 'true');
   });
 });

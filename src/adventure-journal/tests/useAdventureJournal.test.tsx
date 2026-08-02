@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createInitialTaskState } from '../../tasks/taskEngine';
 import { TASK_RULE_VERSION } from '../../tasks/taskConfig';
 import { saveTaskState } from '../../tasks/taskStorage';
+import { ADVENTURE_STORAGE_KEY } from '../storage/adventureStorage';
 import { useAdventureJournal } from '../useAdventureJournal';
 
 function createMemoryStorage() {
@@ -72,5 +73,20 @@ describe('useAdventureJournal', () => {
       .toThrow('地图尚未解锁');
     act(() => result.current.setViewingMap('map-sunny-trail'));
     expect(result.current.state.viewingMapId).toBe('map-sunny-trail');
+  });
+
+  it('updates and persists the user motion preference', () => {
+    const storage = createMemoryStorage();
+    const { result } = renderHook(() => useAdventureJournal({
+      storage,
+      now: () => '2026-08-01T09:00:00+08:00',
+      reducedMotion: false
+    }));
+
+    act(() => result.current.setReducedMotion(true));
+
+    expect(result.current.state.preferences.reducedMotion).toBe(true);
+    const saved = JSON.parse(storage.getItem(ADVENTURE_STORAGE_KEY) ?? '{}');
+    expect(saved.preferences.reducedMotion).toBe(true);
   });
 });

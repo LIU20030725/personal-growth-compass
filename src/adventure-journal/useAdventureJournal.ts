@@ -29,6 +29,7 @@ export type AdventureJournalController = {
   ledgerTransactions: DiceTransaction[];
   setActiveTab(tab: AdventureTab): void;
   setViewingMap(mapId: string): void;
+  setReducedMotion(reducedMotion: boolean): void;
   invest(type: InvestmentTargetType, targetId: string, amount: number): void;
   completeRoute(targetId: string): void;
   refresh(): void;
@@ -115,6 +116,19 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
     setState(next);
   }, [now, storage]);
 
+  const setReducedMotion = useCallback((reducedMotion: boolean) => {
+    const current = loadAdventureState(storage, now());
+    const next = {
+      ...current,
+      preferences: {
+        ...current.preferences,
+        reducedMotion
+      }
+    };
+    saveAdventureState(storage, next);
+    setState(next);
+  }, [now, storage]);
+
   return useMemo(() => ({
     state,
     activeTab,
@@ -122,6 +136,7 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
     ledgerTransactions,
     setActiveTab,
     setViewingMap,
+    setReducedMotion,
     invest,
     completeRoute,
     refresh
@@ -132,6 +147,7 @@ export function useAdventureJournal(options: AdventureJournalOptions = {}): Adve
     invest,
     ledgerTransactions,
     refresh,
+    setReducedMotion,
     setViewingMap,
     state
   ]);

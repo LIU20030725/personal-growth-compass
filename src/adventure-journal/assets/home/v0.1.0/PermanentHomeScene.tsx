@@ -5,6 +5,7 @@ import permanentHomePixel from '../v1.1.0/permanent-home-pixel.webp';
 type PermanentHomeSceneProps = {
   reducedMotion: boolean;
   investments: InvestmentProgress[];
+  onSelect?(target: InvestmentProgress): void;
 };
 
 const LABELS: Record<string, string> = {
@@ -12,33 +13,52 @@ const LABELS: Record<string, string> = {
   'home-memory-shelf': '记忆陈列架'
 };
 
-export function PermanentHomeScene({ reducedMotion, investments }: PermanentHomeSceneProps) {
+export function PermanentHomeScene({ reducedMotion, investments, onSelect }: PermanentHomeSceneProps) {
   return (
     <div
       className={`journal-pixel-world journal-home-world ${reducedMotion ? 'is-reduced-motion' : ''}`}
-      role="img"
-      aria-label="永久家园像素场景"
     >
-      <img className="home-world-art" src={permanentHomePixel} alt="" aria-hidden="true" />
+      <img
+        className={`home-world-art ${reducedMotion ? 'is-reduced-motion' : ''}`}
+        src={permanentHomePixel}
+        alt="永久家园像素场景"
+      />
       <div className="home-sun-wash" aria-hidden="true" />
       <div className="home-chimney-smoke" aria-hidden="true"><span /><span /><span /></div>
       {investments.map((item) => {
         const stage = getProgressStage(item.invested, item.price);
         const percent = Math.round((item.invested / item.price) * 100);
-        return (
-          <div
-            className={`home-build-site ${item.targetId} build-stage-${stage}`}
+        const className = `home-build-site ${item.targetId} build-stage-${stage}`;
+        const content = <>
+          <span className="build-site-foundation" aria-hidden="true" />
+          <span className="build-site-crates" aria-hidden="true" />
+          <span className="build-site-furniture" aria-hidden="true" />
+          <span className="build-site-label" aria-hidden="true">{percent}%</span>
+        </>;
+
+        if (stage === 4) {
+          return <div
+            className={className}
             data-testid={item.targetId}
             data-build-stage={stage}
             key={item.targetId}
-            aria-label={`${LABELS[item.targetId] ?? item.targetId}，${percent === 100 ? '已建成' : `建设中 ${percent}%`}`}
+            aria-label={`${LABELS[item.targetId] ?? item.targetId}，已建成`}
           >
-            <span className="build-site-foundation" aria-hidden="true" />
-            <span className="build-site-crates" aria-hidden="true" />
-            <span className="build-site-furniture" aria-hidden="true" />
-            <span className="build-site-label" aria-hidden="true">{percent}%</span>
-          </div>
-        );
+            {content}
+          </div>;
+        }
+
+        return <button
+          className={`${className} is-interactive`}
+          data-testid={item.targetId}
+          data-build-stage={stage}
+          key={item.targetId}
+          type="button"
+          aria-label={`建造${LABELS[item.targetId] ?? item.targetId}，当前 ${percent}%`}
+          onClick={() => onSelect?.(item)}
+        >
+          {content}
+        </button>;
       })}
       <div className="home-resident" aria-hidden="true">
         <span className="resident-head" />

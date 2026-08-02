@@ -1,4 +1,4 @@
-import { Home, Map, ReceiptText } from 'lucide-react';
+import { Home, Map, ReceiptText, Waves } from 'lucide-react';
 import { useState } from 'react';
 import { V0_1_TARGETS } from '../content/v0_1';
 import { DiceBalance } from '../components/DiceBalance';
@@ -55,6 +55,17 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
         </div>
         <div className={'journal-header-tools'}>
           <DiceBalance value={controller.diceBalance} />
+          <button
+            className={'journal-motion-button'}
+            type={'button'}
+            aria-label={controller.state.preferences.reducedMotion ? '恢复动态' : '减少动态'}
+            aria-pressed={controller.state.preferences.reducedMotion}
+            title={controller.state.preferences.reducedMotion ? '恢复动态' : '减少动态'}
+            onClick={() => controller.setReducedMotion(!controller.state.preferences.reducedMotion)}
+          >
+            <Waves size={18} aria-hidden={true} />
+            {controller.state.preferences.reducedMotion ? '恢复动态' : '减少动态'}
+          </button>
           <button className={'journal-ledger-button'} type={'button'} onClick={() => setLedgerOpen(true)}>
             <ReceiptText size={18} aria-hidden={true} /> 查看骰子账本
           </button>

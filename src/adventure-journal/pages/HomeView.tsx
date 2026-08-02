@@ -51,7 +51,7 @@ export function HomeView({ investments, reducedMotion, hasWindValleyDiscovery, o
           <div className="journal-weather"><span aria-hidden="true">⌂</span> 今日安稳 · {completed}/2 建成</div>
         </div>
         <div className="journal-scene-frame home-scene-frame">
-          <PermanentHomeScene reducedMotion={reducedMotion} investments={investments} />
+          <PermanentHomeScene reducedMotion={reducedMotion} investments={investments} onSelect={onInvest} />
           <div className="home-scene-note"><strong>欢迎回家</strong><span>旅途获得的记忆，会在这里慢慢长成生活。</span></div>
         </div>
       </div>
