@@ -15,10 +15,13 @@ const TARGET_NAMES = Object.fromEntries(
   V0_1_TARGETS.map((target) => [target.targetId, target.title])
 ) as Record<string, string>;
 
-type AdventureJournalPageProps = { options?: AdventureJournalOptions };
+type AdventureJournalPageProps = {
+  options?: AdventureJournalOptions;
+  onGoToTasks?(): void;
+};
 const messageOf = (error: unknown) => error instanceof Error ? error.message : '投入失败，请稍后重试';
 
-export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
+export function AdventureJournalPage({ options, onGoToTasks }: AdventureJournalPageProps) {
   const controller = useAdventureJournal(options);
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [activeInvestment, setActiveInvestment] = useState<InvestmentProgress | null>(null);
@@ -118,6 +121,7 @@ export function AdventureJournalPage({ options }: AdventureJournalPageProps) {
       <InvestDialog open={activeInvestment !== null}
         targetName={activeInvestment ? TARGET_NAMES[activeInvestment.targetId] ?? activeInvestment.targetId : ''}
         balance={controller.diceBalance} remaining={remaining} externalError={investmentError}
+        onGetDice={onGoToTasks}
         onClose={() => { setActiveInvestment(null); setInvestmentError(''); }} onConfirm={confirmInvestment} />
       <LedgerDialog open={ledgerOpen} transactions={controller.ledgerTransactions}
         onClose={() => setLedgerOpen(false)} />

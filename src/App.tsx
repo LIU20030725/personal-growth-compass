@@ -1042,7 +1042,7 @@ export default function App() {
       ) : activeView === 'quests' ? (
         <TaskBoard />
       ) : activeView === 'journal' ? (
-        <AdventureJournalPage />
+        <AdventureJournalPage onGoToTasks={() => setActiveView('quests')} />
       ) : (
         <ModuleView view={activeView} />
       )}

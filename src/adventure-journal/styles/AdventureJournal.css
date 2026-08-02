@@ -121,6 +121,10 @@
 .journal-quick-amounts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .journal-quick-amounts button:disabled { cursor: not-allowed; opacity: 0.42; }
 .journal-form-error { margin: 0; padding: 10px 12px; border-left: 4px solid var(--ruby); color: var(--ruby); background: var(--ruby-light); font-weight: 800; }
+.journal-dice-guidance { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid rgb(33 93 79 / 22%); border-radius: 12px; background: #e7f0d8; }
+.journal-dice-guidance p { margin: 0; color: var(--cozy-deep, var(--forest-dark)); font-size: 12px; line-height: 1.5; }
+.journal-dice-guidance button { min-height: 38px; padding: 0 12px; border: 0; border-radius: 10px; color: white; background: var(--cozy-deep, var(--forest-dark)); font-weight: 800; }
+.journal-dice-guidance button:hover, .journal-dice-guidance button:focus-visible { background: var(--cozy-leaf, var(--forest)); }
 .journal-dialog-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 4px; }
 .journal-dialog-actions button { min-height: 48px; border: 2px solid var(--ink); font-weight: 800; }
 .journal-secondary-button { background: var(--surface); box-shadow: 2px 2px 0 var(--ink); }
@@ -187,6 +191,7 @@
   .journal-investment-card { padding: 15px; }
   .journal-dialog-backdrop { align-items: end; padding: 12px; }
   .journal-dialog { max-height: calc(100dvh - 24px); box-shadow: 4px 4px 0 var(--ink); }
+  .journal-dice-guidance { grid-template-columns: 1fr; }
 }
 
 /* Adventure Journal v1.1-0802: the world is the interface. */

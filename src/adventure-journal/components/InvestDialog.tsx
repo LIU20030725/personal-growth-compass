@@ -8,6 +8,7 @@ type InvestDialogProps = {
   balance: number;
   remaining: number;
   externalError?: string;
+  onGetDice?(): void;
   onClose(): void;
   onConfirm(amount: number): void;
 };
@@ -18,6 +19,7 @@ export function InvestDialog({
   balance,
   remaining,
   externalError = '',
+  onGetDice,
   onClose,
   onConfirm
 }: InvestDialogProps) {
@@ -127,6 +129,12 @@ export function InvestDialog({
             <button type="button" disabled={maximum < 1} onClick={() => updateAmount(maximum)}>最大 {maximum}</button>
           </div>
           {shownError ? <p className="journal-form-error" role="alert">{shownError}</p> : null}
+          {noAvailableAmount && onGetDice ? (
+            <aside className="journal-dice-guidance" aria-label="成长骰子获取方式">
+              <p>完成真实任务即可获得成长骰子，再回来继续旅途。</p>
+              <button type="button" onClick={onGetDice}>去任务中心获得骰子</button>
+            </aside>
+          ) : null}
           <div className="journal-dialog-actions">
             <button className="journal-secondary-button" type="button" onClick={onClose}>取消</button>
             <button className="journal-primary-button" type="submit" disabled={maximum < 1}>确认投入</button>
