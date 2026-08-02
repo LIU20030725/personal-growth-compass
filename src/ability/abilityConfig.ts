@@ -10,7 +10,6 @@ export const SKILL_ROLE_LABELS: Record<SkillRole, string> = {
 };
 
 export const NODE_STATE_LABELS: Record<NodeDisplayState, string> = {
-  locked: '锁定',
   available: '可开始',
   in_progress: '成长中',
   mastered: '已掌握'

@@ -7,7 +7,7 @@ describe('Economy dashboard', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('uses the Dice Life shell and switches between character and system views', () => {
+  it('uses the Dice Life shell and switches between character and system views', async () => {
     render(<App />);
 
     expect(screen.getByRole('button', { name: 'Dice Life 首页' })).toBeInTheDocument();
@@ -26,7 +26,7 @@ describe('Economy dashboard', () => {
     expect(screen.getByRole('heading', { name: '净资产' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /能力属性/ }));
-    expect(screen.getByLabelText('能力属性模块')).toBeInTheDocument();
+    expect(await screen.findByLabelText('能力属性模块', {}, { timeout: 5_000 })).toBeInTheDocument();
   });
 
   it('keeps the page focused on net worth and account groups without the removed formula strip', () => {

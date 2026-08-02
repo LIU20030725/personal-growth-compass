@@ -68,4 +68,20 @@ describe('useAbilitySystem', () => {
     act(() => result.current.clearPersistenceError());
     expect(result.current.persistenceError).toBe('');
   });
+
+  it('creates canvas children and undoes destructive branch changes', () => {
+    const { result } = renderHook(() => useAbilitySystem({ storage: localStorage, now: () => stamp, idFactory: ids() }));
+    act(() => result.current.applyTreeDraft(draft()));
+    const parentId = result.current.state.nodes[0].id;
+    let childId = '';
+    act(() => { childId = result.current.addChildNode(parentId); });
+    expect(result.current.state.dependencies.find((edge) => edge.dependentNodeId === childId)?.kind).toBe('primary');
+
+    act(() => result.current.archiveNodeBranch(parentId));
+    expect(result.current.state.nodes.every((node) => node.archivedAt)).toBe(true);
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => result.current.undo());
+    expect(result.current.state.nodes.every((node) => !node.archivedAt)).toBe(true);
+  });
 });

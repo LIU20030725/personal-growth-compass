@@ -33,11 +33,31 @@ export function getPrerequisiteNodes(state: AbilityState, nodeId: string): Skill
   return ids.map((id) => requireNode(state, id));
 }
 
+export function getDependencyKind(
+  state: AbilityState,
+  edge: DependencyEdge
+): 'primary' | 'auxiliary' {
+  if (edge.kind) return edge.kind;
+  const firstInbound = state.dependencies.find((item) => item.dependentNodeId === edge.dependentNodeId);
+  return firstInbound?.id === edge.id ? 'primary' : 'auxiliary';
+}
+
+export function getPrimaryParent(state: AbilityState, nodeId: string): SkillNode | null {
+  const edge = state.dependencies.find(
+    (item) => item.dependentNodeId === nodeId && getDependencyKind(state, item) === 'primary'
+  );
+  return edge ? requireNode(state, edge.prerequisiteNodeId) : null;
+}
+
+export function getPrimaryChildren(state: AbilityState, nodeId: string): SkillNode[] {
+  return state.dependencies
+    .filter((edge) => edge.prerequisiteNodeId === nodeId && getDependencyKind(state, edge) === 'primary')
+    .map((edge) => requireNode(state, edge.dependentNodeId));
+}
+
 export function getNodeDisplayState(node: SkillNode, state: AbilityState): NodeDisplayState {
-  if (node.progress === 'mastered' || node.progress === 'in_progress') return node.progress;
-  return getPrerequisiteNodes(state, node.id).every((item) => item.progress === 'mastered')
-    ? 'available'
-    : 'locked';
+  void state;
+  return node.progress;
 }
 
 export function hasPrerequisiteWarning(node: SkillNode, state: AbilityState): boolean {
@@ -89,10 +109,16 @@ export function validateAbilityState(state: AbilityState): void {
     if (prerequisite.skillTreeId !== dependent.skillTreeId || edge.skillTreeId !== dependent.skillTreeId) {
       throw new Error('依赖关系不能跨技能树');
     }
-    if (dependent.archivedAt) throw new Error('归档节点不能作为依赖目标');
     const key = `${edge.prerequisiteNodeId}:${edge.dependentNodeId}`;
     if (edgeKeys.has(key)) throw new Error('不能重复添加相同依赖');
     edgeKeys.add(key);
+  }
+
+  for (const node of state.nodes) {
+    const primaryParents = state.dependencies.filter(
+      (edge) => edge.dependentNodeId === node.id && getDependencyKind(state, edge) === 'primary'
+    );
+    if (primaryParents.length > 1) throw new Error('技能节点只能有一个主父级');
   }
 
   const groupedNodes = new Set<string>();
@@ -102,13 +128,15 @@ export function validateAbilityState(state: AbilityState): void {
     if (!phase || phase.skillTreeId !== group.skillTreeId) throw new Error('并行分组阶段引用无效');
     for (const nodeId of group.nodeIds) {
       const node = requireNode(state, nodeId);
-      if (node.skillTreeId !== group.skillTreeId || node.phaseId !== group.phaseId) {
-        throw new Error('并行节点必须属于同一阶段');
+      if (node.skillTreeId !== group.skillTreeId) {
+        throw new Error('并行节点必须属于同一技能树');
       }
-      const membershipKey = `${group.phaseId}:${nodeId}`;
-      if (groupedNodes.has(membershipKey)) throw new Error('节点在同一阶段只能属于一个并行分组');
+      const membershipKey = `${group.skillTreeId}:${nodeId}`;
+      if (groupedNodes.has(membershipKey)) throw new Error('节点只能属于一个并行分组');
       groupedNodes.add(membershipKey);
     }
+    if (group.parentNodeId) requireNode(state, group.parentNodeId);
+    if (group.continuationNodeId) requireNode(state, group.continuationNodeId);
   }
 
   for (const criterion of state.masteryCriteria) requireNode(state, criterion.skillNodeId);

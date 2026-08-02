@@ -1,4 +1,4 @@
-import { getNodeDisplayState, validateAbilityState } from './abilityGraph';
+import { getDependencyKind, getPrimaryChildren, getPrimaryParent, validateAbilityState } from './abilityGraph';
 import type {
   AbilityState,
   LearningPhase,
@@ -160,6 +160,178 @@ export function addNode(
   return valid(touchTree({ ...state, nodes: [...state.nodes, node] }, input.skillTreeId, now));
 }
 
+export function addChildNode(
+  state: AbilityState,
+  parentNodeId: string,
+  nodeId: string,
+  edgeId: string,
+  now: string,
+  name = '新技能'
+): AbilityState {
+  const parent = nodeById(state, parentNodeId);
+  const withNode = addNode(state, {
+    skillTreeId: parent.skillTreeId,
+    phaseId: parent.phaseId,
+    name,
+    description: '',
+    progress: 'available',
+    masteryNote: ''
+  }, nodeId, now);
+  return valid({
+    ...withNode,
+    dependencies: [...withNode.dependencies, {
+      id: edgeId,
+      skillTreeId: parent.skillTreeId,
+      prerequisiteNodeId: parent.id,
+      dependentNodeId: nodeId,
+      kind: 'primary'
+    }]
+  });
+}
+
+export function addAuxiliaryDependency(
+  state: AbilityState,
+  fromNodeId: string,
+  toNodeId: string,
+  edgeId: string
+): AbilityState {
+  const from = nodeById(state, fromNodeId);
+  const to = nodeById(state, toNodeId);
+  return valid({
+    ...state,
+    dependencies: [...state.dependencies, {
+      id: edgeId,
+      skillTreeId: to.skillTreeId,
+      prerequisiteNodeId: from.id,
+      dependentNodeId: to.id,
+      kind: 'auxiliary'
+    }]
+  });
+}
+
+export function reparentNode(
+  state: AbilityState,
+  nodeId: string,
+  parentNodeId: string,
+  edgeId: string
+): AbilityState {
+  const node = nodeById(state, nodeId);
+  const parent = nodeById(state, parentNodeId);
+  const dependencies = state.dependencies.filter(
+    (edge) => !(edge.dependentNodeId === nodeId && getDependencyKind(state, edge) === 'primary')
+  );
+  return valid({
+    ...state,
+    dependencies: [...dependencies, {
+      id: edgeId,
+      skillTreeId: node.skillTreeId,
+      prerequisiteNodeId: parent.id,
+      dependentNodeId: node.id,
+      kind: 'primary'
+    }]
+  });
+}
+
+export function insertParentNode(
+  state: AbilityState,
+  nodeId: string,
+  parentNodeId: string,
+  inboundEdgeId: string,
+  childEdgeId: string,
+  now: string,
+  name = '新父级'
+): AbilityState {
+  const node = nodeById(state, nodeId);
+  const previousParent = getPrimaryParent(state, nodeId);
+  const withParent = addNode(state, {
+    skillTreeId: node.skillTreeId,
+    phaseId: node.phaseId,
+    name,
+    description: '',
+    progress: 'available',
+    masteryNote: ''
+  }, parentNodeId, now);
+  const dependencies = withParent.dependencies.filter(
+    (edge) => !(edge.dependentNodeId === nodeId && getDependencyKind(withParent, edge) === 'primary')
+  );
+  if (previousParent) dependencies.push({
+    id: inboundEdgeId,
+    skillTreeId: node.skillTreeId,
+    prerequisiteNodeId: previousParent.id,
+    dependentNodeId: parentNodeId,
+    kind: 'primary'
+  });
+  dependencies.push({
+    id: childEdgeId,
+    skillTreeId: node.skillTreeId,
+    prerequisiteNodeId: parentNodeId,
+    dependentNodeId: nodeId,
+    kind: 'primary'
+  });
+  return valid({ ...withParent, dependencies });
+}
+
+export function archiveNodeBranch(state: AbilityState, nodeId: string, now: string): AbilityState {
+  const node = nodeById(state, nodeId);
+  const archivedIds = new Set<string>();
+  const visit = (id: string): void => {
+    if (archivedIds.has(id)) return;
+    archivedIds.add(id);
+    getPrimaryChildren(state, id).forEach((child) => visit(child.id));
+  };
+  visit(nodeId);
+  return valid(touchTree({
+    ...state,
+    nodes: state.nodes.map((item) => archivedIds.has(item.id)
+      ? { ...item, archivedAt: now, updatedAt: now }
+      : item)
+  }, node.skillTreeId, now));
+}
+
+export function createParallelContinuation(
+  state: AbilityState,
+  nodeIds: string[],
+  continuationNodeId: string,
+  edgeId: string,
+  groupId: string,
+  now: string,
+  name = '下一步'
+): AbilityState {
+  if (nodeIds.length < 2 || new Set(nodeIds).size !== nodeIds.length) throw new Error('请选择至少两个不同的并行节点');
+  const members = nodeIds.map((id) => nodeById(state, id));
+  const parent = getPrimaryParent(state, members[0].id);
+  if (!parent || members.some((member) => getPrimaryParent(state, member.id)?.id !== parent.id)) {
+    throw new Error('只有同一父级下的节点可以汇合');
+  }
+  const withNode = addNode(state, {
+    skillTreeId: parent.skillTreeId,
+    phaseId: members[0].phaseId,
+    name,
+    description: '',
+    progress: 'available',
+    masteryNote: ''
+  }, continuationNodeId, now);
+  return valid({
+    ...withNode,
+    dependencies: [...withNode.dependencies, {
+      id: edgeId,
+      skillTreeId: parent.skillTreeId,
+      prerequisiteNodeId: parent.id,
+      dependentNodeId: continuationNodeId,
+      kind: 'primary'
+    }],
+    parallelGroups: [...withNode.parallelGroups, {
+      id: groupId,
+      skillTreeId: parent.skillTreeId,
+      phaseId: members[0].phaseId,
+      name: '可并行',
+      nodeIds,
+      parentNodeId: parent.id,
+      continuationNodeId
+    }]
+  });
+}
+
 export function updateNode(
   state: AbilityState,
   nodeId: string,
@@ -288,7 +460,6 @@ export function removeCriterion(state: AbilityState, criterionId: string): Abili
 
 export function startNode(state: AbilityState, nodeId: string, now: string): AbilityState {
   const node = nodeById(state, nodeId);
-  if (getNodeDisplayState(node, state) === 'locked') throw new Error('前置技能尚未掌握');
   if (node.archivedAt) throw new Error('归档节点不能开始');
   return valid(touchTree({
     ...state,
@@ -299,7 +470,14 @@ export function startNode(state: AbilityState, nodeId: string, now: string): Abi
 export function masterNode(state: AbilityState, nodeId: string, masteryNote: string, now: string): AbilityState {
   const node = nodeById(state, nodeId);
   const criteria = state.masteryCriteria.filter((item) => item.skillNodeId === nodeId);
-  if (criteria.some((item) => !item.satisfied) && !masteryNote.trim()) throw new Error('请填写提前掌握说明');
+  const hasOutcome = state.outcomes.some((item) => item.skillNodeId === nodeId);
+  const hasRationale = Boolean(masteryNote.trim());
+  if (criteria.length === 0 && !hasOutcome && !hasRationale) {
+    throw new Error('请先完成掌握标准、记录成果，或填写判断依据');
+  }
+  if (criteria.some((item) => !item.satisfied) && !hasOutcome && !hasRationale) {
+    throw new Error('请填写提前掌握说明');
+  }
   return valid(touchTree({
     ...state,
     nodes: state.nodes.map((item) => item.id === nodeId

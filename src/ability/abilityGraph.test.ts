@@ -56,10 +56,10 @@ function node(id: string, treeId: string, phaseId: string, progress: SkillNode['
 }
 
 describe('ability graph', () => {
-  it('derives locked and available states from mastered prerequisites', () => {
+  it('keeps every unstarted node available regardless of suggested predecessors', () => {
     const state = baseState();
     expect(getNodeDisplayState(state.nodes[0], state)).toBe('available');
-    expect(getNodeDisplayState(state.nodes[1], state)).toBe('locked');
+    expect(getNodeDisplayState(state.nodes[1], state)).toBe('available');
 
     state.nodes[0] = { ...state.nodes[0], progress: 'mastered' };
     expect(getNodeDisplayState(state.nodes[1], state)).toBe('available');
@@ -92,10 +92,11 @@ describe('ability graph', () => {
     expect(() => validateAbilityState(crossTree)).toThrow('依赖关系不能跨技能树');
   });
 
-  it('validates parallel groups, outcomes, unique ids, and archived dependency targets', () => {
+  it('validates parallel groups, outcomes, and unique ids while retaining archived relationships', () => {
     const badGroup = baseState();
-    badGroup.parallelGroups.push({ id: 'group', skillTreeId: 'tree-a', phaseId: 'phase-a1', name: '', nodeIds: ['root', 'middle'] });
-    expect(() => validateAbilityState(badGroup)).toThrow('并行节点必须属于同一阶段');
+    badGroup.nodes.push(node('camera', 'tree-b', 'phase-b1', 'available'));
+    badGroup.parallelGroups.push({ id: 'group', skillTreeId: 'tree-a', phaseId: 'phase-a1', name: '', nodeIds: ['root', 'camera'] });
+    expect(() => validateAbilityState(badGroup)).toThrow('并行节点必须属于同一技能树');
 
     const badOutcome = baseState();
     badOutcome.outcomes.push({ id: 'outcome', skillTreeId: 'tree-b', skillNodeId: 'root', title: '作品', description: '', occurredOn: '2026-08-02', showOnTree: false, createdAt: stamp, updatedAt: stamp });
@@ -107,7 +108,7 @@ describe('ability graph', () => {
 
     const archivedTarget = baseState();
     archivedTarget.nodes[1] = { ...archivedTarget.nodes[1], archivedAt: stamp };
-    expect(() => validateAbilityState(archivedTarget)).toThrow('归档节点不能作为依赖目标');
+    expect(() => validateAbilityState(archivedTarget)).not.toThrow();
   });
 
   it('returns transitive descendants and tree progress', () => {

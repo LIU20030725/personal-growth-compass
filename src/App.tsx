@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -35,8 +35,9 @@ import {
 } from './finance/financeEngine';
 import { Button } from '@/components/ui/button';
 import { TaskBoard } from './tasks/TaskBoard';
-import { AbilityModule } from './ability/AbilityModule';
 import { parseAbilityPath, pushAbilityTree, replaceAbilityTree } from './ability/abilityRoute';
+
+const AbilityModule = lazy(() => import('./ability/AbilityModule').then((module) => ({ default: module.AbilityModule })));
 
 const period = '2026-06';
 const currentYear = '2026';
@@ -1064,10 +1065,12 @@ export default function App() {
       ) : activeView === 'quests' ? (
         <TaskBoard />
       ) : activeView === 'ability' ? (
-        <AbilityModule
-          initialTreeId={abilityRoute.kind === 'tree' ? abilityRoute.treeId : null}
-          onTreeChange={(treeId, mode) => mode === 'replace' ? replaceAbilityTree(treeId) : pushAbilityTree(treeId)}
-        />
+        <Suspense fallback={<section className="ability-loading" role="status">正在加载能力技能树…</section>}>
+          <AbilityModule
+            initialTreeId={abilityRoute.kind === 'tree' ? abilityRoute.treeId : null}
+            onTreeChange={(treeId, mode) => mode === 'replace' ? replaceAbilityTree(treeId) : pushAbilityTree(treeId)}
+          />
+        </Suspense>
       ) : (
         <ModuleView view={activeView} />
       )}

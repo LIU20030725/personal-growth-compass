@@ -1,4 +1,6 @@
-# Dice Life Ability Skill Tree V1 Implementation Plan
+# Dice Life Ability Skill Tree V1 Implementation Plan（旧版，已由 V2 取代）
+
+> 当前实施计划见 `2026-08-02-dice-life-ability-canvas-v2.md`。固定网格、锁定状态和只读连线相关步骤不再执行。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

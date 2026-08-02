@@ -1,7 +1,7 @@
 export type SkillRole = 'main' | 'side' | 'exploring';
 export type SkillTreeStatus = 'active' | 'archived';
 export type NodeProgress = 'available' | 'in_progress' | 'mastered';
-export type NodeDisplayState = 'locked' | NodeProgress;
+export type NodeDisplayState = NodeProgress;
 export type TreeNodeFilter = 'all' | 'current_phase' | NodeDisplayState;
 export type CriterionSource = 'manual' | 'ai';
 
@@ -42,6 +42,7 @@ export type DependencyEdge = {
   skillTreeId: string;
   prerequisiteNodeId: string;
   dependentNodeId: string;
+  kind?: 'primary' | 'auxiliary';
 };
 
 export type ParallelGroup = {
@@ -50,6 +51,8 @@ export type ParallelGroup = {
   phaseId: string;
   name: string;
   nodeIds: string[];
+  parentNodeId?: string;
+  continuationNodeId?: string;
 };
 
 export type MasteryCriterion = {

@@ -3,6 +3,10 @@ dist/
 *.log
 *.err.log
 *.png
+!src/ability/e2e/**/*.png
+!src/ability/docs/audits/**/*.png
+playwright-report/
+test-results/
 .chrome-headless-profile/
 .chrome-headless-mobile-profile/
 .agents/

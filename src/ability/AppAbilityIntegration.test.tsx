@@ -31,31 +31,31 @@ describe('Dice Life ability navigation', () => {
     window.history.replaceState({}, '', '/');
   });
 
-  it('opens the real ability module from the sidebar and returns to finance', () => {
+  it('opens the real ability module from the sidebar and returns to finance', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /能力属性/ }));
-    expect(screen.getByRole('heading', { name: '能力技能树' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '能力技能树' }, { timeout: 5_000 })).toBeInTheDocument();
     expect(screen.queryByText('模块正在构建中')).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/ability');
     fireEvent.click(screen.getByRole('button', { name: /财富状况/ }));
     expect(screen.getByRole('heading', { name: '净资产' })).toBeInTheDocument();
   });
 
-  it('opens a direct tree URL and updates the path when switching trees', () => {
+  it('opens a direct tree URL and updates the path when switching trees', async () => {
     saveAbilityState(localStorage, seeded());
     window.history.replaceState({}, '', '/ability/trees/react');
     render(<App />);
-    expect(screen.getByRole('tree', { name: 'React 全栈技能树' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'React 全栈交互画布' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '打开技能树 写作' }));
-    expect(screen.getByRole('tree', { name: '写作技能树' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: '写作交互画布' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/ability/trees/writing');
   });
 
-  it('falls back from an unknown tree URL with a visible notice', () => {
+  it('falls back from an unknown tree URL with a visible notice', async () => {
     saveAbilityState(localStorage, seeded());
     window.history.replaceState({}, '', '/ability/trees/missing');
     render(<App />);
-    expect(screen.getByRole('tree', { name: 'React 全栈技能树' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: 'React 全栈交互画布' })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('技能树不存在，已返回能力首页');
     expect(window.location.pathname).toBe('/ability/trees/react');
   });

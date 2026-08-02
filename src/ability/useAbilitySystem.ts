@@ -33,12 +33,14 @@ export function useAbilitySystem(options: Options = {}) {
   const idFactoryRef = useRef(options.idFactory ?? defaultIdFactory);
   const [state, setState] = useState(() => loadAbilityState(storageRef.current));
   const stateRef = useRef(state);
+  const historyRef = useRef<Array<typeof state>>([]);
   const [persistenceError, setPersistenceError] = useState('');
 
   const commit = useCallback((transform: (current: typeof state) => typeof state): void => {
     try {
       const next = transform(stateRef.current);
       saveAbilityState(storageRef.current, next);
+      historyRef.current = [...historyRef.current.slice(-49), stateRef.current];
       stateRef.current = next;
       setState(next);
       setPersistenceError('');
@@ -50,8 +52,24 @@ export function useAbilitySystem(options: Options = {}) {
   const nextId = useCallback((kind: string) => idFactoryRef.current(kind), []);
   const currentTime = useCallback(() => nowRef.current(), []);
 
+  const undo = useCallback((): void => {
+    const previous = historyRef.current[historyRef.current.length - 1];
+    if (!previous) return;
+    try {
+      saveAbilityState(storageRef.current, previous);
+      historyRef.current = historyRef.current.slice(0, -1);
+      stateRef.current = previous;
+      setState(previous);
+      setPersistenceError('');
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : '能力数据保存失败');
+    }
+  }, []);
+
   return {
     state,
+    canUndo: historyRef.current.length > 0,
+    undo,
     persistenceError,
     clearPersistenceError: () => setPersistenceError(''),
     applyTreeDraft: (draft: SkillTreeDraft) => commit((current) => applyDraft(current, draft, nextId, currentTime())),
@@ -80,6 +98,43 @@ export function useAbilitySystem(options: Options = {}) {
         nodeId,
         prerequisiteNodeIds,
         edgeIds
+      ));
+      return nodeId;
+    },
+    addChildNode: (parentNodeId: string, name = '新技能') => {
+      const nodeId = nextId('node');
+      commit((current) => engine.addChildNode(current, parentNodeId, nodeId, nextId('edge'), currentTime(), name));
+      return nodeId;
+    },
+    addAuxiliaryDependency: (fromNodeId: string, toNodeId: string) =>
+      commit((current) => engine.addAuxiliaryDependency(current, fromNodeId, toNodeId, nextId('edge'))),
+    reparentNode: (nodeId: string, parentNodeId: string) =>
+      commit((current) => engine.reparentNode(current, nodeId, parentNodeId, nextId('edge'))),
+    insertParentNode: (nodeId: string, name = '新父级') => {
+      const parentNodeId = nextId('node');
+      commit((current) => engine.insertParentNode(
+        current,
+        nodeId,
+        parentNodeId,
+        nextId('edge'),
+        nextId('edge'),
+        currentTime(),
+        name
+      ));
+      return parentNodeId;
+    },
+    archiveNodeBranch: (nodeId: string) =>
+      commit((current) => engine.archiveNodeBranch(current, nodeId, currentTime())),
+    createParallelContinuation: (nodeIds: string[], name = '共同下一步') => {
+      const nodeId = nextId('node');
+      commit((current) => engine.createParallelContinuation(
+        current,
+        nodeIds,
+        nodeId,
+        nextId('edge'),
+        nextId('group'),
+        currentTime(),
+        name
       ));
       return nodeId;
     },
