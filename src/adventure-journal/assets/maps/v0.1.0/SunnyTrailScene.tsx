@@ -18,21 +18,19 @@ export function SunnyTrailScene({ reducedMotion, progress = 0 }: SunnyTrailScene
       role="img"
       aria-label="晴日林径像素旅途场景"
     >
-      <div className="journey-parallax journey-parallax-far" aria-hidden="true">
-        <img src={sunnyTrailPixel} alt="" />
-        <img src={sunnyTrailPixel} alt="" />
-      </div>
+      <img className="journey-backdrop" data-testid="journey-backdrop" src={sunnyTrailPixel} alt="" aria-hidden="true" />
       <div className="journey-light" aria-hidden="true" />
       <div className="journey-milestone" aria-hidden="true">
         <span className="journey-bridge-post post-left" />
         <span className="journey-bridge-deck" />
         <span className="journey-bridge-post post-right" />
       </div>
-      <div className="journey-walker" aria-hidden="true" style={{ backgroundImage: `url(${travelerWalk})` }} />
+      <div className="journey-walker" data-testid="journey-walker" data-frame-count="4" aria-hidden="true">
+        <img src={travelerWalk} alt="" />
+      </div>
       <div className="journey-foreground" aria-hidden="true">
         <span /><span /><span /><span /><span /><span />
       </div>
-      <div className="journey-birds" aria-hidden="true"><i /><i /><i /></div>
     </div>
   );
 }

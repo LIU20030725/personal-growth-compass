@@ -5,7 +5,6 @@ import { DiceBalance } from '../components/DiceBalance';
 import { InvestDialog } from '../components/InvestDialog';
 import { LedgerDialog } from '../components/LedgerDialog';
 import type { InvestmentProgress } from '../domain/types';
-import { ADVENTURE_DISPLAY_VERSION } from '../moduleVersion';
 import '../styles/AdventureJournal.css';
 import { useAdventureJournal, type AdventureJournalOptions } from '../useAdventureJournal';
 import { HomeView } from './HomeView';
@@ -67,7 +66,7 @@ export function AdventureJournalPage({ options, onGoToTasks }: AdventureJournalP
     <section className={'adventure-journal'} aria-labelledby={'adventure-journal-title'}>
       <header className={'journal-page-header'}>
         <div className={'journal-title-lockup'}>
-          <div><p>ADVENTURE JOURNAL · V{ADVENTURE_DISPLAY_VERSION}</p><h1 id={'adventure-journal-title'}>冒险日志</h1></div>
+          <h1 id={'adventure-journal-title'}>冒险日志</h1>
         </div>
         <div className={'journal-header-tools'}>
           <DiceBalance value={controller.diceBalance} />
@@ -93,13 +92,13 @@ export function AdventureJournalPage({ options, onGoToTasks }: AdventureJournalP
           aria-controls={'journal-journey-panel'} tabIndex={controller.activeTab === 'journey' ? 0 : -1}
           onKeyDown={handleTabKeyDown} onClick={() => controller.setActiveTab('journey')}>
           <Map size={18} aria-hidden={true} />
-          <span><strong>旅途</strong><small>JOURNEY</small></span>
+          <span><strong>旅途</strong></span>
         </button>
         <button id={'journal-home-tab'} type={'button'} role={'tab'} aria-selected={controller.activeTab === 'home'}
           aria-controls={'journal-home-panel'} tabIndex={controller.activeTab === 'home' ? 0 : -1}
           onKeyDown={handleTabKeyDown} onClick={() => controller.setActiveTab('home')}>
           <Home size={18} aria-hidden={true} />
-          <span><strong>永久之家</strong><small>PERMANENT HOME</small></span>
+          <span><strong>永久之家</strong></span>
         </button>
       </div>
       {controller.activeTab === 'journey' ? (

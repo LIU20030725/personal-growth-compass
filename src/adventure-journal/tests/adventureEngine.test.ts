@@ -24,7 +24,7 @@ describe('adventure journal initial state', () => {
 
     expect(state).toMatchObject({
       schemaVersion: 1,
-      contentVersion: '1.1.0-0802',
+      contentVersion: '1.2.0-0803',
       currentChapterId: 'map-sunny-trail',
       viewingMapId: 'map-sunny-trail',
       unlockedMapIds: ['map-sunny-trail']

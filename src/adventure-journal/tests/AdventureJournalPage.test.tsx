@@ -10,6 +10,7 @@ import { DiceBalance } from '../components/DiceBalance';
 import { InvestDialog } from '../components/InvestDialog';
 import { LedgerDialog } from '../components/LedgerDialog';
 import { AdventureJournalPage } from '../pages/AdventureJournalPage';
+import { JourneyView } from '../pages/JourneyView';
 
 function createMemoryStorage() {
   const data = new Map<string, string>();
@@ -144,6 +145,8 @@ describe('adventure journal shared interface', () => {
     const { rerender } = render(<SunnyTrailScene reducedMotion={false} progress={50} />);
     expect(screen.getByRole('img', { name: '晴日林径像素旅途场景' })).toBeInTheDocument();
     expect(screen.getByTestId('journey-pixel-world')).toHaveAttribute('data-progress-stage', '2');
+    expect(screen.getAllByTestId('journey-backdrop')).toHaveLength(1);
+    expect(screen.getByTestId('journey-walker')).toHaveAttribute('data-frame-count', '4');
 
     rerender(<PermanentHomeScene reducedMotion investments={[
       { targetType: 'home-item', targetId: 'home-field-desk', price: 6, invested: 3, status: 'building', unlockedAt: null },
@@ -153,6 +156,52 @@ describe('adventure journal shared interface', () => {
     expect(screen.getByRole('img', { name: '永久家园像素场景' })).toHaveClass('is-reduced-motion');
     expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
     expect(screen.getByTestId('home-memory-shelf')).toHaveAttribute('data-build-stage', '4');
+  });
+
+  it('keeps route copy consistent across zero, partial, and arrived states', () => {
+    const route = {
+      targetType: 'route' as const,
+      targetId: 'route-wind-valley',
+      price: 30,
+      invested: 0,
+      status: 'available' as const,
+      unlockedAt: null
+    };
+    const onInvest = vi.fn();
+    const { rerender } = render(
+      <JourneyView route={route} reducedMotion arrived={false}
+        onInvest={onInvest} onDepart={() => undefined} onGoHome={() => undefined} />
+    );
+
+    expect(screen.getByRole('heading', { name: '晴日林径' })).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：0%')).toBeInTheDocument();
+    expect(screen.getAllByText('0%')).toHaveLength(1);
+    expect(screen.getAllByText('0 / 30')).toHaveLength(1);
+    expect(screen.getByText('还需 30 枚成长骰子修好山谷木桥。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '投入通往风过山谷' })).toBeEnabled();
+
+    rerender(
+      <JourneyView route={{ ...route, invested: 15, status: 'building' }} reducedMotion arrived={false}
+        onInvest={onInvest} onDepart={() => undefined} onGoHome={() => undefined} />
+    );
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：50%')).toBeInTheDocument();
+    expect(screen.getAllByText('50%')).toHaveLength(1);
+    expect(screen.getAllByText('15 / 30')).toHaveLength(1);
+    expect(screen.getByText('还需 15 枚成长骰子修好山谷木桥。')).toBeInTheDocument();
+
+    rerender(
+      <JourneyView route={{ ...route, invested: 30, status: 'unlocked', unlockedAt: '2026-08-02T10:00:00+08:00' }}
+        reducedMotion arrived onInvest={onInvest} onDepart={() => undefined} onGoHome={() => undefined} />
+    );
+    expect(screen.getByRole('heading', { name: '风过山谷' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '晴日林径' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：风过山谷')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：100%')).toBeInTheDocument();
+    expect(screen.getAllByText('100%')).toHaveLength(1);
+    expect(screen.getAllByText('30 / 30')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: '已抵达风过山谷' })).toBeDisabled();
   });
 
   it('turns unfinished home build sites into accessible scene hotspots', () => {
@@ -295,6 +344,12 @@ describe('AdventureJournalPage', () => {
     fireEvent.click(departButton);
 
     expect(screen.getByRole('heading', { name: '抵达风过山谷' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '风过山谷' })).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：风过山谷')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：100%')).toBeInTheDocument();
+    expect(screen.getByText('30 / 30')).toBeInTheDocument();
+    expect(screen.getByLabelText('成长骰子余额 0')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '已抵达风过山谷' })).toBeDisabled();
     expect(screen.getByText('新发现：山谷风铃')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '带着发现回家' }));
     expect(screen.getByRole('tabpanel', { name: /永久之家/ })).toBeInTheDocument();
@@ -309,6 +364,10 @@ describe('AdventureJournalPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '投入通往风过山谷' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('骰子余额不足，还差 1 枚');
+    expect(screen.getByLabelText('成长骰子余额 0')).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：0%')).toBeInTheDocument();
+    expect(screen.getByText('0 / 30')).toBeInTheDocument();
     expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
       .toHaveAttribute('aria-valuenow', '0');
   });
@@ -322,6 +381,12 @@ describe('AdventureJournalPage', () => {
     fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '15' } });
     fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
 
+    expect(screen.getByLabelText('成长骰子余额 0')).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：50%')).toBeInTheDocument();
+    expect(screen.getByText('15 / 30')).toBeInTheDocument();
+    expect(screen.getByText('还需 15 枚成长骰子修好山谷木桥。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '投入通往风过山谷' })).toBeEnabled();
     expect(screen.getByTestId('journey-pixel-world')).toHaveAttribute('data-progress-stage', '2');
     expect(screen.getByRole('status')).toHaveTextContent('路线推进到 50%');
   });
