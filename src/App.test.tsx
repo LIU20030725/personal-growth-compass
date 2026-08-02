@@ -3,6 +3,20 @@ import { describe, expect, it } from 'vitest';
 import App from './App';
 
 describe('Economy dashboard', () => {
+  it('marks the calm shared shell and exposes the current navigation destination', () => {
+    render(<App />);
+
+    const header = screen.getByRole('banner', { name: '全局导航' });
+    const sidebar = screen.getByRole('complementary', { name: '角色与模块导航' });
+    expect(header).toHaveAttribute('data-shell-surface', 'calm');
+    expect(sidebar).toHaveAttribute('data-shell-surface', 'calm');
+    expect(within(sidebar).getByRole('button', { name: /财富状况/ })).toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(within(header).getByRole('button', { name: '任务' }));
+    expect(within(header).getByRole('button', { name: '任务' })).toHaveAttribute('aria-current', 'page');
+    expect(within(sidebar).getByRole('button', { name: /财富状况/ })).not.toHaveAttribute('aria-current');
+  });
+
   it('uses the Dice Life shell and switches between character and system views', () => {
     render(<App />);
 

@@ -1,0 +1,18 @@
+{
+  "finance": {
+    "blocking": [],
+    "allViolationIds": []
+  },
+  "tasks": {
+    "blocking": [],
+    "allViolationIds": [
+      "landmark-main-is-top-level",
+      "landmark-no-duplicate-main",
+      "landmark-unique"
+    ]
+  },
+  "emotion": {
+    "blocking": [],
+    "allViolationIds": []
+  }
+}
