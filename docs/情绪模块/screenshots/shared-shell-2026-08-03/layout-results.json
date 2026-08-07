@@ -1,0 +1,218 @@
+{
+  "1440-finance": {
+    "viewport": [
+      1440,
+      900
+    ],
+    "scrollWidth": 1440,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 1440,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 240,
+      "top": 64,
+      "bottom": 900
+    },
+    "main": {
+      "left": 240,
+      "right": 1440,
+      "top": 64
+    }
+  },
+  "1440-tasks": {
+    "viewport": [
+      1440,
+      900
+    ],
+    "scrollWidth": 1440,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 1440,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 240,
+      "top": 64,
+      "bottom": 900
+    },
+    "main": {
+      "left": 240,
+      "right": 1440,
+      "top": 64
+    }
+  },
+  "1440-emotion": {
+    "viewport": [
+      1440,
+      900
+    ],
+    "scrollWidth": 1440,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 1440,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 240,
+      "top": 64,
+      "bottom": 900
+    },
+    "main": {
+      "left": 240,
+      "right": 1440,
+      "top": 64
+    }
+  },
+  "1024-finance": {
+    "viewport": [
+      1024,
+      768
+    ],
+    "scrollWidth": 1024,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 1024,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 1024,
+      "top": 64,
+      "bottom": 136
+    },
+    "main": {
+      "left": 20,
+      "right": 1004,
+      "top": 136
+    }
+  },
+  "1024-tasks": {
+    "viewport": [
+      1024,
+      768
+    ],
+    "scrollWidth": 1024,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 1024,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 1024,
+      "top": 64,
+      "bottom": 136
+    },
+    "main": {
+      "left": 20,
+      "right": 1004,
+      "top": 136
+    }
+  },
+  "1024-emotion": {
+    "viewport": [
+      1024,
+      768
+    ],
+    "scrollWidth": 1024,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 1024,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 1024,
+      "top": 64,
+      "bottom": 136
+    },
+    "main": {
+      "left": 0,
+      "right": 1024,
+      "top": 136
+    }
+  },
+  "390-finance": {
+    "viewport": [
+      390,
+      844
+    ],
+    "scrollWidth": 390,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 390,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 390,
+      "top": 64,
+      "bottom": 134
+    },
+    "main": {
+      "left": 12,
+      "right": 378,
+      "top": 134
+    }
+  },
+  "390-tasks": {
+    "viewport": [
+      390,
+      844
+    ],
+    "scrollWidth": 390,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 390,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 390,
+      "top": 64,
+      "bottom": 134
+    },
+    "main": {
+      "left": 12,
+      "right": 378,
+      "top": 134
+    }
+  },
+  "390-emotion": {
+    "viewport": [
+      390,
+      844
+    ],
+    "scrollWidth": 390,
+    "overflowX": false,
+    "header": {
+      "left": 0,
+      "right": 390,
+      "bottom": 64
+    },
+    "sidebar": {
+      "left": 0,
+      "right": 390,
+      "top": 64,
+      "bottom": 134
+    },
+    "main": {
+      "left": 0,
+      "right": 390,
+      "top": 134
+    }
+  }
+}

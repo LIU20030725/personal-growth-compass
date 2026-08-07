@@ -35,6 +35,7 @@ import {
 } from './finance/financeEngine';
 import { Button } from '@/components/ui/button';
 import { TaskBoard } from './tasks/TaskBoard';
+import { EmotionModule } from './emotion/EmotionModule';
 
 const period = '2026-06';
 const currentYear = '2026';
@@ -865,15 +866,15 @@ export default function App() {
   return (
     <>
       <a className="skip-link" href="#main-content">跳到主要内容</a>
-      <header className="app-header" aria-label="全局导航">
+      <header className="app-header" aria-label="全局导航" data-shell-surface="calm">
         <button className="brand-mark" type="button" onClick={() => setActiveView('finance')} aria-label="Dice Life 首页">
           <strong>Dice Life</strong>
           <span className="brand-die" aria-hidden="true"><i /><i /><i /><i /><i /></span>
         </button>
         <nav className="top-nav" aria-label="主导航">
-          <button className={activeView === 'quests' ? 'active' : ''} type="button" onClick={() => setActiveView('quests')}>任务</button>
-          <button className={activeView === 'achievements' ? 'active' : ''} type="button" onClick={() => setActiveView('achievements')}>成就</button>
-          <button className={activeView === 'journal' ? 'active' : ''} type="button" onClick={() => setActiveView('journal')}>冒险日志</button>
+          <button className={activeView === 'quests' ? 'active' : ''} aria-current={activeView === 'quests' ? 'page' : undefined} type="button" onClick={() => setActiveView('quests')}>任务</button>
+          <button className={activeView === 'achievements' ? 'active' : ''} aria-current={activeView === 'achievements' ? 'page' : undefined} type="button" onClick={() => setActiveView('achievements')}>成就</button>
+          <button className={activeView === 'journal' ? 'active' : ''} aria-current={activeView === 'journal' ? 'page' : undefined} type="button" onClick={() => setActiveView('journal')}>冒险日志</button>
         </nav>
         <div className="header-tools">
           <button className="round-tool" type="button" aria-label="通知"><Bell size={20} /></button>
@@ -882,12 +883,13 @@ export default function App() {
         </div>
       </header>
 
-      <aside className="app-sidebar" aria-label="角色与模块导航">
+      <aside className="app-sidebar" aria-label="角色与模块导航" data-shell-surface="calm">
         <button
           className={`character-card ${activeView === 'character' ? 'active' : ''}`}
           type="button"
           aria-label="打开人物状态信息表"
           aria-pressed={activeView === 'character'}
+          aria-current={activeView === 'character' ? 'page' : undefined}
           onClick={() => setActiveView('character')}
         >
           <div className="character-emblem"><PixelHeroAvatar compact /></div>
@@ -895,10 +897,10 @@ export default function App() {
           <p>点击查看人物状态</p>
         </button>
         <nav className="side-nav" aria-label="系统模块">
-          <button className={activeView === 'finance' ? 'active' : ''} type="button" onClick={() => setActiveView('finance')}><CircleDollarSign size={19} /> 财富状况</button>
-          <button className={activeView === 'ability' ? 'active' : ''} type="button" onClick={() => setActiveView('ability')}><Brain size={19} /> 能力属性</button>
-          <button className={activeView === 'body' ? 'active' : ''} type="button" onClick={() => setActiveView('body')}><HeartPulse size={19} /> 健康状况</button>
-          <button className={activeView === 'emotion' ? 'active' : ''} type="button" onClick={() => setActiveView('emotion')}><Smile size={19} /> 情绪状态</button>
+          <button className={activeView === 'finance' ? 'active' : ''} aria-current={activeView === 'finance' ? 'page' : undefined} type="button" onClick={() => setActiveView('finance')}><CircleDollarSign size={19} /> 财富状况</button>
+          <button className={activeView === 'ability' ? 'active' : ''} aria-current={activeView === 'ability' ? 'page' : undefined} type="button" onClick={() => setActiveView('ability')}><Brain size={19} /> 能力属性</button>
+          <button className={activeView === 'body' ? 'active' : ''} aria-current={activeView === 'body' ? 'page' : undefined} type="button" onClick={() => setActiveView('body')}><HeartPulse size={19} /> 健康状况</button>
+          <button className={activeView === 'emotion' ? 'active' : ''} aria-current={activeView === 'emotion' ? 'page' : undefined} type="button" onClick={() => setActiveView('emotion')}><Smile size={19} /> 情绪状态</button>
         </nav>
         <section className="hero-stats" aria-label="英雄属性">
           <div className="hero-stats-title"><span>英雄属性</span><Trophy size={16} /></div>
@@ -921,7 +923,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className="app-shell" id="main-content" tabIndex={-1}>
+      <main className={`app-shell${activeView === 'emotion' ? ' emotion-shell' : ''}`} id="main-content" tabIndex={-1}>
       {activeView === 'finance' ? (
       <>
       <section className="hero-panel wealth-hero">
@@ -1041,6 +1043,8 @@ export default function App() {
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
         <TaskBoard />
+      ) : activeView === 'emotion' ? (
+        <EmotionModule />
       ) : (
         <ModuleView view={activeView} />
       )}
