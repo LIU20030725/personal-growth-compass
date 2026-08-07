@@ -3,6 +3,7 @@ dist/
 *.log
 *.err.log
 *.png
+!spec/releases/**/evidence/*.png
 .chrome-headless-profile/
 .chrome-headless-mobile-profile/
 .agents/

@@ -7,8 +7,10 @@ import {
   getPeriodKey,
   recordGoalProgress,
   recordTaskProgress,
-  settleWeeklyReview
+  settleWeeklyReview,
+  spendAdventureDice
 } from './taskEngine';
+import { TASK_RULE_VERSION } from './taskConfig';
 
 const goal = (overrides: Record<string, unknown> = {}) => ({
   id: 'goal-1',
@@ -134,5 +136,59 @@ describe('task module v2 domain rules', () => {
     expect(getDiceBalance(state) - firstBalance).toBe(
       Math.max(0, secondPreview.bonusDice - firstPreview.bonusDice) + 1
     );
+  });
+
+  it('spends adventure dice once per operation and preserves target metadata', () => {
+    const state = createInitialTaskState();
+    state.diceTransactions = [{
+      id: 'income',
+      type: 'goal-reward',
+      amount: 8,
+      sourceId: 'goal',
+      dimension: 'health',
+      ruleVersion: TASK_RULE_VERSION,
+      createdAt: '2026-08-01T08:00:00+08:00',
+      balanceAfter: 8
+    }];
+    const input = {
+      transactionId: 'spend-1',
+      operationId: 'operation-1',
+      targetType: 'home-item' as const,
+      targetId: 'home-field-desk',
+      amount: 6,
+      createdAt: '2026-08-01T09:00:00+08:00'
+    };
+
+    const first = spendAdventureDice(state, input);
+    const second = spendAdventureDice(first, input);
+    const spend = first.diceTransactions[first.diceTransactions.length - 1];
+
+    expect(getDiceBalance(first)).toBe(2);
+    expect(second.diceTransactions).toHaveLength(first.diceTransactions.length);
+    expect(spend).toMatchObject({
+      type: 'adventure-spend',
+      amount: -6,
+      sourceId: 'operation-1',
+      targetType: 'home-item',
+      targetId: 'home-field-desk',
+      balanceAfter: 2
+    });
+  });
+
+  it('rejects invalid or unaffordable adventure spending without changing the ledger', () => {
+    const state = createInitialTaskState();
+    const base = {
+      transactionId: 'spend',
+      operationId: 'operation',
+      targetType: 'route' as const,
+      targetId: 'route-wind-valley',
+      createdAt: '2026-08-01T09:00:00+08:00'
+    };
+
+    expect(() => spendAdventureDice(state, { ...base, amount: 3 }))
+      .toThrow('骰子余额不足，还差 3 枚');
+    expect(() => spendAdventureDice(state, { ...base, amount: 0 }))
+      .toThrow('投入数量必须是大于 0 的整数');
+    expect(state.diceTransactions).toEqual([]);
   });
 });

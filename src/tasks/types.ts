@@ -74,6 +74,17 @@ export type DiceTransaction = {
   ruleVersion: string;
   createdAt: string;
   balanceAfter: number;
+  targetType?: 'route' | 'home-item' | 'gear';
+  targetId?: string;
+};
+
+export type AdventureSpendInput = {
+  transactionId: string;
+  operationId: string;
+  targetType: 'route' | 'home-item' | 'gear';
+  targetId: string;
+  amount: number;
+  createdAt: string;
 };
 
 export type WeeklyReview = {

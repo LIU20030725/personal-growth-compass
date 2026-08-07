@@ -34,6 +34,7 @@ import {
   type TransactionType
 } from './finance/financeEngine';
 import { Button } from '@/components/ui/button';
+import { AdventureJournalPage } from './adventure-journal/pages/AdventureJournalPage';
 import { TaskBoard } from './tasks/TaskBoard';
 import { EmotionModule } from './emotion/EmotionModule';
 
@@ -541,16 +542,15 @@ function CharacterStatusView() {
   );
 }
 
-const moduleViewContent: Record<Exclude<MainView, 'finance' | 'character'>, { eyebrow: string; title: string; description: string; items: string[] }> = {
+const moduleViewContent: Record<Exclude<MainView, 'finance' | 'character' | 'journal'>, { eyebrow: string; title: string; description: string; items: string[] }> = {
   ability: { eyebrow: 'Ability Tree', title: '能力属性', description: '用技能树管理专业能力、通用能力与长期练习。', items: ['专业技能树', '本周练习', '能力里程碑'] },
   body: { eyebrow: 'Body Status', title: '健康状况', description: '记录睡眠、运动与身体指标，保持稳定输出。', items: ['睡眠恢复', '运动计划', '身体数据'] },
   emotion: { eyebrow: 'Mind Status', title: '情绪状态', description: '用轻量记录观察压力、能量与情绪波动。', items: ['今日情绪', '压力来源', '恢复行动'] },
   quests: { eyebrow: 'Quest Board', title: '任务', description: '组织主线、支线与每日任务，让行动直接转化为经验值。', items: ['今日任务', '本周主线', '待领取奖励'] },
-  achievements: { eyebrow: 'Achievement Hall', title: '成就', description: '收藏真实进步形成的徽章、称号与人生里程碑。', items: ['最新解锁', '成就图鉴', '里程碑'] },
-  journal: { eyebrow: 'Adventure Journal', title: '冒险日志', description: '汇总每日行动、复盘与成长轨迹，留下可回看的个人史。', items: ['今日记录', '周度复盘', '成长时间线'] }
+  achievements: { eyebrow: 'Achievement Hall', title: '成就', description: '收藏真实进步形成的徽章、称号与人生里程碑。', items: ['最新解锁', '成就图鉴', '里程碑'] }
 };
 
-function ModuleView({ view }: { view: Exclude<MainView, 'finance' | 'character'> }) {
+function ModuleView({ view }: { view: Exclude<MainView, 'finance' | 'character' | 'journal'> }) {
   const content = moduleViewContent[view];
   return (
     <section className="module-view panel" aria-label={`${content.title}模块`}>
@@ -1045,6 +1045,8 @@ export default function App() {
         <TaskBoard />
       ) : activeView === 'emotion' ? (
         <EmotionModule />
+      ) : activeView === 'journal' ? (
+        <AdventureJournalPage onGoToTasks={() => setActiveView('quests')} />
       ) : (
         <ModuleView view={activeView} />
       )}

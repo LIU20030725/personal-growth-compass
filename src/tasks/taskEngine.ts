@@ -6,6 +6,7 @@ import {
   WEEKLY_BONUS_DICE_CAP
 } from './taskConfig';
 import type {
+  AdventureSpendInput,
   ChestTier,
   CompletionDraft,
   DiceTransaction,
@@ -69,6 +70,37 @@ export function getDiceBalance(state: TaskSystemState): number {
 function addTransaction(state: TaskSystemState, transaction: Omit<DiceTransaction, 'balanceAfter'>): TaskSystemState {
   const full = { ...transaction, balanceAfter: getDiceBalance(state) + transaction.amount };
   return { ...state, diceTransactions: [...state.diceTransactions, full] };
+}
+
+export function spendAdventureDice(
+  state: TaskSystemState,
+  input: AdventureSpendInput
+): TaskSystemState {
+  if (!Number.isInteger(input.amount) || input.amount <= 0) {
+    throw new Error('投入数量必须是大于 0 的整数');
+  }
+  if (state.diceTransactions.some((transaction) =>
+    transaction.type === 'adventure-spend' && transaction.sourceId === input.operationId
+  )) {
+    return state;
+  }
+
+  const missing = input.amount - getDiceBalance(state);
+  if (missing > 0) {
+    throw new Error(`骰子余额不足，还差 ${missing} 枚`);
+  }
+
+  return addTransaction(state, {
+    id: input.transactionId,
+    type: 'adventure-spend',
+    amount: -input.amount,
+    sourceId: input.operationId,
+    dimension: 'mixed',
+    ruleVersion: 'adventure-investment-v1',
+    createdAt: input.createdAt,
+    targetType: input.targetType,
+    targetId: input.targetId
+  });
 }
 
 export function recordTaskProgress(

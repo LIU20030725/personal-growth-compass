@@ -1,0 +1,418 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { TASK_RULE_VERSION } from '../../tasks/taskConfig';
+import { createInitialTaskState } from '../../tasks/taskEngine';
+import { saveTaskState } from '../../tasks/taskStorage';
+import type { DiceTransaction } from '../../tasks/types';
+import { PermanentHomeScene } from '../assets/home/v0.1.0/PermanentHomeScene';
+import { SunnyTrailScene } from '../assets/maps/v0.1.0/SunnyTrailScene';
+import { DiceBalance } from '../components/DiceBalance';
+import { InvestDialog } from '../components/InvestDialog';
+import { LedgerDialog } from '../components/LedgerDialog';
+import { AdventureJournalPage } from '../pages/AdventureJournalPage';
+import { JourneyView } from '../pages/JourneyView';
+
+function createMemoryStorage() {
+  const data = new Map<string, string>();
+  return {
+    getItem: (key: string) => data.get(key) ?? null,
+    setItem: (key: string, value: string) => { data.set(key, value); },
+    removeItem: (key: string) => { data.delete(key); }
+  };
+}
+
+function seedDice(storage: ReturnType<typeof createMemoryStorage>, amount: number) {
+  const state = createInitialTaskState();
+  state.diceTransactions = amount > 0 ? [{
+    id: 'income',
+    type: 'goal-reward',
+    amount,
+    sourceId: 'goal',
+    dimension: 'health',
+    ruleVersion: TASK_RULE_VERSION,
+    createdAt: '2026-08-01T08:00:00+08:00',
+    balanceAfter: amount
+  }] : [];
+  saveTaskState(storage, state);
+}
+
+function pageOptions(storage: ReturnType<typeof createMemoryStorage>) {
+  return {
+    storage,
+    now: () => '2026-08-01T09:00:00+08:00',
+    idFactory: () => 'operation-1',
+    reducedMotion: true
+  };
+}
+
+describe('adventure journal shared interface', () => {
+  it('validates investment amounts next to a visible input label', () => {
+    const onClose = vi.fn();
+    const onConfirm = vi.fn();
+    render(
+      <InvestDialog
+        open
+        targetName="田野书桌"
+        balance={8}
+        remaining={6}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />
+    );
+
+    expect(screen.getByRole('dialog', { name: '投入骰子' })).toBeInTheDocument();
+    expect(screen.getByLabelText('投入数量')).toHaveAttribute('max', '6');
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '7' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('本次最多还能投入 6 枚骰子');
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds stepper controls at one and the available maximum', () => {
+    const onConfirm = vi.fn();
+    render(
+      <InvestDialog open targetName="田野书桌" balance={3} remaining={6}
+        onClose={() => undefined} onConfirm={onConfirm} />
+    );
+
+    const input = screen.getByLabelText('投入数量');
+    const decrease = screen.getByRole('button', { name: '减少一枚骰子' });
+    const increase = screen.getByRole('button', { name: '增加一枚骰子' });
+    expect(input).toHaveValue(1);
+    expect(decrease).toBeDisabled();
+    expect(increase).toBeEnabled();
+
+    fireEvent.click(increase);
+    fireEvent.click(increase);
+    expect(input).toHaveValue(3);
+    expect(increase).toBeDisabled();
+    expect(decrease).toBeEnabled();
+
+    fireEvent.change(input, { target: { value: '4' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('骰子余额不足，还差 1 枚');
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('请输入大于 0 的整数');
+  });
+
+  it('disables all investment controls when the available maximum is zero', () => {
+    render(
+      <InvestDialog open targetName="田野书桌" balance={0} remaining={6}
+        onClose={() => undefined} onConfirm={() => undefined} />
+    );
+
+    expect(screen.getByLabelText('投入数量')).toHaveValue(0);
+    expect(screen.getByLabelText('投入数量')).toBeDisabled();
+    expect(screen.getByRole('button', { name: '减少一枚骰子' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '增加一枚骰子' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '确认投入' })).toBeDisabled();
+  });
+
+  it('announces the current dice balance', () => {
+    render(<DiceBalance value={12} />);
+    expect(screen.getByLabelText('成长骰子余额 12')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+  });
+
+  it('shows signed ledger entries with target details', () => {
+    const transaction: DiceTransaction = {
+      id: 'spend',
+      type: 'adventure-spend',
+      amount: -6,
+      sourceId: 'operation-1',
+      dimension: 'mixed',
+      ruleVersion: 'adventure-investment-v1',
+      createdAt: '2026-08-01T09:00:00+08:00',
+      balanceAfter: 2,
+      targetType: 'home-item',
+      targetId: 'home-field-desk'
+    };
+    render(<LedgerDialog open transactions={[transaction]} onClose={() => undefined} />);
+
+    expect(screen.getByRole('dialog', { name: '骰子账本' })).toBeInTheDocument();
+    expect(screen.getByText('-6')).toBeInTheDocument();
+    expect(screen.getByText('田野书桌')).toBeInTheDocument();
+    expect(screen.getByText('余额 2')).toBeInTheDocument();
+  });
+
+  it('provides descriptive labels and progress states for both pixel worlds', () => {
+    const { rerender } = render(<SunnyTrailScene reducedMotion={false} progress={50} />);
+    expect(screen.getByRole('img', { name: '晴日林径像素旅途场景' })).toBeInTheDocument();
+    expect(screen.getByTestId('journey-pixel-world')).toHaveAttribute('data-progress-stage', '2');
+    expect(screen.getAllByTestId('journey-backdrop')).toHaveLength(1);
+    expect(screen.getByTestId('journey-walker')).toHaveAttribute('data-frame-count', '4');
+
+    rerender(<PermanentHomeScene reducedMotion investments={[
+      { targetType: 'home-item', targetId: 'home-field-desk', price: 6, invested: 3, status: 'building', unlockedAt: null },
+      { targetType: 'home-item', targetId: 'home-memory-shelf', price: 12, invested: 12, status: 'unlocked', unlockedAt: '2026-08-01T09:30:00+08:00' }
+    ]} />);
+    expect(screen.getByRole('img', { name: '永久家园像素场景' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '永久家园像素场景' })).toHaveClass('is-reduced-motion');
+    expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
+    expect(screen.getByTestId('home-memory-shelf')).toHaveAttribute('data-build-stage', '4');
+  });
+
+  it('keeps route copy consistent across zero, partial, and arrived states', () => {
+    const route = {
+      targetType: 'route' as const,
+      targetId: 'route-wind-valley',
+      price: 30,
+      invested: 0,
+      status: 'available' as const,
+      unlockedAt: null
+    };
+    const onInvest = vi.fn();
+    const { rerender } = render(
+      <JourneyView route={route} reducedMotion arrived={false}
+        onInvest={onInvest} onDepart={() => undefined} onGoHome={() => undefined} />
+    );
+
+    expect(screen.getByRole('heading', { name: '晴日林径' })).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：0%')).toBeInTheDocument();
+    expect(screen.getAllByText('0%')).toHaveLength(1);
+    expect(screen.getAllByText('0 / 30')).toHaveLength(1);
+    expect(screen.getByText('还需 30 枚成长骰子修好山谷木桥。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '投入通往风过山谷' })).toBeEnabled();
+
+    rerender(
+      <JourneyView route={{ ...route, invested: 15, status: 'building' }} reducedMotion arrived={false}
+        onInvest={onInvest} onDepart={() => undefined} onGoHome={() => undefined} />
+    );
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：50%')).toBeInTheDocument();
+    expect(screen.getAllByText('50%')).toHaveLength(1);
+    expect(screen.getAllByText('15 / 30')).toHaveLength(1);
+    expect(screen.getByText('还需 15 枚成长骰子修好山谷木桥。')).toBeInTheDocument();
+
+    rerender(
+      <JourneyView route={{ ...route, invested: 30, status: 'unlocked', unlockedAt: '2026-08-02T10:00:00+08:00' }}
+        reducedMotion arrived onInvest={onInvest} onDepart={() => undefined} onGoHome={() => undefined} />
+    );
+    expect(screen.getByRole('heading', { name: '风过山谷' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '晴日林径' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：风过山谷')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：100%')).toBeInTheDocument();
+    expect(screen.getAllByText('100%')).toHaveLength(1);
+    expect(screen.getAllByText('30 / 30')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: '已抵达风过山谷' })).toBeDisabled();
+  });
+
+  it('turns unfinished home build sites into accessible scene hotspots', () => {
+    const onSelect = vi.fn();
+    const desk = { targetType: 'home-item' as const, targetId: 'home-field-desk', price: 6, invested: 3, status: 'building' as const, unlockedAt: null };
+    render(<PermanentHomeScene reducedMotion={false} investments={[
+      desk,
+      { targetType: 'home-item', targetId: 'home-memory-shelf', price: 12, invested: 12, status: 'unlocked', unlockedAt: '2026-08-01T09:30:00+08:00' }
+    ]} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '建造田野书桌，当前 50%' }));
+
+    expect(onSelect).toHaveBeenCalledWith(desk);
+    expect(screen.getByTestId('home-memory-shelf')).toHaveAttribute('aria-label', '记忆陈列架，已建成');
+  });
+});
+
+describe('AdventureJournalPage', () => {
+  it('keeps investment dialog focus contained and restores its trigger on Escape', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 8);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    const trigger = screen.getByRole('button', { name: '投入通往风过山谷' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole('dialog', { name: '投入骰子' });
+    const close = screen.getByRole('button', { name: '关闭投入对话框' });
+    const confirm = screen.getByRole('button', { name: '确认投入' });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(confirm).toHaveFocus();
+    fireEvent.keyDown(confirm, { key: 'Tab' });
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '投入骰子' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('keeps ledger dialog focus contained and restores its trigger on Escape', () => {
+    const storage = createMemoryStorage();
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    const trigger = screen.getByRole('button', { name: '查看骰子账本' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const close = screen.getByRole('button', { name: '关闭骰子账本' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab' });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+    expect(close).toHaveFocus();
+
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '骰子账本' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('supports roving focus and selection across adventure tabs', () => {
+    const storage = createMemoryStorage();
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    const journey = screen.getByRole('tab', { name: /旅途/ });
+    const home = screen.getByRole('tab', { name: /永久之家/ });
+    journey.focus();
+    expect(journey).toHaveAttribute('tabindex', '0');
+    expect(home).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(journey, { key: 'ArrowRight' });
+    expect(home).toHaveFocus();
+    expect(home).toHaveAttribute('aria-selected', 'true');
+    expect(home).toHaveAttribute('tabindex', '0');
+    expect(journey).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(home, { key: 'ArrowLeft' });
+    expect(journey).toHaveFocus();
+    expect(journey).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.keyDown(journey, { key: 'End' });
+    expect(home).toHaveFocus();
+    expect(home).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(home, { key: 'Home' });
+    expect(journey).toHaveFocus();
+    expect(journey).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('switches between the journey and home, then builds an item with a ledger entry', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 8);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    expect(screen.getByRole('heading', { name: '冒险日志' })).toBeInTheDocument();
+    const journeyTab = screen.getByRole('tab', { name: /旅途/ });
+    expect(journeyTab).toHaveAttribute('aria-selected', 'true');
+    expect(journeyTab).toHaveAttribute('id', 'journal-journey-tab');
+    expect(screen.getByRole('tabpanel', { name: /旅途/ }))
+      .toHaveAttribute('aria-labelledby', 'journal-journey-tab');
+    expect(screen.getByRole('img', { name: '晴日林径像素旅途场景' })).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
+      .toHaveAttribute('aria-valuenow', '0');
+    expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
+      .toHaveAttribute('aria-valuemin', '0');
+    expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
+      .toHaveAttribute('aria-valuemax', '30');
+    expect(screen.getByText('0 / 30')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /永久之家/ }));
+    expect(screen.getByRole('tab', { name: /永久之家/ })).toHaveAttribute('id', 'journal-home-tab');
+    expect(screen.getByRole('tabpanel', { name: /永久之家/ }))
+      .toHaveAttribute('aria-labelledby', 'journal-home-tab');
+    expect(screen.getByRole('img', { name: '永久家园像素场景' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '建造田野书桌' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '6' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByText('田野书桌已建成')).toBeInTheDocument();
+    expect(screen.getByLabelText('成长骰子余额 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '查看骰子账本' }));
+    expect(screen.getByRole('dialog', { name: '骰子账本' })).toBeInTheDocument();
+    expect(screen.getByText('-6')).toBeInTheDocument();
+    expect(screen.getByText('余额 2')).toBeInTheDocument();
+  });
+
+  it('turns a ready route into a departure, arrival, and home discovery', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 30);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '投入通往风过山谷' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '30' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    const departButton = screen.getByRole('button', { name: '启程前往风过山谷' });
+    expect(departButton).toBeEnabled();
+    fireEvent.click(departButton);
+
+    expect(screen.getByRole('heading', { name: '抵达风过山谷' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '风过山谷' })).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：风过山谷')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：100%')).toBeInTheDocument();
+    expect(screen.getByText('30 / 30')).toBeInTheDocument();
+    expect(screen.getByLabelText('成长骰子余额 0')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '已抵达风过山谷' })).toBeDisabled();
+    expect(screen.getByText('新发现：山谷风铃')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '带着发现回家' }));
+    expect(screen.getByRole('tabpanel', { name: /永久之家/ })).toBeInTheDocument();
+    expect(screen.getByText('山谷风铃')).toBeInTheDocument();
+  });
+
+  it('keeps progress unchanged and explains when the dice balance is empty', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 0);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '投入通往风过山谷' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('骰子余额不足，还差 1 枚');
+    expect(screen.getByLabelText('成长骰子余额 0')).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：0%')).toBeInTheDocument();
+    expect(screen.getByText('0 / 30')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: '通往风过山谷建设进度' }))
+      .toHaveAttribute('aria-valuenow', '0');
+  });
+
+  it('turns a partial route investment into a visible world milestone and confirmation', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 15);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '投入通往风过山谷' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '15' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByLabelText('成长骰子余额 0')).toBeInTheDocument();
+    expect(screen.getByLabelText('当前位置：晴日林径')).toBeInTheDocument();
+    expect(screen.getByLabelText('路线进度：50%')).toBeInTheDocument();
+    expect(screen.getByText('15 / 30')).toBeInTheDocument();
+    expect(screen.getByText('还需 15 枚成长骰子修好山谷木桥。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '投入通往风过山谷' })).toBeEnabled();
+    expect(screen.getByTestId('journey-pixel-world')).toHaveAttribute('data-progress-stage', '2');
+    expect(screen.getByRole('status')).toHaveTextContent('路线推进到 50%');
+  });
+
+  it('shows partial home construction inside the top-down world', () => {
+    const storage = createMemoryStorage();
+    seedDice(storage, 3);
+    render(<AdventureJournalPage options={pageOptions(storage)} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: /永久之家/ }));
+    fireEvent.click(screen.getByRole('button', { name: '建造田野书桌' }));
+    fireEvent.change(screen.getByLabelText('投入数量'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: '确认投入' }));
+
+    expect(screen.getByTestId('home-field-desk')).toHaveAttribute('data-build-stage', '2');
+    expect(screen.getByRole('status')).toHaveTextContent('田野书桌建设到 50%');
+  });
+
+  it('lets the user reduce motion without leaving the adventure world', () => {
+    const storage = createMemoryStorage();
+    render(<AdventureJournalPage options={{ ...pageOptions(storage), reducedMotion: false }} />);
+
+    expect(screen.getByTestId('journey-pixel-world')).not.toHaveClass('is-reduced-motion');
+    fireEvent.click(screen.getByRole('button', { name: '减少动态' }));
+
+    expect(screen.getByTestId('journey-pixel-world')).toHaveClass('is-reduced-motion');
+    expect(screen.getByRole('button', { name: '恢复动态' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
