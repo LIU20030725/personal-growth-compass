@@ -1,0 +1,152 @@
+.ability-module { display: grid; gap: 24px; color: var(--ink); }
+.ability-module button, .ability-module input, .ability-module textarea, .ability-module select { font-family: inherit; }
+.ability-hero, .ability-current-header, .ability-tree-stage, .ability-node-panel, .ability-library, .ability-empty-state { border: 2px solid var(--ink); border-radius: 4px; background: var(--surface); box-shadow: var(--shadow-hard); }
+.ability-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 26px; }
+.ability-hero h1 { margin: 6px 0 8px; font-family: "Bebas Neue", sans-serif; font-size: clamp(42px, 5vw, 68px); font-weight: 400; line-height: .9; }
+.ability-hero > div > p:last-child { max-width: 720px; color: var(--muted); }
+.ability-primary, .ability-secondary, .ability-current-actions button, .ability-tree-toolbar button, .ability-library button, .ability-node-panel button, .ability-dialog button { min-height: 40px; padding: 8px 13px; border: 2px solid var(--ink); border-radius: 3px; color: var(--ink); background: var(--surface); font-weight: 800; }
+.ability-primary { background: var(--gold); box-shadow: 3px 3px 0 var(--ink); }
+.ability-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.ability-secondary { background: var(--surface-mid); }
+.ability-wide { width: 100%; }
+.ability-error-banner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border: 2px solid var(--ruby); background: var(--ruby-light); font-weight: 700; }
+.ability-error-banner button { border: 0; background: transparent; font-weight: 800; }
+.ability-route-notice { padding: 11px 15px; border: 2px solid var(--gold-dark); background: #fff7bf; color: var(--ink); font-weight: 800; }
+.ability-empty-state { display: grid; justify-items: center; gap: 12px; padding: 64px 24px; text-align: center; }
+.ability-empty-state svg { color: var(--gold-dark); }
+.ability-empty-state small, .ability-library-header small, .ability-node-panel header small, .ability-dialog header small { color: var(--gold-dark); font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.ability-empty-state h2 { font-family: "Bebas Neue", sans-serif; font-size: 36px; font-weight: 400; }
+.ability-empty-state p { max-width: 600px; color: var(--muted); }
+.ability-focus-switcher { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding: 8px; border: 2px solid var(--outline-soft); background: var(--surface-low); }
+.ability-focus-switcher > span { padding: 0 8px; color: var(--muted); font-size: 12px; font-weight: 800; white-space: nowrap; }
+.ability-focus-switcher button { min-width: max-content; padding: 9px 13px; border: 2px solid transparent; background: transparent; font-weight: 800; }
+.ability-focus-switcher button.active { border-color: var(--ink); background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.ability-current-header { display: grid; grid-template-columns: minmax(0, 1fr) 150px auto; gap: 22px; align-items: center; padding: 20px; }
+.ability-current-header > div:first-child > span { display: inline-block; margin-bottom: 5px; padding: 3px 7px; border: 1px solid var(--ink); background: var(--surface-mid); font-size: 11px; font-weight: 800; }
+.ability-current-header h2 { font-family: "Bebas Neue", sans-serif; font-size: 40px; font-weight: 400; }
+.ability-current-header p { color: var(--muted); }
+.ability-current-stats { display: grid; padding-left: 18px; border-left: 2px solid var(--outline-soft); }
+.ability-current-stats strong { font-family: "Bebas Neue", sans-serif; font-size: 42px; font-weight: 400; line-height: 1; }
+.ability-current-stats span { font-weight: 800; }
+.ability-current-stats small { color: var(--muted); }
+.ability-current-actions { display: flex; max-width: 360px; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.ability-current-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.ability-current-actions button:disabled, .ability-module button:disabled { cursor: not-allowed; opacity: .45; }
+.ability-tree-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.ability-tree-toolbar button { min-height: 34px; padding: 6px 11px; border-color: var(--outline-soft); color: var(--muted); }
+.ability-tree-toolbar button.active { border-color: var(--ink); color: var(--ink); background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.ability-stage-view-switch { display: flex; justify-content: flex-end; margin-top: -12px; }
+.ability-stage-view-switch button { min-height: 34px; padding: 6px 11px; border: 2px solid var(--ink); border-radius: 3px; color: var(--ink); background: var(--surface); font-weight: 800; }
+.ability-workbench { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; align-items: start; }
+.ability-workbench.has-detail { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
+.ability-tree-stage { position: relative; min-width: 0; overflow: hidden; }
+.ability-canvas-instructions { display: flex; min-height: 38px; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--outline-soft); color: var(--muted); background: #f8f6ef; font-size: 11px; font-weight: 700; }
+.ability-flow-shell { width: 100%; height: min(68vh, 720px); min-height: 520px; background: #fcfbf7; }
+.ability-flow-shell:focus-visible { outline: 4px solid var(--gold); outline-offset: 3px; }
+.ability-flow-shell .react-flow__pane { cursor: grab; }.ability-flow-shell .react-flow__pane:active { cursor: grabbing; }
+.ability-flow-shell .react-flow__node { cursor: grab; }.ability-flow-shell .react-flow__node.dragging { cursor: grabbing; }
+.ability-flow-node { position: relative; display: grid; width: 176px; min-height: 80px; place-items: center; padding: 14px 18px 12px; border: 1.25px solid #69717a; border-radius: 12px; color: var(--ink); background: #fffefa; box-shadow: 0 2px 7px rgba(31, 34, 36, .08); text-align: center; transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+.ability-flow-node:hover { border-color: #414850; box-shadow: 0 5px 14px rgba(31, 34, 36, .11); }
+.ability-flow-node.selected { border: 2px solid #e6aa00; box-shadow: 0 0 0 3px rgba(244, 180, 0, .13), 0 6px 16px rgba(31, 34, 36, .1); }
+.ability-flow-node.drop-target { outline: 2px dashed #3877d3; outline-offset: 7px; transform: scale(1.035); }
+.ability-flow-node.state-in_progress { border-color: #6681a5; background: #f7f9fc; }.ability-flow-node.state-mastered { border-color: #5d8a72; background: #f5faf7; }
+.ability-flow-node strong { max-width: 132px; overflow-wrap: anywhere; font-size: 14px; line-height: 1.25; }.ability-flow-node small { margin-top: 5px; color: var(--muted); font-size: 10px; font-weight: 750; }
+.ability-flow-status { position: absolute; top: 9px; left: 10px; display: grid; width: 16px; height: 16px; place-items: center; color: #25835d; }
+.ability-flow-handle { width: 9px !important; height: 9px !important; border: 2px solid #fffefa !important; background: #69727c !important; opacity: .72; transition: opacity 120ms ease, transform 120ms ease; }.ability-flow-node:hover .ability-flow-handle, .ability-flow-node.selected .ability-flow-handle { opacity: 1; transform: scale(1.12); }
+.ability-add-child { position: absolute; top: 50%; right: -42px; display: grid; width: 30px; height: 30px; min-height: 30px !important; place-items: center; padding: 0 !important; border: 1px solid #c79100; border-radius: 50%; color: #2e3237; background: #f4b400; box-shadow: 0 3px 8px rgba(177, 128, 0, .22); transform: translateY(-50%); cursor: pointer; }
+.ability-collapse-branch { position: absolute; top: 50%; left: -31px; display: flex; min-width: 24px; height: 24px; min-height: 24px !important; align-items: center; justify-content: center; gap: 1px; padding: 0 4px !important; border: 1px solid #a5a8ab; border-radius: 999px; color: #5e646b; background: #fff; font-size: 9px; font-weight: 800; transform: translateY(-50%); }
+.ability-node-floating-toolbar { position: absolute; bottom: calc(100% + 10px); left: 50%; z-index: 10; display: flex; gap: 4px; padding: 4px; border: 1px solid #d5d4cf; border-radius: 9px; background: rgba(255, 255, 252, .98); box-shadow: 0 4px 12px rgba(31, 34, 36, .1); transform: translateX(-50%); }
+.ability-node-floating-toolbar button { display: grid; width: 30px; height: 30px; min-height: 30px !important; place-items: center; padding: 0 !important; border: 0; border-radius: 5px; background: transparent; cursor: pointer; }.ability-node-floating-toolbar button:hover { background: #f0eee7; }.ability-node-floating-toolbar button:last-child:hover { color: #a72b2b; background: #fff0ef; }
+.ability-node-inline-input { width: 128px; min-height: 30px; padding: 4px 6px; border: 1px solid #3477e8; border-radius: 3px; background: #fff; font-size: 14px; font-weight: 700; text-align: center; outline: 2px solid rgba(52,119,232,.16); }
+.ability-flow-outcome { display: flex; max-width: 160px; min-height: 30px; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid #bf8c00; border-radius: 999px; color: #765600; background: #fff2b8; box-shadow: 0 2px 6px rgba(31,34,36,.1); font-size: 10px; font-weight: 800; }
+.ability-parallel-group { width: 100%; height: 100%; border: 1.25px dashed rgba(190, 145, 23, .58); border-radius: 20px; background: rgba(255, 235, 151, .12); pointer-events: none; }.ability-parallel-group > span { position: absolute; top: 12px; left: 16px; display: flex; align-items: center; gap: 5px; color: #876500; font-size: 11px; font-weight: 800; }
+.ability-flow-shell .react-flow__edge-path { stroke-linecap: round; stroke-linejoin: round; }.ability-flow-shell .react-flow__edge.ability-edge-auxiliary { pointer-events: stroke; }
+.ability-canvas-toolbar, .ability-merge-toolbar { display: flex; align-items: center; gap: 6px; padding: 6px; border: 1px solid #d2d0c9; border-radius: 10px; background: rgba(255, 255, 252, .96); box-shadow: 0 4px 14px rgba(31,34,36,.08); }
+.ability-canvas-toolbar button, .ability-merge-toolbar button { display: inline-flex; min-height: 34px; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid transparent; border-radius: 6px; color: #3e444a; background: transparent; font-size: 11px; font-weight: 800; cursor: pointer; }.ability-canvas-toolbar button:hover, .ability-merge-toolbar button:hover { border-color: #d6d3c9; background: #f5f2e9; }
+.ability-merge-toolbar span { padding-left: 7px; color: var(--muted); font-size: 11px; font-weight: 700; }.ability-merge-toolbar button { color: #6d5100; background: #fff0a8; }
+.ability-flow-shell .react-flow__controls { right: 12px; bottom: 150px; overflow: hidden; border: 1px solid #d0cdc3; border-radius: 8px; box-shadow: 0 4px 14px rgba(31,34,36,.1); }.ability-flow-shell .react-flow__controls-button { width: 34px; height: 34px; border-bottom-color: #e6e2d8; }
+.ability-flow-shell .react-flow__minimap { right: 12px; bottom: 12px; width: 172px; height: 124px; border: 1px solid #d4d1c9; border-radius: 10px; background: #fffefa; box-shadow: 0 3px 10px rgba(31,34,36,.08); }
+.ability-undo-toast { position: absolute; right: 18px; bottom: 18px; z-index: 20; display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border: 1px solid #34383f; border-radius: 8px; color: #fff; background: #34383f; box-shadow: 0 8px 22px rgba(31,34,36,.22); font-size: 12px; font-weight: 700; }.ability-undo-toast button { min-height: 28px; padding: 3px 7px; border: 0; border-radius: 4px; color: #ffd55d; background: transparent; font-weight: 800; }
+.ability-linear-route { display: grid; gap: 18px; min-height: 520px; padding: 20px; border: 2px solid var(--ink); border-radius: 4px; background: #fbfaf5; box-shadow: var(--shadow-hard); }
+.ability-linear-phase { display: grid; gap: 12px; }
+.ability-linear-phase > header { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 9px; border-bottom: 2px solid var(--ink); }
+.ability-linear-phase > header > span { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 2px solid var(--ink); background: var(--gold); font-weight: 900; }
+.ability-linear-phase h3 { font-size: 17px; }.ability-linear-phase header p { color: var(--muted); font-size: 12px; }
+.ability-linear-phase ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ability-linear-phase button { display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: space-between; gap: 9px; padding: 9px 11px; border: 1.5px solid var(--ink); border-radius: 3px; background: var(--surface); text-align: left; }
+.ability-linear-phase button[aria-current="true"] { outline: 3px solid var(--gold); outline-offset: 1px; }
+.ability-linear-phase button span { color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ability-module.is-focus-mode { gap: 14px; }.ability-module.is-focus-mode .ability-current-header { border-color: var(--gold-dark); box-shadow: 5px 5px 0 var(--gold); }
+.ability-node-panel { position: sticky; top: 88px; display: grid; gap: 16px; padding: 18px; }
+.ability-node-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--outline-soft); }
+.ability-node-panel h2 { margin-top: 4px; font-family: "Bebas Neue", sans-serif; font-size: 32px; font-weight: 400; }
+.ability-node-panel > p, .ability-muted { color: var(--muted); font-size: 13px; }
+.ability-node-admin { display: flex; gap: 7px; }.ability-node-admin button { min-height: 32px; flex: 1; padding: 5px 8px; font-size: 11px; }
+.ability-node-empty { min-height: 270px; align-content: center; text-align: center; }
+.ability-node-empty > span { color: var(--gold-dark); font-weight: 800; letter-spacing: .14em; }
+.ability-state-badge { padding: 5px 8px; border: 1px solid currentColor; font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ability-state-badge.state-mastered { color: var(--emerald); }.ability-state-badge.state-in_progress { color: #2957a4; }.ability-state-badge.state-locked { color: var(--outline); }.ability-state-badge.state-available { color: var(--gold-dark); background: #fff9cc; }
+.ability-warning, .ability-ready { display: flex; align-items: center; gap: 7px; padding: 8px; border: 1px solid currentColor; font-size: 12px; font-weight: 700; }
+.ability-warning { color: #8a4b00; background: #fff1d6; }.ability-ready { margin-top: 9px; color: var(--emerald); background: #ecfff6; }
+.ability-detail-section { display: grid; gap: 10px; padding-top: 4px; }
+.ability-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ability-detail-heading h3 { font-size: 14px; text-transform: uppercase; }
+.ability-detail-heading > button { display: inline-flex; min-height: 30px; align-items: center; gap: 4px; padding: 4px 7px; }
+.ability-criteria-list, .ability-linked-list, .ability-outcome-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.ability-criteria-list label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; }
+.ability-criteria-list input { width: 17px; height: 17px; accent-color: var(--emerald); }
+.ability-inline-form, .ability-task-linker { display: flex; gap: 6px; }
+.ability-inline-form input, .ability-task-linker select { min-width: 0; flex: 1; }
+.ability-inline-form button { min-width: 40px; padding: 5px; }
+.ability-mastery-confirm { display: grid; gap: 8px; }
+.ability-mastery-confirm label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
+.ability-mastery-confirm textarea { min-height: 64px; }
+.ability-linked-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid var(--outline-soft); background: var(--surface-low); font-size: 13px; }
+.ability-linked-list button { min-width: 32px; min-height: 30px; padding: 4px; }
+.ability-outcome-list li { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--outline-soft); background: var(--surface-low); }
+.ability-outcome-list div { display: grid; gap: 3px; }.ability-outcome-list small { color: var(--muted); }.ability-outcome-list p { font-size: 12px; }
+.ability-check { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.ability-library { display: grid; gap: 16px; padding: 20px; }
+.ability-library-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.ability-library-header h2 { font-family: "Bebas Neue", sans-serif; font-size: 34px; font-weight: 400; }
+.ability-library-tools { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px; gap: 10px; }
+.ability-search { display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 2px solid var(--ink); background: var(--surface); }
+.ability-search input { width: 100%; min-height: 40px; border: 0; outline: 0; background: transparent; }
+.ability-library-tools select, .ability-task-linker select, .ability-field input, .ability-field textarea, .ability-field select, .ability-inline-form input, .ability-mastery-confirm textarea, .ability-dialog fieldset { border: 2px solid var(--ink); border-radius: 2px; background: var(--surface); }
+.ability-library-tools select, .ability-task-linker select { min-height: 42px; padding: 7px; }
+.ability-library-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ability-library-card { display: grid; border: 2px solid var(--ink); background: var(--surface); box-shadow: 3px 3px 0 var(--ink); }
+.ability-library-card.current { outline: 3px solid var(--gold); outline-offset: 2px; }
+.ability-library-open { display: grid; min-height: 220px; align-content: start; gap: 7px; padding: 15px; border: 0 !important; background: transparent !important; box-shadow: none !important; text-align: left; }
+.ability-library-open > span { width: max-content; padding: 3px 6px; border: 1px solid var(--ink); background: var(--surface-mid); font-size: 10px; }
+.ability-library-open h3 { font-size: 20px; }.ability-library-open > p { min-height: 40px; color: var(--muted); font-size: 12px; font-weight: 400; }
+.ability-card-progress { position: relative; height: 22px; margin: 5px 0; overflow: hidden; border: 1px solid var(--ink); background: var(--surface-mid); }
+.ability-card-progress i { display: block; height: 100%; background: var(--gold); }
+.ability-card-progress small { position: absolute; inset: 2px 6px; font-size: 10px; text-align: right; }
+.ability-library-open dl { display: grid; gap: 5px; margin: 0; }.ability-library-open dl div { display: flex; justify-content: space-between; gap: 8px; }.ability-library-open dt { color: var(--muted); font-size: 11px; }.ability-library-open dd { margin: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ability-library-card > footer { display: flex; gap: 5px; padding: 8px; border-top: 1px solid var(--outline-soft); }.ability-library-card > footer button { display: inline-flex; min-width: 36px; min-height: 32px; align-items: center; justify-content: center; gap: 4px; padding: 4px 7px; font-size: 11px; }
+.ability-library-empty { display: grid; justify-items: center; gap: 10px; padding: 30px; border: 2px dashed var(--outline); color: var(--muted); }
+.ability-dialog-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(25,28,29,.55); }
+.ability-dialog { width: min(100%, 560px); max-height: min(780px, calc(100vh - 40px)); overflow: auto; border: 2px solid var(--ink); border-radius: 4px; background: var(--surface); box-shadow: 8px 8px 0 var(--ink); }
+.ability-dialog > header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 2px solid var(--ink); background: var(--gold); }
+.ability-dialog header h2 { font-family: "Bebas Neue", sans-serif; font-size: 30px; font-weight: 400; }
+.ability-dialog header button { min-width: 36px; padding: 5px; background: var(--surface); }
+.ability-dialog form { display: grid; gap: 14px; padding: 18px; }
+.ability-field { display: grid; gap: 6px; }.ability-field > span, .ability-dialog legend { font-size: 12px; font-weight: 800; }
+.ability-field input, .ability-field textarea, .ability-field select { width: 100%; min-height: 42px; padding: 8px 10px; }.ability-field textarea { min-height: 80px; resize: vertical; }
+.ability-dialog fieldset { display: grid; gap: 8px; max-height: 190px; margin: 0; padding: 12px; overflow: auto; }.ability-dialog fieldset p { color: var(--muted); font-size: 12px; }
+.ability-dialog form > footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 5px; }.ability-form-error { color: var(--ruby); font-size: 13px; font-weight: 700; }
+
+@media (max-width: 1180px) {
+  .ability-current-header { grid-template-columns: minmax(0, 1fr) 130px; }.ability-current-actions { grid-column: 1 / -1; max-width: none; justify-content: flex-start; }
+  .ability-workbench { grid-template-columns: 1fr; }.ability-node-panel { position: static; }
+  .ability-library-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .ability-module { gap: 16px; }.ability-hero { align-items: stretch; flex-direction: column; padding: 18px; }.ability-hero .ability-primary { width: 100%; }
+  .ability-current-header { grid-template-columns: 1fr; padding: 16px; }.ability-current-stats { padding: 12px 0 0; border-top: 2px solid var(--outline-soft); border-left: 0; }.ability-current-actions { display: grid; grid-template-columns: 1fr 1fr; }.ability-current-actions button { justify-content: center; }
+  .ability-stage-view-switch { margin-top: -4px; }.ability-stage-view-switch button { width: 100%; }
+  .ability-linear-route { min-height: 0; padding: 14px; }.ability-linear-phase ol { grid-template-columns: 1fr; }.ability-linear-phase button { min-height: 58px; }
+  .ability-node-panel { position: relative; max-height: none; }.ability-library { padding: 14px; }.ability-library-tools { grid-template-columns: 1fr; }.ability-library-grid { grid-template-columns: 1fr; }.ability-library-header { align-items: stretch; flex-direction: column; }.ability-dialog-backdrop { align-items: end; padding: 0; }.ability-dialog { width: 100%; max-height: 90vh; border-radius: 0; box-shadow: none; }
+}

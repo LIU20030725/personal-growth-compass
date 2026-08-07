@@ -1,8 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import App from './App';
 
 describe('Economy dashboard', () => {
+  beforeEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
   it('marks the calm shared shell and exposes the current navigation destination', () => {
     render(<App />);
 
@@ -17,7 +21,7 @@ describe('Economy dashboard', () => {
     expect(within(sidebar).getByRole('button', { name: /财富状况/ })).not.toHaveAttribute('aria-current');
   });
 
-  it('uses the Dice Life shell and switches between character and system views', () => {
+  it('uses the Dice Life shell and switches between character and system views', async () => {
     render(<App />);
 
     expect(screen.getByRole('button', { name: 'Dice Life 首页' })).toBeInTheDocument();
@@ -36,7 +40,7 @@ describe('Economy dashboard', () => {
     expect(screen.getByRole('heading', { name: '净资产' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /能力属性/ }));
-    expect(screen.getByLabelText('能力属性模块')).toBeInTheDocument();
+    expect(await screen.findByLabelText('能力属性模块', {}, { timeout: 5_000 })).toBeInTheDocument();
   });
 
   it('keeps the page focused on net worth and account groups without the removed formula strip', () => {

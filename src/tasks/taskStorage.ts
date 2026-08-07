@@ -1,5 +1,6 @@
 import { TASK_RULE_VERSION, TASK_STORAGE_KEY } from './taskConfig';
 import { createInitialTaskState, getPeriodKey } from './taskEngine';
+import type { StorageLike } from '../lib/storage';
 import type {
   DiceTransaction,
   DiceTransactionType,
@@ -9,7 +10,7 @@ import type {
   WeeklyReview
 } from './types';
 
-export type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+export type { StorageLike } from '../lib/storage';
 
 type UnknownRecord = Record<string, unknown>;
 

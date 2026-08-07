@@ -23,12 +23,14 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    testTimeout: 10000,
     setupFiles: './src/test-setup.ts',
     globals: true,
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
       '**/.worktrees/**',
+      '**/e2e/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/canvas/**',
       '**/docs/docs_bak/**',
