@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   addCriterion,
   addChildNode,
+  addPhase,
   addAuxiliaryDependency,
   addOutcome,
   addOrLinkResource,
@@ -15,6 +16,7 @@ import {
   linkExistingResource,
   masterNode,
   removeEmptyNode,
+  removePhase,
   removeOutcome,
   unlinkResource,
   reorderFocusedTrees,
@@ -28,6 +30,8 @@ import {
   toggleCriterion,
   unlinkTask,
   updateTree,
+  updateNode,
+  updatePhase,
   updateResource,
   upsertParallelGroup
 } from './abilityEngine';
@@ -74,6 +78,27 @@ describe('ability engine', () => {
     expect(next.trees[1]).toMatchObject({ status: 'archived', focusedRank: null });
     next = restoreTree(next, 'tree-2', now);
     expect(next.trees[1].status).toBe('active');
+  });
+
+  it('creates and edits stage metadata, updates required status, and only removes empty stages', () => {
+    let next = addPhase(state(), {
+      skillTreeId: 'tree', name: '进阶', description: '独立项目', estimatedDuration: '6 周', plannedStartOn: '2026-09-01'
+    }, 'phase-3', now);
+    next = updatePhase(next, 'phase-3', {
+      name: '高级实践', description: '上线作品', estimatedDuration: '8 周', plannedStartOn: '2026-09-02', plannedEndOn: '2026-10-28'
+    }, now);
+    expect(next.phases.find((phase) => phase.id === 'phase-3')).toMatchObject({
+      name: '高级实践', estimatedDuration: '8 周', plannedStartOn: '2026-09-02', plannedEndOn: '2026-10-28'
+    });
+
+    next = updateNode(next, 'root', {
+      name: 'root', description: '', phaseId: 'phase-1', requiredForPhase: false
+    }, now);
+    expect(next.nodes.find((item) => item.id === 'root')?.requiredForPhase).toBe(false);
+    expect(() => removePhase(next, 'phase-1', now)).toThrow('请先移动或归档阶段内的技能节点');
+
+    next = removePhase(next, 'phase-3', now);
+    expect(next.phases.some((phase) => phase.id === 'phase-3')).toBe(false);
   });
 
   it('starts any node while keeping mastery confirmation manual', () => {

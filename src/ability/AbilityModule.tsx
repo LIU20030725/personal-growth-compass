@@ -37,6 +37,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const moreItemRef = useRef<HTMLButtonElement>(null);
   const [routeNotice, setRouteNotice] = useState(() => {
     if (!initialTreeId) return '';
     return ability.state.trees.some((tree) => tree.id === initialTreeId && tree.status === 'active')
@@ -144,8 +146,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           <button type="button" onClick={() => setForm('outcome')}><Medal size={16} />记录成果</button>
           <button className={editMode ? 'active' : ''} type="button" aria-pressed={editMode} onClick={() => { setEditMode((value) => !value); setMoreOpen(false); }}><Pencil size={16} />{editMode ? '完成编辑' : '编辑技能树'}</button>
           <div className="ability-more-actions">
-            <button type="button" aria-expanded={moreOpen} aria-label="更多技能树操作" onClick={() => setMoreOpen((value) => !value)}><Ellipsis size={18} /></button>
-            {moreOpen ? <div className="ability-tree-action-menu" role="menu"><button role="menuitem" type="button" onClick={() => { setForm('edit-tree'); setMoreOpen(false); }}>编辑技能树资料</button></div> : null}
+            <button ref={moreTriggerRef} type="button" aria-haspopup="menu" aria-expanded={moreOpen} aria-label="更多技能树操作" onClick={() => setMoreOpen((value) => { const next = !value; if (next) queueMicrotask(() => moreItemRef.current?.focus()); return next; })}><Ellipsis size={18} /></button>
+            {moreOpen ? <div className="ability-tree-action-menu" role="menu" onKeyDown={(event) => {
+              if (event.key === 'Escape') { event.preventDefault(); setMoreOpen(false); window.setTimeout(() => moreTriggerRef.current?.focus(), 0); }
+              if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') { event.preventDefault(); moreItemRef.current?.focus(); }
+            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { setForm('edit-tree'); setMoreOpen(false); }}>编辑技能树资料</button></div> : null}
           </div>
         </div>
       </section>
@@ -180,7 +185,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           onAddParent={(nodeId) => {
             return ability.insertParentNode(nodeId);
           }}
-          onRenameNode={(nodeId, name) => { const node = ability.state.nodes.find((item) => item.id === nodeId); if (node) ability.updateNode(nodeId, { name, description: node.description, phaseId: node.phaseId }); }}
+          onRenameNode={(nodeId, name) => { const node = ability.state.nodes.find((item) => item.id === nodeId); if (node) ability.updateNode(nodeId, { name, description: node.description, phaseId: node.phaseId, requiredForPhase: node.requiredForPhase }); }}
           onDeleteBranch={ability.archiveNodeBranch}
           onReparent={ability.reparentNode}
           onConnectAuxiliary={ability.addAuxiliaryDependency}
@@ -191,14 +196,13 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
         /> : <section className="ability-linear-route ability-linear-route--compact" data-testid="ability-linear-route" aria-label={`${currentTree.name}线性技能路线`}>
           {phases.map((phase) => {
             const phaseNodes = visibleLinearNodes.filter((node) => node.phaseId === phase.id);
-            if (!phaseNodes.length) return null;
             const phaseProgress = getPhaseProgress(ability.state, phase.id);
             return <section className="ability-linear-phase" key={phase.id} aria-labelledby={`ability-phase-${phase.id}`}>
               <header><span>{String(phase.order + 1).padStart(2, '0')}</span><div><h3 id={`ability-phase-${phase.id}`}>{phase.name}</h3><p>{phase.description || phase.estimatedDuration || '按顺序推进本阶段技能'}</p></div><strong>{phaseProgress.mastered}/{phaseProgress.required}</strong></header>
-              <ol>{phaseNodes.map((node, index) => {
+              {phaseNodes.length ? <ol>{phaseNodes.map((node, index) => {
                 const state = getNodeDisplayState(node, ability.state);
                 return <li key={node.id}><button data-testid="linear-skill-node" type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button></li>;
-              })}</ol>
+              })}</ol> : <p className="ability-linear-empty">这个阶段还没有技能节点</p>}
             </section>;
           })}
           {!visibleLinearNodes.length ? <p className="ability-muted">当前筛选下没有技能节点。</p> : null}
@@ -210,9 +214,9 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     {form === 'tree' ? <TreeFormDialog onClose={() => setForm(null)} onSave={(value) => { const focusedRank = value.focused ? focusedTrees.length + 1 : null; ability.applyTreeDraft({ tree: { name: value.name, description: value.description, role: value.role, status: 'active', focusedRank }, phases: [], nodes: [], dependencies: [], parallelGroups: [], masteryCriteria: [] }); setForm(null); }} /> : null}
     {form === 'edit-tree' && currentTree ? <TreeFormDialog initial={{ name: currentTree.name, description: currentTree.description, role: currentTree.role, focused: currentTree.focusedRank !== null }} onClose={() => setForm(null)} onSave={(value) => { ability.updateTree(currentTree.id, { name: value.name, description: value.description, role: value.role }); const isFocused = currentTree.focusedRank !== null; if (value.focused !== isFocused) ability.reorderFocusedTrees(value.focused ? [...focusedIds, currentTree.id] : focusedIds.filter((id) => id !== currentTree.id)); setForm(null); }} /> : null}
     {form === 'phase' && currentTree ? <PhaseFormDialog onClose={() => setForm(null)} onSave={(value) => { ability.addPhase({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
-    {form === 'edit-phase' && currentTree && editingPhaseId ? <PhaseFormDialog initial={phases.find((phase) => phase.id === editingPhaseId)} onClose={() => { setEditingPhaseId(null); setForm(null); }} onSave={(value) => { ability.updatePhase(editingPhaseId, value); setEditingPhaseId(null); setForm(null); }} /> : null}
-    {form === 'node' && currentTree ? <NodeFormDialog phases={phases} nodes={nodes} defaultPhaseId={nodePhaseId} onClose={() => { setNodePhaseId(undefined); setForm(null); }} onSave={(value) => { const id = ability.addNode({ skillTreeId: currentTree.id, phaseId: value.phaseId, name: value.name, description: value.description, progress: 'available', masteryNote: '' }, value.prerequisiteNodeIds); setSelectedNodeId(id); setNodePhaseId(undefined); setForm(null); }} /> : null}
-    {form === 'edit-node' && currentTree && selectedNode ? <NodeFormDialog initial={{ nodeId: selectedNode.id, name: selectedNode.name, description: selectedNode.description, phaseId: selectedNode.phaseId, prerequisiteNodeIds: ability.state.dependencies.filter((edge) => edge.dependentNodeId === selectedNode.id).map((edge) => edge.prerequisiteNodeId) }} phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { ability.updateNode(selectedNode.id, { name: value.name, description: value.description, phaseId: value.phaseId }); ability.replaceNodeDependencies(selectedNode.id, value.prerequisiteNodeIds); setForm(null); }} /> : null}
+    {form === 'edit-phase' && currentTree && editingPhaseId ? <PhaseFormDialog initial={phases.find((phase) => phase.id === editingPhaseId)} onClose={() => { setEditingPhaseId(null); setForm(null); }} onSave={(value) => { ability.updatePhase(editingPhaseId, value); setEditingPhaseId(null); setForm(null); }} onDelete={() => { ability.removePhase(editingPhaseId); setEditingPhaseId(null); setForm(null); }} deleteDisabledReason={nodes.some((node) => node.phaseId === editingPhaseId) ? '请先移动或归档阶段内的技能节点' : undefined} /> : null}
+    {form === 'node' && currentTree ? <NodeFormDialog phases={phases} nodes={nodes} defaultPhaseId={nodePhaseId} onClose={() => { setNodePhaseId(undefined); setForm(null); }} onSave={(value) => { const id = ability.addNode({ skillTreeId: currentTree.id, phaseId: value.phaseId, name: value.name, description: value.description, progress: 'available', masteryNote: '', requiredForPhase: value.requiredForPhase }, value.prerequisiteNodeIds); setSelectedNodeId(id); setNodePhaseId(undefined); setForm(null); }} /> : null}
+    {form === 'edit-node' && currentTree && selectedNode ? <NodeFormDialog initial={{ nodeId: selectedNode.id, name: selectedNode.name, description: selectedNode.description, phaseId: selectedNode.phaseId, requiredForPhase: selectedNode.requiredForPhase, prerequisiteNodeIds: ability.state.dependencies.filter((edge) => edge.dependentNodeId === selectedNode.id).map((edge) => edge.prerequisiteNodeId) }} phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { ability.updateNode(selectedNode.id, { name: value.name, description: value.description, phaseId: value.phaseId, requiredForPhase: value.requiredForPhase }); ability.replaceNodeDependencies(selectedNode.id, value.prerequisiteNodeIds); setForm(null); }} /> : null}
     {form === 'outcome' && currentTree ? <OutcomeFormDialog nodes={nodes} defaultNodeId={selectedNodeId} onClose={() => setForm(null)} onSave={(value) => { ability.addOutcome({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
   </section>;
 }

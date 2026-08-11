@@ -10,6 +10,9 @@ describe('ability learning resources', () => {
 
   it('rejects non-web protocols and infers obvious video resources', () => {
     expect(() => normalizeResourceUrl('file:///tmp/guide.pdf')).toThrow('仅支持 HTTP / HTTPS 链接');
+    expect(() => normalizeResourceUrl('javascript:alert(1)')).toThrow('仅支持 HTTP / HTTPS 链接');
+    expect(() => normalizeResourceUrl('data:text/html,hello')).toThrow('仅支持 HTTP / HTTPS 链接');
+    expect(() => normalizeResourceUrl('not a url')).toThrow('请输入有效的学习资源链接');
     expect(inferResourceType('https://www.youtube.com/watch?v=1')).toBe('video');
     expect(inferResourceType('https://example.com/guide')).toBe('article');
   });

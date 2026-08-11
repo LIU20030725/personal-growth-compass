@@ -133,6 +133,19 @@ export function updatePhase(
   }, phase.skillTreeId, now));
 }
 
+export function removePhase(state: AbilityState, phaseId: string, now: string): AbilityState {
+  const phase = state.phases.find((item) => item.id === phaseId);
+  if (!phase) throw new Error('学习阶段不存在');
+  if (state.nodes.some((node) => node.phaseId === phaseId)) {
+    throw new Error('请先移动或归档阶段内的技能节点');
+  }
+  return valid(touchTree({
+    ...state,
+    phases: state.phases.filter((item) => item.id !== phaseId),
+    parallelGroups: state.parallelGroups.filter((group) => group.phaseId !== phaseId)
+  }, phase.skillTreeId, now));
+}
+
 export function reorderPhases(state: AbilityState, treeId: string, orderedPhaseIds: string[], now: string): AbilityState {
   const existing = state.phases.filter((phase) => phase.skillTreeId === treeId).map((phase) => phase.id).sort();
   if (new Set(orderedPhaseIds).size !== orderedPhaseIds.length || [...orderedPhaseIds].sort().join('|') !== existing.join('|')) {
@@ -345,7 +358,7 @@ export function createParallelContinuation(
 export function updateNode(
   state: AbilityState,
   nodeId: string,
-  patch: Pick<SkillNode, 'name' | 'description' | 'phaseId'>,
+  patch: Pick<SkillNode, 'name' | 'description' | 'phaseId' | 'requiredForPhase'>,
   now: string
 ): AbilityState {
   const node = nodeById(state, nodeId);

@@ -37,6 +37,7 @@
 .ability-tree-action-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; display: grid; width: 180px; padding: 5px; border: 1px solid var(--outline); border-radius: 4px; background: var(--surface); box-shadow: 0 8px 22px rgba(29,34,38,.14); }
 .ability-tree-action-menu button { min-height: 34px; padding: 6px 8px; border: 0; background: transparent; font-size: 11px; text-align: left; }
 .ability-tree-action-menu button:hover { background: var(--surface-mid); }
+.ability-dialog footer .ability-danger { border-color: #a33b32; color: #8f2f27; }.ability-dialog-footer-spacer { flex: 1; }.ability-form-hint { margin: 0; color: #8f2f27; font-size: 12px; font-weight: 700; }.ability-linear-empty { margin: 10px 0 2px 50px; color: var(--muted); font-size: 12px; }
 .ability-current-actions button:disabled, .ability-module button:disabled { cursor: not-allowed; opacity: .45; }
 .ability-tree-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 .ability-tree-toolbar button { min-height: 34px; padding: 6px 11px; border-color: var(--outline-soft); color: var(--muted); }

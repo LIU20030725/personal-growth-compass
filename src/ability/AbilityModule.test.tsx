@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialAbilityState, saveAbilityState } from './abilityStorage';
 import { AbilityModule } from './AbilityModule';
 import type { AbilityState } from './types';
@@ -276,6 +276,66 @@ describe('AbilityModule', () => {
     expect(screen.queryByRole('button', { name: '设置并行组' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '专注当前阶段' })).not.toBeInTheDocument();
     expect(within(container.querySelector('.ability-tree-toolbar') as HTMLElement).getAllByRole('button').map((button) => button.textContent)).toEqual(['全部', '下一步', '已掌握']);
+  });
+
+  it('keeps empty stages visible in the linear route', async () => {
+    const ability = seededState();
+    ability.phases.push({ id: 'empty-phase', skillTreeId: 'frontend', name: '发布复盘', description: '整理经验', estimatedDuration: '1 周', requiredNodePolicy: 'all_required', order: 2 });
+    saveAbilityState(localStorage, ability);
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '切换到线性路线' }));
+
+    const route = screen.getByRole('region', { name: 'React 全栈线性技能路线' });
+    expect(within(route).getByRole('heading', { name: '发布复盘' })).toBeInTheDocument();
+    expect(within(route).getByText('这个阶段还没有技能节点')).toBeInTheDocument();
+  });
+
+  it('sets whether a node is required for its stage from the edit dialog', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(screen.getByRole('button', { name: '编辑技能树' }));
+    fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /查看详情 React 状态管理/ }));
+    fireEvent.click(within(screen.getByLabelText('技能节点详情')).getByRole('button', { name: '编辑技能节点' }));
+
+    const required = screen.getByRole('checkbox', { name: '作为阶段必修节点' });
+    expect(required).toBeChecked();
+    fireEvent.click(required);
+    fireEvent.click(screen.getByRole('button', { name: '保存节点' }));
+
+    const saved = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}');
+    expect(saved.nodes.find((node: { id: string }) => node.id === 'react').requiredForPhase).toBe(false);
+  });
+
+  it('prevents deleting a non-empty stage and removes an empty stage from its edit dialog', async () => {
+    const ability = seededState();
+    ability.phases.push({ id: 'empty-phase', skillTreeId: 'frontend', name: '发布复盘', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 2 });
+    saveAbilityState(localStorage, ability);
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(screen.getByRole('button', { name: '编辑技能树' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: '编辑阶段 基础认知' }));
+    expect(screen.getByRole('button', { name: '删除阶段' })).toBeDisabled();
+    expect(screen.getByText('请先移动或归档阶段内的技能节点')).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('dialog', { name: '编辑学习阶段' }), { key: 'Escape' });
+
+    fireEvent.click(await screen.findByRole('button', { name: '编辑阶段 发布复盘' }));
+    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
+    fireEvent.click(screen.getByRole('button', { name: '删除阶段' }));
+    expect(screen.queryByRole('group', { name: '阶段 发布复盘' })).not.toBeInTheDocument();
+  });
+
+  it('operates the tree action menu with focus and Escape semantics', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    const trigger = screen.getByRole('button', { name: '更多技能树操作' });
+    fireEvent.click(trigger);
+    const item = screen.getByRole('menuitem', { name: '编辑技能树资料' });
+    await waitFor(() => expect(item).toHaveFocus());
+    fireEvent.keyDown(item, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it('edits the current tree and archives a related skill node without deleting history', async () => {

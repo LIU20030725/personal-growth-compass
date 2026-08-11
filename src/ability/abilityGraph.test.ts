@@ -146,6 +146,16 @@ describe('ability graph', () => {
     expect(getCurrentPhase(state, 'tree-a')?.id).toBe('phase-a2');
   });
 
+  it('returns explicit completed progress for empty and optional-only stages without blocking later work', () => {
+    const state = baseState();
+    state.nodes = state.nodes.filter((item) => item.phaseId !== 'phase-a1');
+    expect(getPhaseProgress(state, 'phase-a1')).toEqual({ mastered: 0, required: 0, complete: true });
+
+    state.nodes.push({ ...node('optional', 'tree-a', 'phase-a1', 'available'), requiredForPhase: false });
+    expect(getPhaseProgress(state, 'phase-a1')).toEqual({ mastered: 0, required: 0, complete: true });
+    expect(getCurrentPhase(state, 'tree-a')?.id).toBe('phase-a2');
+  });
+
   it('selects last visited focused, ranked focused, then newest active tree', () => {
     const state = baseState();
     state.lastVisitedTreeId = 'tree-a';

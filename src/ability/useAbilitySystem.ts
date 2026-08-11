@@ -85,6 +85,9 @@ export function useAbilitySystem(options: Options = {}) {
     },
     updatePhase: (phaseId: string, patch: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>) =>
       commit((current) => engine.updatePhase(current, phaseId, patch, currentTime())),
+
+    removePhase: (phaseId: string) =>
+      commit((current) => engine.removePhase(current, phaseId, currentTime())),
     reorderPhases: (treeId: string, phaseIds: string[]) =>
       commit((current) => engine.reorderPhases(current, treeId, phaseIds, currentTime())),
     addNode: (
@@ -138,7 +141,7 @@ export function useAbilitySystem(options: Options = {}) {
       ));
       return nodeId;
     },
-    updateNode: (nodeId: string, patch: Pick<SkillNode, 'name' | 'description' | 'phaseId'>) =>
+    updateNode: (nodeId: string, patch: Pick<SkillNode, 'name' | 'description' | 'phaseId' | 'requiredForPhase'>) =>
       commit((current) => engine.updateNode(current, nodeId, patch, currentTime())),
     archiveNode: (nodeId: string) => commit((current) => engine.archiveNode(current, nodeId, currentTime())),
     restoreNode: (nodeId: string) => commit((current) => engine.restoreNode(current, nodeId, currentTime())),
