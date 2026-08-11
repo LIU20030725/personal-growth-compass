@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   getNodeDisplayState,
+  getCurrentPhase,
+  getPhaseProgress,
   getTransitiveDependents,
   getTreeProgress,
   hasPrerequisiteWarning,
@@ -133,6 +135,15 @@ describe('ability graph', () => {
 
     expect(getTransitiveDependents(state, 'root')).toEqual(['middle', 'leaf']);
     expect(getTreeProgress(state, 'tree-a')).toEqual({ total: 3, mastered: 1, inProgress: 1, percent: 33 });
+  });
+
+  it('uses only required nodes for phase completion and current phase selection', () => {
+    const state = baseState();
+    state.nodes[0] = { ...state.nodes[0], progress: 'mastered' };
+    state.nodes.push({ ...node('optional', 'tree-a', 'phase-a1', 'available'), requiredForPhase: false });
+
+    expect(getPhaseProgress(state, 'phase-a1')).toEqual({ mastered: 1, required: 1, complete: true });
+    expect(getCurrentPhase(state, 'tree-a')?.id).toBe('phase-a2');
   });
 
   it('selects last visited focused, ranked focused, then newest active tree', () => {

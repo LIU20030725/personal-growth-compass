@@ -1,6 +1,7 @@
 import type {
   AbilityState,
   DependencyEdge,
+  LearningPhase,
   NodeDisplayState,
   SkillNode,
   SkillTree
@@ -215,6 +216,29 @@ export function getTreeProgress(state: AbilityState, treeId: string): {
     inProgress,
     percent: nodes.length ? Math.round((mastered / nodes.length) * 100) : 0
   };
+}
+
+export function getPhaseProgress(state: AbilityState, phaseId: string): {
+  mastered: number;
+  required: number;
+  complete: boolean;
+} {
+  const requiredNodes = state.nodes.filter(
+    (node) => node.phaseId === phaseId && node.requiredForPhase && !node.archivedAt
+  );
+  const mastered = requiredNodes.filter((node) => node.progress === 'mastered').length;
+  return {
+    mastered,
+    required: requiredNodes.length,
+    complete: mastered === requiredNodes.length
+  };
+}
+
+export function getCurrentPhase(state: AbilityState, treeId: string): LearningPhase | null {
+  const phases = state.phases
+    .filter((phase) => phase.skillTreeId === treeId)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  return phases.find((phase) => !getPhaseProgress(state, phase.id).complete) ?? phases[phases.length - 1] ?? null;
 }
 
 export function selectDefaultTree(state: AbilityState): SkillTree | null {

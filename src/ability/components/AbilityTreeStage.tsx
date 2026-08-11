@@ -36,6 +36,7 @@ import { NODE_STATE_LABELS } from '../abilityConfig';
 import { getNodeDisplayState, getPrimaryChildren } from '../abilityGraph';
 import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type CanvasPoint } from '../abilityCanvasLayout';
 import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
+import { buildAbilityVisibleGraph } from '../abilityView';
 import { loadCanvasPreferences, saveCanvasPreferences, type CanvasPreferences } from '../abilityCanvasStorage';
 import type { StorageLike } from '../../lib/storage';
 import type { AbilityState, NodeProgress, SkillTree, TreeNodeFilter } from '../types';
@@ -201,11 +202,22 @@ export function AbilityTreeStage(props: Props) {
     setSelectedIds(new Set(requestedNode ? [requestedNode.id] : []));
   }, [props.selectedNodeId, props.state.nodes, props.tree.id]);
 
+  const visibleGraph = useMemo(
+    () => buildAbilityVisibleGraph(props.state, props.tree.id, props.stateFilter, props.selectedNodeId),
+    [props.selectedNodeId, props.state, props.stateFilter, props.tree.id]
+  );
+  const layoutState = useMemo(() => ({
+    ...props.state,
+    nodes: visibleGraph.nodes,
+    dependencies: visibleGraph.dependencies,
+    parallelGroups: visibleGraph.parallelGroups,
+    outcomes: visibleGraph.outcomes
+  }), [props.state, visibleGraph]);
   const collapsedNodeIds = useMemo(() => new Set(preferences.collapsedNodeIds), [preferences.collapsedNodeIds]);
-  const layout = useMemo(() => layoutAbilityCanvas(props.state, props.tree.id, {
+  const layout = useMemo(() => layoutAbilityCanvas(layoutState, props.tree.id, {
     collapsedNodeIds,
     manualPositions: preferences.positions
-  }), [props.state, props.tree.id, collapsedNodeIds, preferences.positions]);
+  }), [layoutState, props.tree.id, collapsedNodeIds, preferences.positions]);
 
   useEffect(() => {
     const skillCount = layout.nodes.filter((node) => node.kind === 'skill').length;
@@ -217,16 +229,11 @@ export function AbilityTreeStage(props: Props) {
     });
   }, [layout.nodes]);
 
-  const filteredSkillIds = useMemo(() => {
-    const treeNodes = props.state.nodes.filter((node) => node.skillTreeId === props.tree.id && !node.archivedAt);
-    const phaseOrder = props.state.phases.filter((phase) => phase.skillTreeId === props.tree.id).sort((a, b) => a.order - b.order);
-    const currentPhaseId = phaseOrder.find((phase) => treeNodes.some((node) => node.phaseId === phase.id && node.progress !== 'mastered'))?.id ?? phaseOrder[phaseOrder.length - 1]?.id;
-    return new Set(treeNodes.filter((node) => {
-      if (props.stateFilter === 'all') return true;
-      if (props.stateFilter === 'current_phase') return node.phaseId === currentPhaseId;
-      return node.progress === props.stateFilter;
-    }).map((node) => node.id));
-  }, [props.state, props.tree.id, props.stateFilter]);
+  useEffect(() => {
+    if (!props.selectedNodeId || visibleGraph.selectedNodeId) return;
+    setSelectedIds(new Set());
+    props.onSelectNode(null);
+  }, [props.onSelectNode, props.selectedNodeId, visibleGraph.selectedNodeId]);
 
   const toggleCollapse = useCallback((nodeId: string) => {
     setPreferences((current) => {
@@ -248,7 +255,7 @@ export function AbilityTreeStage(props: Props) {
   const computedNodes = useMemo<FlowNode[]>(() => {
     const skills = layout.nodes.flatMap((item): FlowNode[] => {
       if (item.kind === 'outcome') {
-        const outcome = props.state.outcomes.find((candidate) => candidate.id === item.id);
+        const outcome = visibleGraph.outcomes.find((candidate) => candidate.id === item.id);
         return outcome ? [{
           id: item.id,
           type: 'outcome',
@@ -261,10 +268,9 @@ export function AbilityTreeStage(props: Props) {
           zIndex: 4
         }] : [];
       }
-      if (!filteredSkillIds.has(item.id)) return [];
-      const node = props.state.nodes.find((candidate) => candidate.id === item.id);
+      const node = visibleGraph.nodes.find((candidate) => candidate.id === item.id);
       if (!node) return [];
-      const children = getPrimaryChildren(props.state, node.id).filter((child) => !child.archivedAt);
+      const children = getPrimaryChildren(layoutState, node.id).filter((child) => !child.archivedAt);
       return [{
         id: item.id,
         type: 'skill',
@@ -317,8 +323,8 @@ export function AbilityTreeStage(props: Props) {
   }, [
     deleteBranch,
     dropTargetId,
-    filteredSkillIds,
     layout,
+    layoutState,
     props.onAddChild,
     props.onOpenDetails,
     props.onRenameNode,
@@ -326,11 +332,12 @@ export function AbilityTreeStage(props: Props) {
     props.onSelectOutcome,
     props.state,
     selectedIds,
-    toggleCollapse
+    toggleCollapse,
+    visibleGraph.nodes,
+    visibleGraph.outcomes
   ]);
 
   const computedEdges = useMemo<Edge[]>(() => layout.edges.flatMap((item) => {
-    if (!filteredSkillIds.has(item.fromId) || !filteredSkillIds.has(item.toId)) return [];
     const related = selectedIds.has(item.fromId) || selectedIds.has(item.toId);
     const auxiliary = item.kind === 'auxiliary';
     const stroke = auxiliary
@@ -349,7 +356,7 @@ export function AbilityTreeStage(props: Props) {
         : { stroke, strokeWidth: related ? 2.6 : 2, opacity: selectedIds.size && !related ? 0.58 : 1 },
       zIndex: auxiliary ? 1 : 2
     }];
-  }), [filteredSkillIds, layout.edges, selectedIds]);
+  }), [layout.edges, selectedIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(computedNodes);
   const edges = computedEdges;

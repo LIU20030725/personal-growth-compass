@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Layers3, Medal, Plus, Route, Sparkles } from 'lucide-react';
 import { getNodeDisplayState, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
+import { buildAbilityVisibleGraph } from './abilityView';
 import { useAbilitySystem } from './useAbilitySystem';
 import { useTaskSystem } from '../tasks/useTaskSystem';
 import type { StorageLike } from '../lib/storage';
@@ -98,19 +99,22 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
   const selectedOutcomes = selectedNode ? ability.state.outcomes.filter((item) => item.skillNodeId === selectedNode.id) : [];
   const displayState = selectedNode ? getNodeDisplayState(selectedNode, ability.state) : null;
   const focusedIds = focusedTrees.map((tree) => tree.id);
+  const visibleGraph = useMemo(
+    () => currentTreeId ? buildAbilityVisibleGraph(ability.state, currentTreeId, filter, selectedNodeId) : null,
+    [ability.state, currentTreeId, filter, selectedNodeId]
+  );
   const visibleLinearNodes = useMemo(() => {
-    const currentPhaseId = phases.find((phase) => nodes.some((node) => node.phaseId === phase.id && node.progress !== 'mastered'))?.id ?? phases[phases.length - 1]?.id;
-    return nodes.filter((node) => {
-      if (node.archivedAt) return false;
-      if (filter === 'all') return true;
-      if (filter === 'current_phase') return node.phaseId === currentPhaseId;
-      return getNodeDisplayState(node, ability.state) === filter;
-    }).sort((a, b) => {
+    return [...(visibleGraph?.nodes ?? [])].sort((a, b) => {
       const phaseA = phases.findIndex((phase) => phase.id === a.phaseId);
       const phaseB = phases.findIndex((phase) => phase.id === b.phaseId);
       return phaseA - phaseB || a.createdAt.localeCompare(b.createdAt);
     });
-  }, [ability.state, filter, nodes, phases]);
+  }, [phases, visibleGraph?.nodes]);
+  useEffect(() => {
+    if (!selectedNodeId || visibleGraph?.selectedNodeId) return;
+    setSelectedNodeId(null);
+    setDetailOpen(false);
+  }, [selectedNodeId, visibleGraph?.selectedNodeId]);
   const filterOptions: Array<{ value: TreeNodeFilter; label: string }> = [
     { value: 'all', label: '全部路线' },
     { value: 'current_phase', label: '当前阶段' },
