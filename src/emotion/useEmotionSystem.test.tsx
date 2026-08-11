@@ -6,7 +6,7 @@ import { useEmotionSystem } from './useEmotionSystem';
 
 function setup(options: { failSave?: boolean; failRemove?: boolean } = {}) {
   const events: string[] = [];
-  let saved = { schemaVersion: 1 as const, entries: [] as any[] };
+  let saved = { schemaVersion: 2 as const, entries: [] as any[], importantDays: [] as any[] };
   const storage: EmotionStorage = {
     load: () => saved,
     save: (state) => {
@@ -34,6 +34,36 @@ function setup(options: { failSave?: boolean; failRemove?: boolean } = {}) {
 }
 
 describe('useEmotionSystem', () => {
+  it('persists a music reference with the moment', async () => {
+    const { result } = setup();
+    await act(async () => {
+      await result.current.createEntry({
+        moodId: 'calm', activityIds: [], note: '', attachments: [],
+        music: [{
+          id: 'song-1', provider: 'qq', title: '一路向北', artist: '周杰伦',
+          sourceUrl: 'https://y.qq.com/n/ryqq/songDetail/1', playbackUrl: '', isFavorite: true
+        }]
+      });
+    });
+
+    expect(result.current.entries[0].music).toEqual([expect.objectContaining({ id: 'song-1', provider: 'qq' })]);
+    expect(result.current.libraryItems.map((item) => item.kind)).toContain('music');
+  });
+
+  it('creates an important day transactionally and exposes an upcoming reminder', async () => {
+    const { result } = setup();
+    let created = false;
+    await act(async () => {
+      created = result.current.createImportantDay({
+        title: '出发旅行', dateKey: '2026-08-03', note: '带上相机', remindDaysBefore: 1, repeat: 'none'
+      });
+    });
+
+    expect(created).toBe(true);
+    expect(result.current.importantDays).toEqual([expect.objectContaining({ title: '出发旅行' })]);
+    expect(result.current.upcomingImportantDays).toEqual([expect.objectContaining({ title: '出发旅行' })]);
+  });
+
   it('先保存 Blob，再提交结构化记录', async () => {
     const { result, events } = setup();
     await act(async () => {

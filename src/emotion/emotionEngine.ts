@@ -3,6 +3,7 @@ import type {
   EmotionCalendarDaySummary,
   EmotionDraft,
   EmotionEntry,
+  EmotionImportantDay,
   EmotionLibraryItem,
   EmotionLibraryTab
 } from './types';
@@ -14,6 +15,10 @@ export function getLocalDateKey(date: Date, offsetMinutes = -date.getTimezoneOff
 
 export function sortEntriesNewestFirst(entries: EmotionEntry[]) {
   return [...entries].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export function getRecentJournalEntries(entries: EmotionEntry[], limit = 10) {
+  return sortEntriesNewestFirst(entries).slice(0, limit);
 }
 
 export function getEntriesByLocalDate(entries: EmotionEntry[], dateKey: string, offsetMinutes?: number) {
@@ -39,7 +44,7 @@ export function getCalendarDaySummary(
 export function deriveLibraryItems(entries: EmotionEntry[]): EmotionLibraryItem[] {
   return sortEntriesNewestFirst(entries).flatMap((entry) => {
     const items: EmotionLibraryItem[] = [];
-    if (entry.note.trim()) {
+    if (entry.note.trim() || entry.isFavorite) {
       items.push({
         id: `diary:${entry.id}`,
         kind: 'diary',
@@ -48,6 +53,7 @@ export function deriveLibraryItems(entries: EmotionEntry[]): EmotionLibraryItem[
         moodId: entry.moodId,
         note: entry.note,
         attachment: null,
+        music: null,
         isFavorite: entry.isFavorite
       });
     }
@@ -59,7 +65,19 @@ export function deriveLibraryItems(entries: EmotionEntry[]): EmotionLibraryItem[
       moodId: entry.moodId,
       note: entry.note,
       attachment,
+      music: null,
       isFavorite: attachment.isFavorite
+    })));
+    items.push(...(entry.music ?? []).map((music) => ({
+      id: `music:${music.id}`,
+      kind: 'music' as const,
+      sourceEntryId: entry.id,
+      createdAt: entry.createdAt,
+      moodId: entry.moodId,
+      note: entry.note,
+      attachment: null,
+      music,
+      isFavorite: music.isFavorite
     })));
     return items;
   });
@@ -67,8 +85,37 @@ export function deriveLibraryItems(entries: EmotionEntry[]): EmotionLibraryItem[
 
 export function filterLibraryItems(items: EmotionLibraryItem[], tab: EmotionLibraryTab) {
   if (tab === 'diary') return items.filter((item) => item.kind === 'diary');
-  if (tab === 'media') return items.filter((item) => item.kind === 'image' || item.kind === 'video');
+  if (tab === 'media') return items.filter((item) => item.kind !== 'diary');
   return items;
+}
+
+export function getOnThisDayEntries(entries: EmotionEntry[], now = new Date(), offsetMinutes?: number) {
+  const today = getLocalDateKey(now, offsetMinutes);
+  const currentYear = Number(today.slice(0, 4));
+  const monthDay = today.slice(5);
+  return sortEntriesNewestFirst(entries.filter((entry) => {
+    const key = getLocalDateKey(new Date(entry.createdAt), offsetMinutes);
+    return Number(key.slice(0, 4)) < currentYear && key.slice(5) === monthDay;
+  }));
+}
+
+export function getImportantDaysForDate(days: EmotionImportantDay[], dateKey: string) {
+  return days.filter((day) => day.dateKey === dateKey || (day.repeat === 'yearly' && day.dateKey.slice(5) === dateKey.slice(5)));
+}
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+export function getUpcomingImportantDays(days: EmotionImportantDay[], now = new Date()) {
+  const today = startOfLocalDay(now);
+  return days.filter((day) => {
+    const [year, month, date] = day.dateKey.split('-').map(Number);
+    let occurrence = new Date(day.repeat === 'yearly' ? today.getFullYear() : year, month - 1, date);
+    if (day.repeat === 'yearly' && occurrence < today) occurrence = new Date(today.getFullYear() + 1, month - 1, date);
+    const daysUntil = Math.round((occurrence.getTime() - today.getTime()) / 86_400_000);
+    return daysUntil >= 0 && daysUntil <= day.remindDaysBefore;
+  }).sort((a, b) => a.dateKey.slice(5).localeCompare(b.dateKey.slice(5)));
 }
 
 export function validateDraft(draft: EmotionDraft): {
