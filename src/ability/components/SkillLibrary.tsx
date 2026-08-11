@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Archive, ArrowDown, ArrowUp, Ellipsis, Pin, PinOff, Plus, RotateCcw, Search } from 'lucide-react';
-import { getTreeProgress } from '../abilityGraph';
+import { getCurrentPhase, getTreeProgress } from '../abilityGraph';
 import type { AbilityState, SkillRole } from '../types';
 
 type Filter = 'all' | SkillRole | 'archived';
@@ -93,10 +93,7 @@ export function SkillLibrary(props: Props) {
     </div> : null}
     {visibleTrees.length ? <div className="ability-library-strip">{visibleTrees.map((tree) => {
       const progress = getTreeProgress(props.state, tree.id);
-      const currentPhase = props.state.phases
-        .filter((phase) => phase.skillTreeId === tree.id)
-        .sort((a, b) => a.order - b.order)
-        .find((phase) => props.state.nodes.some((node) => node.phaseId === phase.id && node.progress !== 'mastered'));
+      const currentPhase = getCurrentPhase(props.state, tree.id);
       const needle = query.trim().toLocaleLowerCase();
       const matchedNode = needle ? props.state.nodes.find((node) => node.skillTreeId === tree.id && node.name.toLocaleLowerCase().includes(needle)) : undefined;
       return <article className={`ability-library-compact ${props.currentTreeId === tree.id ? 'current' : ''}`} key={tree.id}>

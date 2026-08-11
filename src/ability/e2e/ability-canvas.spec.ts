@@ -63,6 +63,7 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
     return ability.dependencies?.filter((edge) => edge.kind === 'primary').length ?? 0;
   });
   expect(restoredPrimaryDependencies).toBe(3);
+  await page.getByRole('group', { name: '内容定位 可开始', exact: true }).click();
   await page.getByRole('button', { name: 'Fit View' }).click();
   await expectPrimaryEdgesReady(page, 3);
 

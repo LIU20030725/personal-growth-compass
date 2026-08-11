@@ -291,6 +291,20 @@ describe('AbilityModule', () => {
     expect(within(route).getByText('这个阶段还没有技能节点')).toBeInTheDocument();
   });
 
+  it('uses required-node progress for the current-stage summary', () => {
+    const ability = seededState();
+    ability.nodes.push({
+      id: 'optional-base', skillTreeId: 'frontend', phaseId: 'base', name: '选修阅读', description: '', progress: 'available', requiredForPhase: false,
+      masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp
+    });
+    saveAbilityState(localStorage, ability);
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    expect(within(screen.getByLabelText('当前技能树概览')).getByText('当前：独立实践')).toBeInTheDocument();
+    const currentCard = screen.getAllByTestId('compact-skill-card').find((card) => card.getAttribute('aria-label') === '从技能库打开技能树 React 全栈');
+    expect(currentCard).toHaveTextContent('独立实践');
+  });
+
   it('sets whether a node is required for its stage from the edit dialog', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);

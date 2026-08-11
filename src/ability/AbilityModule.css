@@ -93,7 +93,7 @@
 .ability-linear-phase ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .ability-linear-phase button { display: grid; width: 100%; min-height: 42px; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--outline-soft); border-radius: 3px; background: var(--surface); text-align: left; }
 .ability-linear-phase button[aria-current="true"] { outline: 3px solid var(--gold); outline-offset: 1px; }
-.ability-linear-phase button i { color: var(--outline); font-size: 9px; font-style: normal; font-weight: 800; }.ability-linear-phase button strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.ability-linear-phase button span { color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.ability-linear-phase button i { color: var(--muted); font-size: 9px; font-style: normal; font-weight: 800; }.ability-linear-phase button strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.ability-linear-phase button span { color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; }
 .ability-module.is-focus-mode { gap: 14px; }.ability-module.is-focus-mode .ability-current-header { border-color: var(--gold-dark); box-shadow: 5px 5px 0 var(--gold); }
 .ability-node-panel { position: sticky; top: 88px; display: grid; gap: 16px; padding: 18px; }
 .ability-node-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--outline-soft); }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ellipsis, Medal, Pencil, Plus, Route, Sparkles } from 'lucide-react';
-import { getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
+import { getCurrentPhase, getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
 import { useAbilitySystem } from './useAbilitySystem';
@@ -100,7 +100,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   };
 
   const progress = currentTree ? getTreeProgress(ability.state, currentTree.id) : null;
-  const currentPhase = phases.find((phase) => nodes.some((node) => node.phaseId === phase.id && node.progress !== 'mastered')) ?? phases[phases.length - 1];
+  const currentPhase = currentTree ? getCurrentPhase(ability.state, currentTree.id) : null;
   const selectedCriteria = selectedNode ? ability.state.masteryCriteria.filter((item) => item.skillNodeId === selectedNode.id) : [];
   const selectedOutcomes = selectedNode ? ability.state.outcomes.filter((item) => item.skillNodeId === selectedNode.id) : [];
   const displayState = selectedNode ? getNodeDisplayState(selectedNode, ability.state) : null;
