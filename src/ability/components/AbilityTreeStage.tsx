@@ -26,6 +26,7 @@ import {
   Info,
   LocateFixed,
   Medal,
+  Pencil,
   Plus,
   RotateCcw,
   Sparkles,
@@ -33,7 +34,7 @@ import {
   Undo2
 } from 'lucide-react';
 import { NODE_STATE_LABELS } from '../abilityConfig';
-import { getNodeDisplayState, getPrimaryChildren } from '../abilityGraph';
+import { getNodeDisplayState, getPhaseProgress, getPrimaryChildren } from '../abilityGraph';
 import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type CanvasPoint } from '../abilityCanvasLayout';
 import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
 import { buildAbilityVisibleGraph } from '../abilityView';
@@ -58,7 +59,17 @@ type SkillNodeData = Record<string, unknown> & {
 
 type OutcomeNodeData = Record<string, unknown> & { label: string; onOpen: () => void };
 type GroupNodeData = Record<string, unknown> & { label: string };
-type FlowNodeData = SkillNodeData | OutcomeNodeData | GroupNodeData;
+type PhaseNodeData = Record<string, unknown> & {
+  label: string;
+  description: string;
+  estimatedDuration: string;
+  progressLabel: string;
+  empty: boolean;
+  editMode: boolean;
+  onAddFirstNode: () => void;
+  onEdit: () => void;
+};
+type FlowNodeData = SkillNodeData | OutcomeNodeData | GroupNodeData | PhaseNodeData;
 type FlowNode = Node<FlowNodeData>;
 type AlignedEdgeData = Record<string, unknown> & { branchX: number };
 type AlignedFlowEdge = Edge<AlignedEdgeData>;
@@ -73,7 +84,8 @@ type Props = {
   onSelectNode: (nodeId: string | null) => void;
   onSelectOutcome: (outcomeId: string) => void;
   onAddPhase: () => void;
-  onAddNode: () => void;
+  onAddNode: (phaseId?: string) => void;
+  onEditPhase: (phaseId: string) => void;
   onAddChild: (nodeId: string) => string;
   onAddSibling: (nodeId: string) => string;
   onAddParent: (nodeId: string) => string;
@@ -145,7 +157,17 @@ function ParallelGroupNode({ data }: NodeProps<Node<GroupNodeData>>) {
   return <div className="ability-parallel-group"><span><GitMerge size={14} />{data.label}</span></div>;
 }
 
-const nodeTypes = { skill: SkillCanvasNode, outcome: OutcomeCanvasNode, parallelGroup: ParallelGroupNode };
+function PhaseCanvasNode({ data }: NodeProps<Node<PhaseNodeData>>) {
+  return <div className={`ability-canvas-phase ${data.empty ? 'is-empty' : ''}`} role="group" aria-label={`阶段 ${data.label}`}>
+    <header>
+      <div><small>{data.progressLabel}{data.estimatedDuration ? ` · ${data.estimatedDuration}` : ''}</small><strong>{data.label}</strong>{data.description ? <p>{data.description}</p> : null}</div>
+      {data.editMode ? <button className="nodrag" type="button" aria-label={`编辑阶段 ${data.label}`} onClick={data.onEdit}><Pencil size={13} /></button> : null}
+    </header>
+    {data.empty ? <div className="ability-canvas-phase-empty"><span>这个阶段还没有技能节点</span>{data.editMode ? <button className="nodrag" type="button" aria-label={`在 ${data.label} 添加第一个节点`} onClick={data.onAddFirstNode}><Plus size={15} />添加第一个节点</button> : null}</div> : null}
+  </div>;
+}
+
+const nodeTypes = { skill: SkillCanvasNode, outcome: OutcomeCanvasNode, parallelGroup: ParallelGroupNode, phase: PhaseCanvasNode };
 
 function AlignedOrthogonalEdge({ id, sourceX, sourceY, targetX, targetY, markerEnd, style, data }: EdgeProps<AlignedFlowEdge>) {
   const path = buildAlignedOrthogonalPath({
@@ -325,14 +347,44 @@ export function AbilityTreeStage(props: Props) {
       focusable: false,
       zIndex: 0
     }));
-    return [...groups, ...skills];
+    const phaseNodes: FlowNode[] = layout.phases.map((phase) => {
+      const progress = getPhaseProgress(props.state, phase.id);
+      const actualNodeCount = props.state.nodes.filter((node) => node.phaseId === phase.id && !node.archivedAt).length;
+      return {
+        id: `phase:${phase.id}`,
+        type: 'phase',
+        ariaLabel: `阶段 ${phase.name}`,
+        position: { x: phase.x, y: phase.y },
+        width: phase.width,
+        height: phase.height,
+        style: { width: phase.width, height: phase.height },
+        data: {
+          label: phase.name,
+          description: phase.description,
+          estimatedDuration: phase.estimatedDuration,
+          progressLabel: `${progress.mastered}/${progress.required} 个必修节点`,
+          empty: actualNodeCount === 0,
+          editMode: props.editMode,
+          onAddFirstNode: () => props.onAddNode(phase.id),
+          onEdit: () => props.onEditPhase(phase.id)
+        },
+        draggable: false,
+        selectable: false,
+        connectable: false,
+        focusable: false,
+        zIndex: -5
+      };
+    });
+    return [...phaseNodes, ...groups, ...skills];
   }, [
     deleteBranch,
     dropTargetId,
     layout,
     layoutState,
     props.onAddChild,
+    props.onAddNode,
     props.editMode,
+    props.onEditPhase,
     props.onOpenDetails,
     props.onRenameNode,
     props.onSelectNode,
@@ -552,12 +604,12 @@ export function AbilityTreeStage(props: Props) {
           pannable
           zoomable
           nodeStrokeWidth={2}
-          nodeColor={(node) => node.type === 'parallelGroup' ? '#f4ead1' : node.selected ? '#f4b400' : '#d9dde0'}
+          nodeColor={(node) => node.type === 'phase' ? '#f5f3ec' : node.type === 'parallelGroup' ? '#f4ead1' : node.selected ? '#f4b400' : '#d9dde0'}
           maskColor="rgba(249, 248, 244, .76)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
           {props.editMode ? <><button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
-          <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={props.onAddNode}><Plus size={15} />添加技能节点</button>
+          <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
           <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button></> : null}
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
           {props.editMode ? <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button> : null}

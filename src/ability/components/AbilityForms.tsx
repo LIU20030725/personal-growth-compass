@@ -84,29 +84,36 @@ export function TreeFormDialog({ onClose, onSave, initial }: {
   </form></DialogFrame>;
 }
 
-export function PhaseFormDialog({ onClose, onSave }: {
+export function PhaseFormDialog({ onClose, onSave, initial }: {
   onClose: () => void;
-  onSave: (value: { name: string; description: string }) => void;
+  onSave: (value: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>) => void;
+  initial?: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>;
 }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  return <DialogFrame title="添加学习阶段" onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSave({ name: name.trim(), description: description.trim() }); }}>
+  const [name, setName] = useState(initial?.name ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [estimatedDuration, setEstimatedDuration] = useState(initial?.estimatedDuration ?? '');
+  const [plannedStartOn, setPlannedStartOn] = useState(initial?.plannedStartOn ?? '');
+  const [plannedEndOn, setPlannedEndOn] = useState(initial?.plannedEndOn ?? '');
+  return <DialogFrame title={initial ? '编辑学习阶段' : '添加学习阶段'} onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSave({ name: name.trim(), description: description.trim(), estimatedDuration: estimatedDuration.trim(), plannedStartOn: plannedStartOn || undefined, plannedEndOn: plannedEndOn || undefined }); }}>
     <Field label="阶段名称"><input data-dialog-initial aria-label="阶段名称" value={name} onChange={(event) => setName(event.target.value)} /></Field>
     <Field label="阶段目标"><textarea aria-label="阶段目标" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
+    <Field label="预计时长"><input aria-label="阶段预计时长" value={estimatedDuration} onChange={(event) => setEstimatedDuration(event.target.value)} placeholder="例如：4 周" /></Field>
+    <div className="ability-field-row"><Field label="计划开始"><input aria-label="阶段计划开始" type="date" value={plannedStartOn} onChange={(event) => setPlannedStartOn(event.target.value)} /></Field><Field label="计划结束"><input aria-label="阶段计划结束" type="date" value={plannedEndOn} onChange={(event) => setPlannedEndOn(event.target.value)} /></Field></div>
     <footer><button type="button" onClick={onClose}>取消</button><button className="ability-primary" type="submit" disabled={!name.trim()}>保存阶段</button></footer>
   </form></DialogFrame>;
 }
 
-export function NodeFormDialog({ phases, nodes, onClose, onSave, initial }: {
+export function NodeFormDialog({ phases, nodes, onClose, onSave, initial, defaultPhaseId }: {
   phases: LearningPhase[];
   nodes: SkillNode[];
   onClose: () => void;
   onSave: (value: { name: string; description: string; phaseId: string; prerequisiteNodeIds: string[] }) => void;
   initial?: { nodeId: string; name: string; description: string; phaseId: string; prerequisiteNodeIds: string[] };
+  defaultPhaseId?: string;
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [phaseId, setPhaseId] = useState(initial?.phaseId ?? phases[0]?.id ?? '');
+  const [phaseId, setPhaseId] = useState(initial?.phaseId ?? defaultPhaseId ?? phases[0]?.id ?? '');
   const [prerequisites, setPrerequisites] = useState<string[]>(initial?.prerequisiteNodeIds ?? []);
   const candidates = nodes.filter((node) => !node.archivedAt && node.id !== initial?.nodeId);
   const toggle = (id: string) => setPrerequisites((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);

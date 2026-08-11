@@ -29,6 +29,6 @@ describe('aligned orthogonal edge geometry', () => {
       targetX: 272,
       targetY: 40,
       branchX: 224
-    })).toBe('M 176 40 H 260');
+    })).toBe('M 176 40 L 272 40');
   });
 });

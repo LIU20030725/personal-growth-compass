@@ -78,12 +78,12 @@ export function useAbilitySystem(options: Options = {}) {
     archiveTree: (treeId: string) => commit((current) => engine.archiveTree(current, treeId, currentTime())),
     restoreTree: (treeId: string) => commit((current) => engine.restoreTree(current, treeId, currentTime())),
     reorderFocusedTrees: (treeIds: string[]) => commit((current) => engine.reorderFocusedTrees(current, treeIds, currentTime())),
-    addPhase: (input: Pick<LearningPhase, 'skillTreeId' | 'name' | 'description'>) => {
+    addPhase: (input: Pick<LearningPhase, 'skillTreeId' | 'name' | 'description'> & Partial<Pick<LearningPhase, 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>>) => {
       const id = nextId('phase');
       commit((current) => engine.addPhase(current, input, id, currentTime()));
       return id;
     },
-    updatePhase: (phaseId: string, patch: Pick<LearningPhase, 'name' | 'description'>) =>
+    updatePhase: (phaseId: string, patch: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>) =>
       commit((current) => engine.updatePhase(current, phaseId, patch, currentTime())),
     reorderPhases: (treeId: string, phaseIds: string[]) =>
       commit((current) => engine.reorderPhases(current, treeId, phaseIds, currentTime())),

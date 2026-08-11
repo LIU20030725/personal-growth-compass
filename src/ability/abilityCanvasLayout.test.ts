@@ -8,6 +8,17 @@ function node(id: string): SkillNode {
   return { id, skillTreeId: 'tree', phaseId: 'phase', name: id, description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp };
 }
 
+function stateWithEmptySecondPhase(): AbilityState {
+  const base = state();
+  return {
+    ...base,
+    phases: [
+      ...base.phases,
+      { id: 'phase-2', skillTreeId: 'tree', name: '实战阶段', description: '', estimatedDuration: '2 周', requiredNodePolicy: 'all_required', order: 1 }
+    ]
+  };
+}
+
 function state(): AbilityState {
   return {
     schemaVersion: 2,
@@ -56,6 +67,15 @@ function branchX(edge: AbilityCanvasEdge): number | undefined {
 }
 
 describe('ability canvas layout', () => {
+  it('keeps an empty second stage visible as a first-class canvas column', () => {
+    const layout = layoutAbilityCanvas(stateWithEmptySecondPhase(), 'tree');
+
+    expect(layout.phases.map((phase) => phase.id)).toEqual(['phase', 'phase-2']);
+    expect(layout.phases[1]).toMatchObject({ nodeCount: 0 });
+    expect(layout.phases[1].x).toBeGreaterThan(layout.phases[0].x);
+    expect(layout.phases.every((phase) => phase.x % 16 === 0 && phase.width % 16 === 0)).toBe(true);
+  });
+
   it('lays serial learning left-to-right and sibling branches vertically', () => {
     const layout = layoutAbilityCanvas(state(), 'tree');
     const byId = new Map(layout.nodes.map((item) => [item.id, item]));

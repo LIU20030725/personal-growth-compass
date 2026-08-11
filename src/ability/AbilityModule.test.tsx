@@ -96,7 +96,9 @@ describe('AbilityModule', () => {
     fireEvent.click(screen.getByRole('button', { name: '添加下一阶段' }));
     fireEvent.change(screen.getByLabelText('阶段名称'), { target: { value: '基础认知' } });
     fireEvent.click(screen.getByRole('button', { name: '保存阶段' }));
-    fireEvent.click(screen.getByRole('button', { name: '添加技能节点' }));
+    expect(screen.getByRole('group', { name: '阶段 基础认知' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '在 基础认知 添加第一个节点' }));
+    expect((screen.getByLabelText('所属阶段') as HTMLSelectElement).value).toMatch(/^phase-/);
     fireEvent.change(screen.getByLabelText('节点名称'), { target: { value: '曝光三要素' } });
     fireEvent.click(screen.getByRole('button', { name: '保存节点' }));
     expect(await screen.findByRole('group', { name: /曝光三要素 可开始/ })).toBeInTheDocument();

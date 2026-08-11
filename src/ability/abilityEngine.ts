@@ -119,7 +119,7 @@ export function addPhase(
 export function updatePhase(
   state: AbilityState,
   phaseId: string,
-  patch: Pick<LearningPhase, 'name' | 'description'>,
+  patch: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>,
   now: string
 ): AbilityState {
   const phase = state.phases.find((item) => item.id === phaseId);
@@ -128,7 +128,7 @@ export function updatePhase(
   return valid(touchTree({
     ...state,
     phases: state.phases.map((item) => item.id === phaseId
-      ? { ...item, name: patch.name.trim(), description: patch.description.trim() }
+      ? { ...item, name: patch.name.trim(), description: patch.description.trim(), estimatedDuration: patch.estimatedDuration.trim(), plannedStartOn: patch.plannedStartOn || undefined, plannedEndOn: patch.plannedEndOn || undefined }
       : item)
   }, phase.skillTreeId, now));
 }

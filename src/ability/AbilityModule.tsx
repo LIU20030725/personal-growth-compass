@@ -12,7 +12,7 @@ import { SkillLibrary } from './components/SkillLibrary';
 import { NodeFormDialog, OutcomeFormDialog, PhaseFormDialog, TreeFormDialog } from './components/AbilityForms';
 import './AbilityModule.css';
 
-type FormName = 'tree' | 'edit-tree' | 'phase' | 'node' | 'edit-node' | 'outcome' | null;
+type FormName = 'tree' | 'edit-tree' | 'phase' | 'edit-phase' | 'node' | 'edit-node' | 'outcome' | null;
 
 type Props = {
   abilityStorage?: StorageLike;
@@ -33,6 +33,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [form, setForm] = useState<FormName>(null);
   const [editMode, setEditMode] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [nodePhaseId, setNodePhaseId] = useState<string | undefined>(undefined);
+  const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
   const [routeNotice, setRouteNotice] = useState(() => {
@@ -90,6 +92,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     setFilter('all');
     setEditMode(false);
     setMoreOpen(false);
+    setNodePhaseId(undefined);
+    setEditingPhaseId(null);
     onTreeChange?.(treeId, 'push');
   };
 
@@ -163,7 +167,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           onSelectNode={(nodeId) => { setSelectedNodeId(nodeId); if (!nodeId) setDetailOpen(false); }}
           onSelectOutcome={(outcomeId) => { const outcome = ability.state.outcomes.find((item) => item.id === outcomeId); setSelectedNodeId(outcome?.skillNodeId ?? null); setDetailOpen(Boolean(outcome?.skillNodeId)); }}
           onAddPhase={() => setForm('phase')}
-          onAddNode={() => setForm('node')}
+          onAddNode={(phaseId) => { setNodePhaseId(phaseId); setForm('node'); }}
+          onEditPhase={(phaseId) => { setEditingPhaseId(phaseId); setForm('edit-phase'); }}
           onAddChild={(nodeId) => ability.addChildNode(nodeId)}
           onAddSibling={(nodeId) => {
             const node = ability.state.nodes.find((item) => item.id === nodeId);
@@ -204,7 +209,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     {form === 'tree' ? <TreeFormDialog onClose={() => setForm(null)} onSave={(value) => { const focusedRank = value.focused ? focusedTrees.length + 1 : null; ability.applyTreeDraft({ tree: { name: value.name, description: value.description, role: value.role, status: 'active', focusedRank }, phases: [], nodes: [], dependencies: [], parallelGroups: [], masteryCriteria: [] }); setForm(null); }} /> : null}
     {form === 'edit-tree' && currentTree ? <TreeFormDialog initial={{ name: currentTree.name, description: currentTree.description, role: currentTree.role, focused: currentTree.focusedRank !== null }} onClose={() => setForm(null)} onSave={(value) => { ability.updateTree(currentTree.id, { name: value.name, description: value.description, role: value.role }); const isFocused = currentTree.focusedRank !== null; if (value.focused !== isFocused) ability.reorderFocusedTrees(value.focused ? [...focusedIds, currentTree.id] : focusedIds.filter((id) => id !== currentTree.id)); setForm(null); }} /> : null}
     {form === 'phase' && currentTree ? <PhaseFormDialog onClose={() => setForm(null)} onSave={(value) => { ability.addPhase({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
-    {form === 'node' && currentTree ? <NodeFormDialog phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { const id = ability.addNode({ skillTreeId: currentTree.id, phaseId: value.phaseId, name: value.name, description: value.description, progress: 'available', masteryNote: '' }, value.prerequisiteNodeIds); setSelectedNodeId(id); setForm(null); }} /> : null}
+    {form === 'edit-phase' && currentTree && editingPhaseId ? <PhaseFormDialog initial={phases.find((phase) => phase.id === editingPhaseId)} onClose={() => { setEditingPhaseId(null); setForm(null); }} onSave={(value) => { ability.updatePhase(editingPhaseId, value); setEditingPhaseId(null); setForm(null); }} /> : null}
+    {form === 'node' && currentTree ? <NodeFormDialog phases={phases} nodes={nodes} defaultPhaseId={nodePhaseId} onClose={() => { setNodePhaseId(undefined); setForm(null); }} onSave={(value) => { const id = ability.addNode({ skillTreeId: currentTree.id, phaseId: value.phaseId, name: value.name, description: value.description, progress: 'available', masteryNote: '' }, value.prerequisiteNodeIds); setSelectedNodeId(id); setNodePhaseId(undefined); setForm(null); }} /> : null}
     {form === 'edit-node' && currentTree && selectedNode ? <NodeFormDialog initial={{ nodeId: selectedNode.id, name: selectedNode.name, description: selectedNode.description, phaseId: selectedNode.phaseId, prerequisiteNodeIds: ability.state.dependencies.filter((edge) => edge.dependentNodeId === selectedNode.id).map((edge) => edge.prerequisiteNodeId) }} phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { ability.updateNode(selectedNode.id, { name: value.name, description: value.description, phaseId: value.phaseId }); ability.replaceNodeDependencies(selectedNode.id, value.prerequisiteNodeIds); setForm(null); }} /> : null}
     {form === 'outcome' && currentTree ? <OutcomeFormDialog nodes={nodes} defaultNodeId={selectedNodeId} onClose={() => setForm(null)} onSave={(value) => { ability.addOutcome({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
   </section>;
