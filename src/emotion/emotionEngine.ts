@@ -118,6 +118,16 @@ export function getUpcomingImportantDays(days: EmotionImportantDay[], now = new 
   }).sort((a, b) => a.dateKey.slice(5).localeCompare(b.dateKey.slice(5)));
 }
 
+function isHttpUrl(value: string) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function validateDraft(draft: EmotionDraft): {
   valid: boolean;
   errors: string[];
@@ -126,9 +136,21 @@ export function validateDraft(draft: EmotionDraft): {
   const normalized: EmotionDraft = {
     ...draft,
     note: draft.note.trim(),
-    activityIds: [...new Set(draft.activityIds)].filter((id) => activityById.has(id))
+    activityIds: [...new Set(draft.activityIds)].filter((id) => activityById.has(id)),
+    music: (draft.music ?? []).map((music) => ({
+      ...music,
+      title: music.title.trim(),
+      artist: music.artist.trim(),
+      sourceUrl: music.sourceUrl.trim(),
+      playbackUrl: music.playbackUrl.trim()
+    })).filter((music) => Boolean(music.title || music.artist || music.sourceUrl || music.playbackUrl)).slice(0, 1)
   };
   const errors: string[] = [];
+  const music = normalized.music?.[0];
+  if (music && !music.title) errors.push('请填写歌曲名称');
+  if (music && !music.sourceUrl && !music.playbackUrl) errors.push('请补充歌曲链接或可播放地址');
+  if (music && !isHttpUrl(music.sourceUrl)) errors.push('歌曲链接需要使用 http 或 https 地址');
+  if (music && !isHttpUrl(music.playbackUrl)) errors.push('可播放地址需要使用 http 或 https 地址');
   if (!moodById.has(normalized.moodId)) errors.push('请选择此刻的情绪');
   if (normalized.note.length > 5000) errors.push('文字不能超过 5000 字');
   const images = normalized.attachments.filter((item) => item.kind === 'image');

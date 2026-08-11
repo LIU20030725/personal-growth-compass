@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Mic, Square, Trash2, Video, X } from 'lucide-react';
+import { Camera, Mic, Music2, Square, Trash2, Video, X } from 'lucide-react';
 import { activityGroups, activityPresets, moodGroups, moodPresets } from '../emotionConfig';
 import { canBrowserPlay, MEDIA_LIMITS, probeMediaDuration, validateMediaCandidate } from '../emotionMediaValidation';
 import type { EmotionAttachment, EmotionAttachmentInput, EmotionDraft } from '../types';
 import { EmotionIcon } from './EmotionIcon';
+import { EmotionAudioPlayer } from './EmotionAudioPlayer';
+import { EmotionActivityIcon } from './EmotionActivityIcon';
 
 interface EmotionComposerProps {
   initial?: EmotionDraft;
@@ -18,7 +20,7 @@ interface AttachmentPreviewProps {
   onRemove: () => void;
 }
 
-const emptyDraft: EmotionDraft = { moodId: '', activityIds: [], note: '', attachments: [] };
+const emptyDraft: EmotionDraft = { moodId: '', activityIds: [], note: '', attachments: [], music: [] };
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
 function AttachmentPreview({ attachment, getBlob, onRemove }: AttachmentPreviewProps) {
@@ -46,7 +48,7 @@ function AttachmentPreview({ attachment, getBlob, onRemove }: AttachmentPreviewP
     <div className="emotion-attachment-preview__media">
       {attachment.kind === 'image' && url && <img src={url} alt={attachment.fileName} />}
       {attachment.kind === 'video' && url && <video src={url} controls preload="metadata" aria-label={attachment.fileName} />}
-      {attachment.kind === 'audio' && url && <audio src={url} controls aria-label={attachment.fileName} />}
+      {attachment.kind === 'audio' && url && <EmotionAudioPlayer src={url} label={attachment.fileName} durationMs={attachment.durationMs} />}
       {!url && <span>{label}</span>}
     </div>
     <div><strong>{attachment.fileName}</strong><span>{label}</span></div>
@@ -70,7 +72,29 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   const recordingIntervalRef = useRef<number | null>(null);
   const recordingLimitRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
-  const dirty = Boolean(draft.moodId || draft.activityIds.length || draft.note || pending.length || draft.attachments.length !== initial.attachments.length);
+  const dirty = Boolean(
+    draft.moodId !== initial.moodId ||
+    JSON.stringify(draft.activityIds) !== JSON.stringify(initial.activityIds) ||
+    draft.note !== initial.note || pending.length ||
+    JSON.stringify(draft.attachments) !== JSON.stringify(initial.attachments) ||
+    JSON.stringify(draft.music ?? []) !== JSON.stringify(initial.music ?? [])
+  );
+
+  const music = draft.music?.[0];
+  function updateMusic(field: 'provider' | 'title' | 'artist' | 'sourceUrl' | 'playbackUrl', value: string) {
+    setDraft((current) => {
+      const next = current.music?.[0] ?? {
+        id: `music-${Date.now()}`,
+        provider: 'other' as const,
+        title: '',
+        artist: '',
+        sourceUrl: '',
+        playbackUrl: '',
+        isFavorite: true
+      };
+      return { ...current, music: [{ ...next, [field]: value }] };
+    });
+  }
 
   const counts = useMemo(() => ({
     images: pending.filter((item) => item.kind === 'image').length + draft.attachments.filter((item) => item.kind === 'image').length,
@@ -275,7 +299,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
                 return <button type="button" role="checkbox" aria-checked={selected} aria-label={activity.label}
                   className={`emotion-activity-chip${selected ? ' is-selected' : ''}`} key={activity.id}
                   onClick={() => setDraft((value) => ({ ...value, activityIds: selected ? value.activityIds.filter((id) => id !== activity.id) : [...value.activityIds, activity.id] }))}
-                >{activity.label}</button>;
+                ><EmotionActivityIcon activityId={activity.id} /><span>{activity.label}</span></button>;
               })}</div>
             </div>)}
           </section>
@@ -300,6 +324,17 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
               {pending.map((attachment, index) => <AttachmentPreview key={`${attachment.fileName}-${index}`} attachment={attachment}
                 onRemove={() => setPending((items) => items.filter((_, itemIndex) => itemIndex !== index))} />)}
             </div>}
+            <div className="emotion-music-editor">
+              <div className="emotion-music-editor__heading"><Music2 /><div><strong>收藏一首此刻的歌</strong><span>支持网易云、QQ 音乐或其他来源</span></div></div>
+              <div className="emotion-music-editor__fields">
+                <label>音乐来源<select aria-label="音乐来源" value={music?.provider ?? 'other'} onChange={(event) => updateMusic('provider', event.target.value)}><option value="netease">网易云音乐</option><option value="qq">QQ 音乐</option><option value="other">其他</option></select></label>
+                <label>歌曲名称<input aria-label="歌曲名称" value={music?.title ?? ''} onChange={(event) => updateMusic('title', event.target.value)} /></label>
+                <label>歌手<input aria-label="歌手" value={music?.artist ?? ''} onChange={(event) => updateMusic('artist', event.target.value)} /></label>
+                <label>歌曲链接<input aria-label="歌曲链接" type="url" placeholder="粘贴网易云或 QQ 音乐分享链接" value={music?.sourceUrl ?? ''} onChange={(event) => updateMusic('sourceUrl', event.target.value)} /></label>
+                <label>可播放地址（可选）<input aria-label="可播放地址" type="url" placeholder="浏览器可播放的 mp3 / m4a 地址" value={music?.playbackUrl ?? ''} onChange={(event) => updateMusic('playbackUrl', event.target.value)} /></label>
+              </div>
+              {music && <button type="button" className="emotion-music-editor__remove" onClick={() => setDraft((current) => ({ ...current, music: [] }))}><Trash2 />移除音乐</button>}
+            </div>
           </section>
           {message && <p className="emotion-form-message" aria-live="polite">{message}</p>}
         </div>

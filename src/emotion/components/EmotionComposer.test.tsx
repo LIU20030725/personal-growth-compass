@@ -103,4 +103,9 @@ describe('EmotionComposer media lifecycle', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存这一刻' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ attachments: [] }), []));
   });
+
+  it('为每个活动提供可辨识的图标', () => {
+    render(<EmotionComposer onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByRole('checkbox', { name: '旅行' }).querySelector('svg')).not.toBeNull();
+  });
 });

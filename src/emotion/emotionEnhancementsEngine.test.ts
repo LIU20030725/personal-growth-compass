@@ -5,7 +5,8 @@ import {
   getImportantDaysForDate,
   getOnThisDayEntries,
   getRecentJournalEntries,
-  getUpcomingImportantDays
+  getUpcomingImportantDays,
+  validateDraft
 } from './emotionEngine';
 import type { EmotionEntry, EmotionImportantDay } from './types';
 
@@ -94,5 +95,12 @@ describe('emotion refinement engine', () => {
     expect(getImportantDaysForDate(days, '2026-08-15').map((item) => item.id)).toEqual(['day-1', 'yearly']);
     expect(getUpcomingImportantDays(days, new Date('2026-08-12T12:00:00.000Z')).map((item) => item.id))
       .toEqual(['day-1', 'yearly']);
+  });
+
+  it('normalizes empty music fields and rejects incomplete or unsafe music links', () => {
+    const base = { moodId: 'calm', activityIds: [], note: '', attachments: [] };
+    expect(validateDraft({ ...base, music: [{ id: 'blank', provider: 'other', title: '', artist: '', sourceUrl: '', playbackUrl: '', isFavorite: true }] }).normalized.music).toEqual([]);
+    expect(validateDraft({ ...base, music: [{ id: 'partial', provider: 'qq', title: '晴天', artist: '', sourceUrl: '', playbackUrl: '', isFavorite: true }] }).errors).toContain('请补充歌曲链接或可播放地址');
+    expect(validateDraft({ ...base, music: [{ id: 'unsafe', provider: 'other', title: '测试', artist: '', sourceUrl: 'javascript:alert(1)', playbackUrl: '', isFavorite: true }] }).errors).toContain('歌曲链接需要使用 http 或 https 地址');
   });
 });
