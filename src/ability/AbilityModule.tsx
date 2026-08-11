@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ellipsis, Medal, Pencil, Plus, Route, Sparkles } from 'lucide-react';
-import { getNodeDisplayState, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
+import { getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
 import { useAbilitySystem } from './useAbilitySystem';
@@ -188,21 +188,22 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           onOpenDetails={(nodeId) => { setSelectedNodeId(nodeId); setDetailOpen(true); }}
           onUndo={ability.undo}
           canUndo={ability.canUndo}
-        /> : <section className="ability-linear-route" aria-label={`${currentTree.name}线性技能路线`}>
+        /> : <section className="ability-linear-route ability-linear-route--compact" data-testid="ability-linear-route" aria-label={`${currentTree.name}线性技能路线`}>
           {phases.map((phase) => {
             const phaseNodes = visibleLinearNodes.filter((node) => node.phaseId === phase.id);
             if (!phaseNodes.length) return null;
+            const phaseProgress = getPhaseProgress(ability.state, phase.id);
             return <section className="ability-linear-phase" key={phase.id} aria-labelledby={`ability-phase-${phase.id}`}>
-              <header><span>{String(phase.order + 1).padStart(2, '0')}</span><div><h3 id={`ability-phase-${phase.id}`}>{phase.name}</h3><p>{phase.description}</p></div></header>
-              <ol>{phaseNodes.map((node) => {
+              <header><span>{String(phase.order + 1).padStart(2, '0')}</span><div><h3 id={`ability-phase-${phase.id}`}>{phase.name}</h3><p>{phase.description || phase.estimatedDuration || '按顺序推进本阶段技能'}</p></div><strong>{phaseProgress.mastered}/{phaseProgress.required}</strong></header>
+              <ol>{phaseNodes.map((node, index) => {
                 const state = getNodeDisplayState(node, ability.state);
-                return <li key={node.id}><button type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button></li>;
+                return <li key={node.id}><button data-testid="linear-skill-node" type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button></li>;
               })}</ol>
             </section>;
           })}
           {!visibleLinearNodes.length ? <p className="ability-muted">当前筛选下没有技能节点。</p> : null}
         </section>}
-        {detailOpen ? <AbilityNodePanel node={selectedNode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} resources={ability.state.resources} resourceLinks={ability.state.resourceLinks} outcomes={selectedOutcomes} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={() => selectedNode && ability.masterNode(selectedNode.id, '')} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onAddResource={(input) => selectedNode && ability.addOrLinkResource(selectedNode.id, input)} onLinkResource={(resourceId) => selectedNode && ability.linkExistingResource(selectedNode.id, resourceId)} onUpdateResource={ability.updateResource} onUnlinkResource={ability.unlinkResource} onDeleteResource={ability.deleteResource} onRequestOutcome={() => setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} onArchive={() => { if (!selectedNode) return; ability.archiveNodeBranch(selectedNode.id); setSelectedNodeId(null); setDetailOpen(false); }} /> : null}
+        {detailOpen ? <AbilityNodePanel node={selectedNode} editMode={editMode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} resources={ability.state.resources} resourceLinks={ability.state.resourceLinks} outcomes={selectedOutcomes} onClose={() => { setDetailOpen(false); setSelectedNodeId(null); }} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={() => selectedNode && ability.masterNode(selectedNode.id, '')} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onAddResource={(input) => selectedNode && ability.addOrLinkResource(selectedNode.id, input)} onLinkResource={(resourceId) => selectedNode && ability.linkExistingResource(selectedNode.id, resourceId)} onUpdateResource={ability.updateResource} onUnlinkResource={ability.unlinkResource} onDeleteResource={ability.deleteResource} onRequestOutcome={() => setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} onArchive={() => { if (!selectedNode) return; ability.archiveNodeBranch(selectedNode.id); setSelectedNodeId(null); setDetailOpen(false); }} /> : null}
       </div>
     </>}
 

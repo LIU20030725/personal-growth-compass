@@ -251,9 +251,15 @@ describe('AbilityModule', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '切换到线性路线' }));
     const route = screen.getByRole('region', { name: 'React 全栈线性技能路线' });
+    expect(route).toHaveClass('ability-linear-route--compact');
+    expect(route).toHaveAttribute('data-testid', 'ability-linear-route');
+    expect(within(route).getAllByTestId('linear-skill-node')).toHaveLength(40);
     expect(within(route).getAllByRole('button', { name: /技能 \d+/ })).toHaveLength(40);
     fireEvent.click(within(route).getByRole('button', { name: /技能 40/ }));
-    expect(within(await screen.findByLabelText('技能节点详情')).getByRole('heading', { name: '技能 40' })).toBeInTheDocument();
+    const detail = await screen.findByLabelText('技能节点详情');
+    expect(within(detail).getByRole('heading', { name: '技能 40' })).toBeInTheDocument();
+    fireEvent.click(within(detail).getByRole('button', { name: '关闭技能详情' }));
+    expect(screen.queryByLabelText('技能节点详情')).not.toBeInTheDocument();
   });
 
   it('uses a compact skill library and exposes only the core tree actions and filters', async () => {
@@ -281,6 +287,7 @@ describe('AbilityModule', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存技能树' }));
     expect(within(screen.getByLabelText('当前技能树概览')).getByRole('heading', { name: 'React 产品开发' })).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: '编辑技能树' }));
     fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
     fireEvent.click(await screen.findByRole('button', { name: /查看详情 React 状态管理/ }));
     const panel = screen.getByLabelText('技能节点详情');

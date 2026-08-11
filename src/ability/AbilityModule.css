@@ -83,18 +83,20 @@
 .ability-flow-shell .react-flow__controls { right: 12px; bottom: 150px; overflow: hidden; border: 1px solid #d0cdc3; border-radius: 8px; box-shadow: 0 4px 14px rgba(31,34,36,.1); }.ability-flow-shell .react-flow__controls-button { width: 34px; height: 34px; border-bottom-color: #e6e2d8; }
 .ability-flow-shell .react-flow__minimap { right: 12px; bottom: 12px; width: 172px; height: 124px; border: 1px solid #d4d1c9; border-radius: 10px; background: #fffefa; box-shadow: 0 3px 10px rgba(31,34,36,.08); }
 .ability-undo-toast { position: absolute; right: 18px; bottom: 18px; z-index: 20; display: flex; min-height: 42px; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border: 1px solid #34383f; border-radius: 8px; color: #fff; background: #34383f; box-shadow: 0 8px 22px rgba(31,34,36,.22); font-size: 12px; font-weight: 700; }.ability-undo-toast button { min-height: 28px; padding: 3px 7px; border: 0; border-radius: 4px; color: #ffd55d; background: transparent; font-weight: 800; }
-.ability-linear-route { display: grid; gap: 18px; min-height: 520px; padding: 20px; border: 2px solid var(--ink); border-radius: 4px; background: #fbfaf5; box-shadow: var(--shadow-hard); }
-.ability-linear-phase { display: grid; gap: 12px; }
-.ability-linear-phase > header { display: flex; align-items: flex-start; gap: 12px; padding-bottom: 9px; border-bottom: 2px solid var(--ink); }
-.ability-linear-phase > header > span { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border: 2px solid var(--ink); background: var(--gold); font-weight: 900; }
-.ability-linear-phase h3 { font-size: 17px; }.ability-linear-phase header p { color: var(--muted); font-size: 12px; }
-.ability-linear-phase ol { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.ability-linear-phase button { display: flex; width: 100%; min-height: 54px; align-items: center; justify-content: space-between; gap: 9px; padding: 9px 11px; border: 1.5px solid var(--ink); border-radius: 3px; background: var(--surface); text-align: left; }
+.ability-linear-route { display: grid; min-height: 0; align-self: start; gap: 14px; padding: 16px; border: 2px solid var(--ink); border-radius: 4px; background: #fbfaf5; box-shadow: var(--shadow-hard); }
+.ability-linear-phase { display: grid; gap: 8px; }
+.ability-linear-phase > header { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--outline-soft); }
+.ability-linear-phase > header > span { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--ink); background: var(--gold); font-size: 11px; font-weight: 900; }
+.ability-linear-phase > header > strong { color: var(--muted); font-size: 11px; }
+.ability-linear-phase h3 { font-size: 15px; }.ability-linear-phase header p { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.ability-linear-phase ol { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.ability-linear-phase button { display: grid; width: 100%; min-height: 42px; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 9px; border: 1px solid var(--outline-soft); border-radius: 3px; background: var(--surface); text-align: left; }
 .ability-linear-phase button[aria-current="true"] { outline: 3px solid var(--gold); outline-offset: 1px; }
-.ability-linear-phase button span { color: var(--muted); font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ability-linear-phase button i { color: var(--outline); font-size: 9px; font-style: normal; font-weight: 800; }.ability-linear-phase button strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }.ability-linear-phase button span { color: var(--muted); font-size: 10px; font-weight: 700; white-space: nowrap; }
 .ability-module.is-focus-mode { gap: 14px; }.ability-module.is-focus-mode .ability-current-header { border-color: var(--gold-dark); box-shadow: 5px 5px 0 var(--gold); }
 .ability-node-panel { position: sticky; top: 88px; display: grid; gap: 16px; padding: 18px; }
 .ability-node-panel > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid var(--outline-soft); }
+.ability-node-panel-heading-actions { display: flex; align-items: center; gap: 6px; }.ability-node-panel-heading-actions > button { display: grid; width: 30px; min-width: 30px; height: 30px; min-height: 30px; place-items: center; padding: 0; border: 1px solid var(--outline-soft); background: transparent; }
 .ability-node-panel h2 { margin-top: 4px; font-family: "Bebas Neue", sans-serif; font-size: 32px; font-weight: 400; }
 .ability-node-panel > p, .ability-muted { color: var(--muted); font-size: 13px; }
 .ability-node-admin { display: flex; gap: 7px; }.ability-node-admin button { min-height: 32px; flex: 1; padding: 5px 8px; font-size: 11px; }
@@ -206,7 +208,7 @@
 @media (max-width: 680px) {
   .ability-module { gap: 16px; }.ability-hero { align-items: stretch; flex-direction: column; padding: 18px; }.ability-hero .ability-primary { width: 100%; }
   .ability-current-header { grid-template-columns: 1fr; padding: 16px; }.ability-current-stats { padding: 12px 0 0; border-top: 2px solid var(--outline-soft); border-left: 0; }.ability-current-actions { display: grid; grid-template-columns: 1fr 1fr; }.ability-current-actions button { justify-content: center; }
-  .ability-stage-view-switch { margin-top: -4px; }.ability-stage-view-switch button { width: 100%; }
-  .ability-linear-route { min-height: 0; padding: 14px; }.ability-linear-phase ol { grid-template-columns: 1fr; }.ability-linear-phase button { min-height: 58px; }
-  .ability-node-panel { position: relative; max-height: none; }.ability-library-rail-header { grid-template-columns: 1fr auto; }.ability-library-search { grid-column: 1 / -1; grid-row: 2; }.ability-library-rail-actions { grid-column: 2; grid-row: 1; }.ability-library-compact { min-width: 164px; }.ability-dialog-backdrop { align-items: end; padding: 0; }.ability-dialog { width: 100%; max-height: 90vh; border-radius: 0; box-shadow: none; }
+  .ability-stage-view-switch { display: none; }
+  .ability-linear-route { padding: 12px; }.ability-linear-phase button { min-height: 48px; }
+  .ability-workbench.has-detail { display: block; }.ability-node-panel { position: fixed; inset: auto 0 0; z-index: 80; max-height: 82dvh; overflow: auto; border-radius: 12px 12px 0 0; box-shadow: 0 -12px 36px rgba(29,34,38,.22); }.ability-library-rail-header { grid-template-columns: 1fr auto; }.ability-library-search { grid-column: 1 / -1; grid-row: 2; }.ability-library-rail-actions { grid-column: 2; grid-row: 1; }.ability-library-compact { min-width: 164px; }.ability-dialog-backdrop { align-items: end; padding: 0; }.ability-dialog { width: 100%; max-height: 90vh; border-radius: 0; box-shadow: none; }
 }

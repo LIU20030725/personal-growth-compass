@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Plus, X } from 'lucide-react';
 import { NODE_STATE_LABELS } from '../abilityConfig';
 import type { MasteryCriterion, NodeDisplayState, SkillNode, SkillOutcome, SkillResource, SkillResourceLink } from '../types';
 import type { SkillResourceInput } from '../abilityEngine';
@@ -7,12 +7,14 @@ import { AbilityResourceSection } from './AbilityResourceSection';
 
 type Props = {
   node: SkillNode | null;
+  editMode: boolean;
   displayState: NodeDisplayState | null;
   prerequisiteWarning: boolean;
   criteria: MasteryCriterion[];
   resources: SkillResource[];
   resourceLinks: SkillResourceLink[];
   outcomes: SkillOutcome[];
+  onClose: () => void;
   onStart: () => void;
   onAddCriterion: (description: string) => void;
   onToggleCriterion: (criterionId: string) => void;
@@ -42,8 +44,8 @@ export function AbilityNodePanel(props: Props) {
     : '请先完成全部掌握标准，或记录一项真实成果';
 
   return <aside className="ability-node-panel" aria-label="技能节点详情">
-    <header><div><small>Skill Detail</small><h2>{node.name}</h2></div><span className={`ability-state-badge state-${props.displayState}`}>{NODE_STATE_LABELS[props.displayState]}</span></header>
-    <div className="ability-node-admin"><button type="button" onClick={props.onEdit}>编辑技能节点</button><button type="button" onClick={props.onArchive}>归档技能节点</button></div>
+    <header><div><small>Skill Detail</small><h2>{node.name}</h2></div><div className="ability-node-panel-heading-actions"><span className={`ability-state-badge state-${props.displayState}`}>{NODE_STATE_LABELS[props.displayState]}</span><button type="button" aria-label="关闭技能详情" onClick={props.onClose}><X size={16} /></button></div></header>
+    {props.editMode ? <div className="ability-node-admin"><button type="button" onClick={props.onEdit}>编辑技能节点</button><button type="button" onClick={props.onArchive}>归档技能节点</button></div> : null}
     <p>{node.description || '还没有填写技能说明。'}</p>
     {props.prerequisiteWarning ? <div className="ability-warning"><AlertTriangle size={17} />前置条件发生变化，已有进度和记录仍被保留。</div> : null}
 
