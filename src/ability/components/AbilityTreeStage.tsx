@@ -48,6 +48,7 @@ type SkillNodeData = Record<string, unknown> & {
   dropTarget: boolean;
   childCount: number;
   hiddenChildCount: number;
+  editMode: boolean;
   onAddChild: () => void;
   onToggleCollapse: () => void;
   onOpenDetails: () => void;
@@ -65,11 +66,14 @@ type AlignedFlowEdge = Edge<AlignedEdgeData>;
 type Props = {
   state: AbilityState;
   tree: SkillTree;
+  editMode: boolean;
   selectedNodeId: string | null;
   stateFilter: TreeNodeFilter;
   storage?: StorageLike;
   onSelectNode: (nodeId: string | null) => void;
   onSelectOutcome: (outcomeId: string) => void;
+  onAddPhase: () => void;
+  onAddNode: () => void;
   onAddChild: (nodeId: string) => string;
   onAddSibling: (nodeId: string) => string;
   onAddParent: (nodeId: string) => string;
@@ -96,12 +100,12 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
 
   return <div
     className={`ability-flow-node state-${data.progress} ${data.selected ? 'selected' : ''} ${data.dropTarget ? 'drop-target' : ''}`}
-    onDoubleClick={(event) => { event.stopPropagation(); setEditing(true); }}
+    onDoubleClick={(event) => { event.stopPropagation(); if (data.editMode) setEditing(true); }}
   >
     <Handle className="ability-flow-handle" type="target" position={Position.Left} />
     {data.selected ? <div className="ability-node-floating-toolbar" aria-label={`${data.label} 节点工具栏`}>
       <button type="button" aria-label={`查看详情 ${data.label}`} onClick={(event) => { event.stopPropagation(); data.onOpenDetails(); }}><Info size={15} /></button>
-      <button type="button" aria-label={`删除分支 ${data.label}`} onClick={(event) => { event.stopPropagation(); data.onDelete(); }}><Trash2 size={15} /></button>
+      {data.editMode ? <button type="button" aria-label={`删除分支 ${data.label}`} onClick={(event) => { event.stopPropagation(); data.onDelete(); }}><Trash2 size={15} /></button> : null}
     </div> : null}
     <span className="ability-flow-status" aria-hidden="true">{data.progress === 'mastered' ? <Sparkles size={15} /> : null}</span>
     {editing ? <input
@@ -123,7 +127,7 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
       aria-label={`${data.hiddenChildCount ? '展开' : '折叠'} ${data.label} 分支`}
       onClick={(event) => { event.stopPropagation(); data.onToggleCollapse(); }}
     >{data.hiddenChildCount ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}{data.hiddenChildCount ? data.hiddenChildCount : ''}</button> : null}
-    {data.selected ? <button
+    {data.selected && data.editMode ? <button
       className="nodrag ability-add-child"
       type="button"
       aria-label={`为 ${data.label} 添加子节点`}
@@ -278,6 +282,7 @@ export function AbilityTreeStage(props: Props) {
         position: { x: item.x, y: item.y },
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
+        draggable: props.editMode,
         selected: selectedIds.has(item.id),
         data: {
           label: node.name,
@@ -286,6 +291,7 @@ export function AbilityTreeStage(props: Props) {
           dropTarget: dropTargetId === item.id,
           childCount: children.length,
           hiddenChildCount: item.hiddenChildCount,
+          editMode: props.editMode,
           onAddChild: () => {
             const childId = props.onAddChild(node.id);
             requestAnimationFrame(() => {
@@ -326,6 +332,7 @@ export function AbilityTreeStage(props: Props) {
     layout,
     layoutState,
     props.onAddChild,
+    props.editMode,
     props.onOpenDetails,
     props.onRenameNode,
     props.onSelectNode,
@@ -398,6 +405,7 @@ export function AbilityTreeStage(props: Props) {
 
   const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isInteractiveTarget(event.target)) return;
+    if (!props.editMode) return;
     const command = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
     if (command && key === 'z') {
@@ -435,7 +443,7 @@ export function AbilityTreeStage(props: Props) {
       event.preventDefault();
       addFromKeyboard(event.shiftKey ? 'sibling' : 'child');
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
+  }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.editMode, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
 
   const persistPreferences = useCallback((patch: Partial<CanvasPreferences>) => {
     setPreferences((current) => {
@@ -457,7 +465,7 @@ export function AbilityTreeStage(props: Props) {
   };
 
   return <section className="ability-tree-stage" aria-label={`${props.tree.name}技能树舞台`}>
-    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>聚焦画布后：Ctrl + Enter 新建子技能 · Ctrl + Shift + Enter 新建同级</span></div>
+    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>{props.editMode ? '编辑中：双击改名 · Ctrl + Enter 新建子技能' : '浏览中：选择节点后查看详情'}</span></div>
     <div
       className="ability-flow-shell"
       role="group"
@@ -496,12 +504,12 @@ export function AbilityTreeStage(props: Props) {
           props.onSelectNode(ids.length === 1 ? ids[0] : null);
         }}
         onNodeDrag={(_, node) => {
-          if (node.type !== 'skill') return;
+          if (!props.editMode || node.type !== 'skill') return;
           const target = instanceRef.current?.getIntersectingNodes(node).find((item) => item.type === 'skill' && item.id !== node.id);
           setDropTargetId(target?.id ?? null);
         }}
         onNodeDragStop={(_, node) => {
-          if (node.type !== 'skill') return;
+          if (!props.editMode || node.type !== 'skill') return;
           const targetId = dropTargetId;
           setDropTargetId(null);
           if (targetId) {
@@ -511,7 +519,7 @@ export function AbilityTreeStage(props: Props) {
           persistPreferences({ positions: { ...preferences.positions, [node.id]: snapCanvasPoint(node.position) } });
         }}
         onConnect={(connection: Connection) => {
-          if (connection.source && connection.target && connection.source !== connection.target) {
+          if (props.editMode && connection.source && connection.target && connection.source !== connection.target) {
             props.onConnectAuxiliary(connection.source, connection.target);
           }
         }}
@@ -529,8 +537,8 @@ export function AbilityTreeStage(props: Props) {
         selectionOnDrag
         multiSelectionKeyCode="Shift"
         deleteKeyCode={null}
-        nodesConnectable
-        nodesDraggable
+        nodesConnectable={props.editMode}
+        nodesDraggable={props.editMode}
         snapToGrid
         snapGrid={[CANVAS_GRID, CANVAS_GRID]}
         elementsSelectable
@@ -548,11 +556,13 @@ export function AbilityTreeStage(props: Props) {
           maskColor="rgba(249, 248, 244, .76)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
-          <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>
+          {props.editMode ? <><button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
+          <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={props.onAddNode}><Plus size={15} />添加技能节点</button>
+          <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button></> : null}
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
-          <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button>
+          {props.editMode ? <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button> : null}
         </Panel>
-        {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
+        {props.editMode && selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>
           <button type="button" onClick={() => {
             try { const id = props.onMerge([...selectedIds]); setSelectedIds(new Set([id])); props.onSelectNode(id); }

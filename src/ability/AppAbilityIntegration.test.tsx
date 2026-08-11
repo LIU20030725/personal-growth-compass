@@ -46,7 +46,7 @@ describe('Dice Life ability navigation', () => {
     window.history.replaceState({}, '', '/ability/trees/react');
     render(<App />);
     expect(await screen.findByRole('group', { name: 'React 全栈交互画布' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '打开技能树 写作' }));
+    fireEvent.click(screen.getByRole('button', { name: '从技能库打开技能树 写作' }));
     expect(await screen.findByRole('group', { name: '写作交互画布' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/ability/trees/writing');
   });

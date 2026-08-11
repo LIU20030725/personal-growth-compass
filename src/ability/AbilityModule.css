@@ -1,10 +1,10 @@
 .ability-module { display: grid; gap: 24px; color: var(--ink); }
 .ability-module button, .ability-module input, .ability-module textarea, .ability-module select { font-family: inherit; }
-.ability-hero, .ability-current-header, .ability-tree-stage, .ability-node-panel, .ability-library, .ability-empty-state { border: 2px solid var(--ink); border-radius: 4px; background: var(--surface); box-shadow: var(--shadow-hard); }
+.ability-hero, .ability-current-header, .ability-tree-stage, .ability-node-panel, .ability-library-rail, .ability-empty-state { border: 2px solid var(--ink); border-radius: 4px; background: var(--surface); box-shadow: var(--shadow-hard); }
 .ability-hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 26px; }
 .ability-hero h1 { margin: 6px 0 8px; font-family: "Bebas Neue", sans-serif; font-size: clamp(42px, 5vw, 68px); font-weight: 400; line-height: .9; }
 .ability-hero > div > p:last-child { max-width: 720px; color: var(--muted); }
-.ability-primary, .ability-secondary, .ability-current-actions button, .ability-tree-toolbar button, .ability-library button, .ability-node-panel button, .ability-dialog button { min-height: 40px; padding: 8px 13px; border: 2px solid var(--ink); border-radius: 3px; color: var(--ink); background: var(--surface); font-weight: 800; }
+.ability-primary, .ability-secondary, .ability-current-actions button, .ability-tree-toolbar button, .ability-library-rail button, .ability-node-panel button, .ability-dialog button { min-height: 40px; padding: 8px 13px; border: 2px solid var(--ink); border-radius: 3px; color: var(--ink); background: var(--surface); font-weight: 800; }
 .ability-primary { background: var(--gold); box-shadow: 3px 3px 0 var(--ink); }
 .ability-primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
 .ability-secondary { background: var(--surface-mid); }
@@ -31,6 +31,12 @@
 .ability-current-stats small { color: var(--muted); }
 .ability-current-actions { display: flex; max-width: 360px; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 .ability-current-actions button { display: inline-flex; align-items: center; gap: 6px; }
+.ability-current-actions > button.active { background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.ability-more-actions { position: relative; }
+.ability-more-actions > button { min-width: 42px; justify-content: center; padding-inline: 8px; }
+.ability-tree-action-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 30; display: grid; width: 180px; padding: 5px; border: 1px solid var(--outline); border-radius: 4px; background: var(--surface); box-shadow: 0 8px 22px rgba(29,34,38,.14); }
+.ability-tree-action-menu button { min-height: 34px; padding: 6px 8px; border: 0; background: transparent; font-size: 11px; text-align: left; }
+.ability-tree-action-menu button:hover { background: var(--surface-mid); }
 .ability-current-actions button:disabled, .ability-module button:disabled { cursor: not-allowed; opacity: .45; }
 .ability-tree-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 .ability-tree-toolbar button { min-height: 34px; padding: 6px 11px; border-color: var(--outline-soft); color: var(--muted); }
@@ -125,7 +131,31 @@
 .ability-outcome-list li { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--outline-soft); background: var(--surface-low); }
 .ability-outcome-list div { display: grid; gap: 3px; }.ability-outcome-list small { color: var(--muted); }.ability-outcome-list p { font-size: 12px; }
 .ability-check { display: flex; align-items: center; gap: 7px; font-size: 13px; }
-.ability-library { display: grid; gap: 16px; padding: 20px; }
+.ability-library-rail { display: grid; gap: 10px; padding: 12px; box-shadow: 3px 3px 0 var(--ink); }
+.ability-library-rail-header { display: grid; grid-template-columns: auto minmax(220px, 1fr) auto; align-items: center; gap: 12px; }
+.ability-library-rail-header > div:first-child { display: grid; min-width: 120px; }
+.ability-library-rail-header small { color: var(--gold-dark); font-size: 9px; font-weight: 900; letter-spacing: .13em; }
+.ability-library-rail-header strong { font-size: 18px; }
+.ability-library-search { display: flex; min-height: 38px; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--outline-soft); border-radius: 3px; background: var(--surface-low); }
+.ability-library-search input { width: 100%; min-width: 0; min-height: 34px; border: 0; outline: 0; background: transparent; }
+.ability-library-rail-actions { display: flex; gap: 6px; }
+.ability-library-rail-actions button { min-height: 36px; padding: 6px 9px; font-size: 11px; }
+.ability-library-filters { display: flex; gap: 8px; padding-top: 2px; }
+.ability-library-filters select { min-height: 34px; padding: 5px 8px; border: 1px solid var(--outline); background: var(--surface); }
+.ability-library-strip { display: flex; gap: 8px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: thin; }
+.ability-library-compact { position: relative; display: flex; min-width: 190px; max-width: 230px; flex: 1 0 190px; border: 1px solid var(--outline-soft); border-radius: 4px; background: var(--surface-low); }
+.ability-library-compact.current { border-color: var(--gold-dark); box-shadow: inset 0 -3px 0 var(--gold); }
+.ability-library-compact-card { display: grid !important; min-width: 0; min-height: 78px !important; flex: 1; gap: 6px !important; padding: 9px 32px 9px 10px !important; border: 0 !important; background: transparent !important; text-align: left; }
+.ability-library-compact-card > span:first-child { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; }
+.ability-library-compact-card strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.ability-library-compact-card small, .ability-library-phase { color: var(--muted); font-size: 10px; font-weight: 700; }
+.ability-library-phase { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ability-library-compact-card > i { display: block; height: 4px; overflow: hidden; border-radius: 99px; background: #e1dfd8; }
+.ability-library-compact-card > i > b { display: block; height: 100%; border-radius: inherit; background: var(--gold); }
+.ability-library-more { position: absolute; top: 5px; right: 4px; display: grid !important; width: 28px; min-width: 28px; height: 28px; min-height: 28px !important; place-items: center; padding: 0 !important; border: 0 !important; background: transparent !important; }
+.ability-library-menu { position: absolute; top: 34px; right: 4px; z-index: 35; display: grid; width: 130px; padding: 4px; border: 1px solid var(--outline); border-radius: 4px; background: var(--surface); box-shadow: 0 8px 20px rgba(29,34,38,.14); }
+.ability-library-menu button { min-height: 30px; padding: 5px 7px; border: 0; font-size: 10px; text-align: left; }
+.ability-library-menu button:hover { background: var(--surface-mid); }
 .ability-library-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
 .ability-library-header h2 { font-family: "Bebas Neue", sans-serif; font-size: 34px; font-weight: 400; }
 .ability-library-tools { display: grid; grid-template-columns: minmax(220px, 1fr) 170px 170px; gap: 10px; }
@@ -167,5 +197,5 @@
   .ability-current-header { grid-template-columns: 1fr; padding: 16px; }.ability-current-stats { padding: 12px 0 0; border-top: 2px solid var(--outline-soft); border-left: 0; }.ability-current-actions { display: grid; grid-template-columns: 1fr 1fr; }.ability-current-actions button { justify-content: center; }
   .ability-stage-view-switch { margin-top: -4px; }.ability-stage-view-switch button { width: 100%; }
   .ability-linear-route { min-height: 0; padding: 14px; }.ability-linear-phase ol { grid-template-columns: 1fr; }.ability-linear-phase button { min-height: 58px; }
-  .ability-node-panel { position: relative; max-height: none; }.ability-library { padding: 14px; }.ability-library-tools { grid-template-columns: 1fr; }.ability-library-grid { grid-template-columns: 1fr; }.ability-library-header { align-items: stretch; flex-direction: column; }.ability-dialog-backdrop { align-items: end; padding: 0; }.ability-dialog { width: 100%; max-height: 90vh; border-radius: 0; box-shadow: none; }
+  .ability-node-panel { position: relative; max-height: none; }.ability-library-rail-header { grid-template-columns: 1fr auto; }.ability-library-search { grid-column: 1 / -1; grid-row: 2; }.ability-library-rail-actions { grid-column: 2; grid-row: 1; }.ability-library-compact { min-width: 164px; }.ability-dialog-backdrop { align-items: end; padding: 0; }.ability-dialog { width: 100%; max-height: 90vh; border-radius: 0; box-shadow: none; }
 }

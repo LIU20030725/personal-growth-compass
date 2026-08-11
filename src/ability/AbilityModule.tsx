@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Layers3, Medal, Plus, Route, Sparkles } from 'lucide-react';
+import { Ellipsis, Medal, Pencil, Plus, Route, Sparkles } from 'lucide-react';
 import { getNodeDisplayState, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
@@ -9,10 +9,10 @@ import type { TreeNodeFilter } from './types';
 import { AbilityTreeStage } from './components/AbilityTreeStage';
 import { AbilityNodePanel } from './components/AbilityNodePanel';
 import { SkillLibrary } from './components/SkillLibrary';
-import { NodeFormDialog, OutcomeFormDialog, ParallelGroupDialog, PhaseFormDialog, TreeFormDialog } from './components/AbilityForms';
+import { NodeFormDialog, OutcomeFormDialog, PhaseFormDialog, TreeFormDialog } from './components/AbilityForms';
 import './AbilityModule.css';
 
-type FormName = 'tree' | 'edit-tree' | 'phase' | 'node' | 'edit-node' | 'parallel' | 'outcome' | null;
+type FormName = 'tree' | 'edit-tree' | 'phase' | 'node' | 'edit-node' | 'outcome' | null;
 
 type Props = {
   abilityStorage?: StorageLike;
@@ -31,7 +31,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [detailOpen, setDetailOpen] = useState(false);
   const [filter, setFilter] = useState<TreeNodeFilter>('all');
   const [form, setForm] = useState<FormName>(null);
-  const [focusMode, setFocusMode] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
   const [routeNotice, setRouteNotice] = useState(() => {
@@ -86,6 +87,9 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     setDetailOpen(Boolean(nodeId));
     ability.visitTree(treeId);
     setRouteNotice('');
+    setFilter('all');
+    setEditMode(false);
+    setMoreOpen(false);
     onTreeChange?.(treeId, 'push');
   };
 
@@ -112,35 +116,37 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     setDetailOpen(false);
   }, [selectedNodeId, visibleGraph?.selectedNodeId]);
   const filterOptions: Array<{ value: TreeNodeFilter; label: string }> = [
-    { value: 'all', label: '全部路线' },
-    { value: 'current_phase', label: '当前阶段' },
-    { value: 'in_progress', label: '成长中' },
-    { value: 'available', label: '可开始' },
+    { value: 'all', label: '全部' },
+    { value: 'next', label: '下一步' },
     { value: 'mastered', label: '已掌握' }
   ];
 
-  return <section className={`ability-module ${focusMode ? 'is-focus-mode' : ''}`} aria-label="能力属性模块">
-    {!focusMode ? <header className="ability-hero">
-      <div><p className="eyebrow"><Sparkles size={17} /> Ability Tree · Manual First</p><h1>能力技能树</h1><p>把主技能与副技能变成可以持续生长的路线，用掌握标准、行动任务和真实成果证明进步。</p></div>
+  return <section className="ability-module" aria-label="能力属性模块">
+    <header className="ability-hero">
+      <div><p className="eyebrow"><Sparkles size={17} /> Ability Tree · Manual First</p><h1>能力技能树</h1><p>把主技能与副技能变成可以持续生长的路线，用阶段、掌握标准和真实成果证明进步。</p></div>
       <button className="ability-primary" type="button" onClick={() => setForm('tree')}><Plus size={18} />新建技能树</button>
-    </header> : null}
+    </header>
 
     {ability.persistenceError ? <div className="ability-error-banner" role="alert"><span>{ability.persistenceError}</span><button type="button" onClick={ability.clearPersistenceError}>关闭</button></div> : null}
     {routeNotice ? <div className="ability-route-notice" role="status">{routeNotice}</div> : null}
 
-    {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准和行动任务。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
-      {!focusMode ? <nav className="ability-focus-switcher" aria-label="重点技能快速切换"><span>重点技能</span>{focusedTrees.map((tree) => <button className={tree.id === currentTree.id ? 'active' : ''} type="button" aria-label={`打开技能树 ${tree.name}`} onClick={() => openTree(tree.id)} key={tree.id}>{tree.name}</button>)}</nav> : null}
+    <SkillLibrary state={ability.state} currentTreeId={currentTreeId} onOpenTree={openTree} onCreateTree={() => setForm('tree')} onArchiveTree={ability.archiveTree} onRestoreTree={ability.restoreTree} onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))} onReorderFocused={ability.reorderFocusedTrees} />
 
+    {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准与学习资源。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
       <section className="ability-current-header" aria-label="当前技能树概览">
         <div><span>{SKILL_ROLE_LABELS[currentTree.role]}</span><h2>{currentTree.name}</h2><p>{currentTree.description || '为这棵技能树补充一句成长方向。'}</p></div>
         <div className="ability-current-stats"><strong>{progress?.percent ?? 0}%</strong><span>{progress?.mastered ?? 0}/{progress?.total ?? 0} 已掌握</span><small>当前：{currentPhase?.name ?? '等待添加阶段'}</small></div>
-        <div className="ability-current-actions">{focusMode
-          ? <button type="button" onClick={() => { setFocusMode(false); setFilter('all'); }}>退出专注</button>
-          : <><button type="button" onClick={() => setForm('edit-tree')}>编辑当前技能树</button><button type="button" onClick={() => setForm('phase')}><Layers3 size={16} />添加阶段</button><button type="button" onClick={() => setForm('node')} disabled={!phases.length}><Plus size={16} />添加技能节点</button><button type="button" onClick={() => setForm('parallel')} disabled={!nodes.length}>设置并行组</button><button type="button" onClick={() => setForm('outcome')}><Medal size={16} />记录成果</button><button type="button" onClick={() => { setFocusMode(true); setFilter('current_phase'); }}>专注当前阶段</button></>}
+        <div className="ability-current-actions">
+          <button type="button" onClick={() => setForm('outcome')}><Medal size={16} />记录成果</button>
+          <button className={editMode ? 'active' : ''} type="button" aria-pressed={editMode} onClick={() => { setEditMode((value) => !value); setMoreOpen(false); }}><Pencil size={16} />{editMode ? '完成编辑' : '编辑技能树'}</button>
+          <div className="ability-more-actions">
+            <button type="button" aria-expanded={moreOpen} aria-label="更多技能树操作" onClick={() => setMoreOpen((value) => !value)}><Ellipsis size={18} /></button>
+            {moreOpen ? <div className="ability-tree-action-menu" role="menu"><button role="menuitem" type="button" onClick={() => { setForm('edit-tree'); setMoreOpen(false); }}>编辑技能树资料</button></div> : null}
+          </div>
         </div>
       </section>
 
-      {!focusMode ? <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div> : null}
+      <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div>
 
       <div className="ability-stage-view-switch" aria-label="技能路线视图">
         <button type="button" aria-pressed={viewMode === 'linear'} onClick={() => setViewMode(viewMode === 'canvas' ? 'linear' : 'canvas')}>{viewMode === 'canvas' ? '切换到线性路线' : '切换到技能树画布'}</button>
@@ -150,11 +156,14 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
         {viewMode === 'canvas' ? <AbilityTreeStage
           state={ability.state}
           tree={currentTree}
+          editMode={editMode}
           selectedNodeId={selectedNodeId}
           stateFilter={filter}
           storage={abilityStorage}
           onSelectNode={(nodeId) => { setSelectedNodeId(nodeId); if (!nodeId) setDetailOpen(false); }}
           onSelectOutcome={(outcomeId) => { const outcome = ability.state.outcomes.find((item) => item.id === outcomeId); setSelectedNodeId(outcome?.skillNodeId ?? null); setDetailOpen(Boolean(outcome?.skillNodeId)); }}
+          onAddPhase={() => setForm('phase')}
+          onAddNode={() => setForm('node')}
           onAddChild={(nodeId) => ability.addChildNode(nodeId)}
           onAddSibling={(nodeId) => {
             const node = ability.state.nodes.find((item) => item.id === nodeId);
@@ -192,14 +201,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
       </div>
     </>}
 
-    {!focusMode ? <SkillLibrary state={ability.state} currentTreeId={currentTreeId} onOpenTree={openTree} onCreateTree={() => setForm('tree')} onArchiveTree={ability.archiveTree} onRestoreTree={ability.restoreTree} onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))} onReorderFocused={ability.reorderFocusedTrees} /> : null}
-
     {form === 'tree' ? <TreeFormDialog onClose={() => setForm(null)} onSave={(value) => { const focusedRank = value.focused ? focusedTrees.length + 1 : null; ability.applyTreeDraft({ tree: { name: value.name, description: value.description, role: value.role, status: 'active', focusedRank }, phases: [], nodes: [], dependencies: [], parallelGroups: [], masteryCriteria: [] }); setForm(null); }} /> : null}
     {form === 'edit-tree' && currentTree ? <TreeFormDialog initial={{ name: currentTree.name, description: currentTree.description, role: currentTree.role, focused: currentTree.focusedRank !== null }} onClose={() => setForm(null)} onSave={(value) => { ability.updateTree(currentTree.id, { name: value.name, description: value.description, role: value.role }); const isFocused = currentTree.focusedRank !== null; if (value.focused !== isFocused) ability.reorderFocusedTrees(value.focused ? [...focusedIds, currentTree.id] : focusedIds.filter((id) => id !== currentTree.id)); setForm(null); }} /> : null}
     {form === 'phase' && currentTree ? <PhaseFormDialog onClose={() => setForm(null)} onSave={(value) => { ability.addPhase({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
     {form === 'node' && currentTree ? <NodeFormDialog phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { const id = ability.addNode({ skillTreeId: currentTree.id, phaseId: value.phaseId, name: value.name, description: value.description, progress: 'available', masteryNote: '' }, value.prerequisiteNodeIds); setSelectedNodeId(id); setForm(null); }} /> : null}
     {form === 'edit-node' && currentTree && selectedNode ? <NodeFormDialog initial={{ nodeId: selectedNode.id, name: selectedNode.name, description: selectedNode.description, phaseId: selectedNode.phaseId, prerequisiteNodeIds: ability.state.dependencies.filter((edge) => edge.dependentNodeId === selectedNode.id).map((edge) => edge.prerequisiteNodeId) }} phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { ability.updateNode(selectedNode.id, { name: value.name, description: value.description, phaseId: value.phaseId }); ability.replaceNodeDependencies(selectedNode.id, value.prerequisiteNodeIds); setForm(null); }} /> : null}
-    {form === 'parallel' && currentTree ? <ParallelGroupDialog phases={phases} nodes={nodes} onClose={() => setForm(null)} onSave={(value) => { ability.upsertParallelGroup({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
     {form === 'outcome' && currentTree ? <OutcomeFormDialog nodes={nodes} defaultNodeId={selectedNodeId} onClose={() => setForm(null)} onSave={(value) => { ability.addOutcome({ skillTreeId: currentTree.id, ...value }); setForm(null); }} /> : null}
   </section>;
 }
