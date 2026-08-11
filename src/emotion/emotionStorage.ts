@@ -1,5 +1,6 @@
 import { moodById } from './emotionConfig';
 import type { EmotionEntry, EmotionImportantDay, EmotionMusicReference, EmotionStateV1, EmotionStateV2 } from './types';
+import { isValidDateKey } from './emotionSafety';
 
 export const EMOTION_STORAGE_KEY = 'dice-life.emotion.v1';
 export const EMOTION_CORRUPT_PREFIX = 'dice-life.emotion.corrupt';
@@ -25,7 +26,7 @@ function isImportantDay(value: unknown): value is EmotionImportantDay {
   if (!value || typeof value !== 'object') return false;
   const item = value as Record<string, unknown>;
   return typeof item.id === 'string' && typeof item.title === 'string' &&
-    /^\d{4}-\d{2}-\d{2}$/.test(String(item.dateKey)) && typeof item.note === 'string' &&
+    isValidDateKey(String(item.dateKey)) && typeof item.note === 'string' &&
     (item.remindDaysBefore === 0 || item.remindDaysBefore === 1 || item.remindDaysBefore === 3 || item.remindDaysBefore === 7 || item.remindDaysBefore === 30) &&
     (item.repeat === 'none' || item.repeat === 'yearly') &&
     typeof item.createdAt === 'string' && typeof item.updatedAt === 'string';
@@ -74,6 +75,25 @@ function migrateState(state: EmotionStateV1 | EmotionStateV2): EmotionStateV2 {
   };
 }
 
+function recoverState(value: unknown): EmotionStateV2 | null {
+  if (!value || typeof value !== 'object') return null;
+  const state = value as Record<string, unknown>;
+  if (state.schemaVersion !== 1 && state.schemaVersion !== 2) return null;
+  const entries = Array.isArray(state.entries) ? state.entries.filter(isEntry) : [];
+  const importantDays = state.schemaVersion === 2 && Array.isArray(state.importantDays)
+    ? state.importantDays.filter(isImportantDay)
+    : [];
+  return migrateState({
+    schemaVersion: 2,
+    entries,
+    importantDays
+  });
+}
+
+function preserveCorrupt(storage: StorageLike, raw: string, clock: () => number) {
+  try { storage.setItem(`${EMOTION_CORRUPT_PREFIX}.${clock()}`, raw); } catch { /* recovery must not white-screen */ }
+}
+
 export function createEmotionStorage(storage: StorageLike, clock = () => Date.now()): EmotionStorage {
   return {
     load() {
@@ -81,11 +101,15 @@ export function createEmotionStorage(storage: StorageLike, clock = () => Date.no
       if (!raw) return { schemaVersion: 2, entries: [], importantDays: [] };
       try {
         const parsed: unknown = JSON.parse(raw);
-        if (!isStateV1(parsed) && !isStateV2(parsed)) throw new Error('unsupported emotion state');
-        return migrateState(parsed);
+        if (isStateV1(parsed) || isStateV2(parsed)) return migrateState(parsed);
+        const recovered = recoverState(parsed);
+        if (!recovered) throw new Error('unsupported emotion state');
+        preserveCorrupt(storage, raw, clock);
+        try { storage.setItem(EMOTION_STORAGE_KEY, JSON.stringify(recovered)); } catch { /* return recovered in-memory state */ }
+        return recovered;
       } catch {
-        storage.setItem(`${EMOTION_CORRUPT_PREFIX}.${clock()}`, raw);
-        storage.removeItem(EMOTION_STORAGE_KEY);
+        preserveCorrupt(storage, raw, clock);
+        try { storage.removeItem(EMOTION_STORAGE_KEY); } catch { /* recovery must not white-screen */ }
         return { schemaVersion: 2, entries: [], importantDays: [] };
       }
     },

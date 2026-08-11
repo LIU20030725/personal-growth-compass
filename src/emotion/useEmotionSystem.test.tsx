@@ -64,6 +64,19 @@ describe('useEmotionSystem', () => {
     expect(result.current.upcomingImportantDays).toEqual([expect.objectContaining({ title: '出发旅行' })]);
   });
 
+  it('rejects impossible calendar dates for important days', async () => {
+    const { result } = setup();
+    let created = true;
+    await act(async () => {
+      created = result.current.createImportantDay({
+        title: '不存在的日期', dateKey: '2026-02-31', note: '', remindDaysBefore: 1, repeat: 'none'
+      });
+    });
+    expect(created).toBe(false);
+    expect(result.current.importantDays).toEqual([]);
+    expect(result.current.error).toBe('请填写有效的重要日名称和日期');
+  });
+
   it('先保存 Blob，再提交结构化记录', async () => {
     const { result, events } = setup();
     await act(async () => {

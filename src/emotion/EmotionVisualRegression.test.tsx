@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EmotionModule } from './EmotionModule';
 
@@ -18,5 +18,12 @@ describe('EmotionModule visual system', () => {
     expect(container.querySelector('.emotion-dock')).toBeInTheDocument();
     expect(container.querySelector('.emotion-dock')).toContainElement(screen.getByRole('navigation', { name: '情绪模块导航' }));
     expect(container.querySelector('.emotion-dock')).toContainElement(screen.getByRole('button', { name: '记录感受' }));
+  });
+
+  it('keeps library segment touch targets at least 44px tall', () => {
+    render(<EmotionModule />);
+    fireEvent.click(within(screen.getByRole('navigation', { name: '情绪模块导航' })).getByRole('button', { name: '内容库' }));
+    const segment = within(screen.getByRole('group', { name: '筛选内容类型' })).getByRole('button', { name: '全部' });
+    expect(getComputedStyle(segment).minHeight).toBe('44px');
   });
 });

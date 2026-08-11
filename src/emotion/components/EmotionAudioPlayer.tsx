@@ -2,7 +2,7 @@ import { Pause, Play } from 'lucide-react';
 import { useRef, useState } from 'react';
 
 function formatDuration(milliseconds: number) {
-  const seconds = Math.max(0, Math.round(milliseconds / 1000));
+  const seconds = Number.isFinite(milliseconds) ? Math.max(0, Math.round(milliseconds / 1000)) : 0;
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
@@ -42,6 +42,7 @@ export function EmotionAudioPlayer({ src, label, durationMs = 0 }: {
       preload="metadata"
       onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
       onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+      onError={() => { setPlaying(false); setError('暂时无法播放这段声音'); }}
     />
     <button type="button" className="emotion-audio-player__button" aria-label={`${playing ? '暂停' : '播放'}${label}`} onClick={() => void toggle()}>
       {playing ? <Pause /> : <Play />}

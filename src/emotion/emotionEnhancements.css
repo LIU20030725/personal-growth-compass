@@ -31,3 +31,4 @@
 .emotion-on-this-day__list { display: grid; gap: 12px; }
 .emotion-on-this-day__empty { padding: 16px 0 4px; line-height: 1.7; }
 @media (max-width: 680px) { .emotion-activity-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }.emotion-on-this-day__heading { align-items: flex-start; flex-direction: column; gap: 4px; } }
+.emotion-music-card__unavailable { color: var(--emotion-muted); font-size: 12px; font-weight: 700; }

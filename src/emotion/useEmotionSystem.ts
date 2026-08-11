@@ -3,6 +3,7 @@ import { deriveLibraryItems, getLatestTodayEntry, getUpcomingImportantDays, sort
 import { createIndexedDbEmotionMediaStore, type EmotionMediaStore } from './emotionMediaStore';
 import { getBrowserEmotionStorage, type EmotionStorage } from './emotionStorage';
 import type { EmotionAttachment, EmotionAttachmentInput, EmotionDraft, EmotionEntry, EmotionImportantDay, EmotionStateV2 } from './types';
+import { isValidDateKey } from './emotionSafety';
 
 interface UseEmotionSystemOptions {
   storage?: EmotionStorage;
@@ -160,8 +161,8 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
   const createImportantDay = useCallback((draft: Pick<EmotionImportantDay, 'title' | 'dateKey' | 'note' | 'remindDaysBefore' | 'repeat'>) => {
     setError('');
     const title = draft.title.trim();
-    if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(draft.dateKey)) {
-      setError('请填写重要日名称和日期');
+    if (!title || !isValidDateKey(draft.dateKey)) {
+      setError('请填写有效的重要日名称和日期');
       return false;
     }
     const timestamp = now();

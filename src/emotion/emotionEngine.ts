@@ -7,6 +7,7 @@ import type {
   EmotionLibraryItem,
   EmotionLibraryTab
 } from './types';
+import { isSafeHttpUrl } from './emotionSafety';
 
 export function getLocalDateKey(date: Date, offsetMinutes = -date.getTimezoneOffset()) {
   const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
@@ -107,25 +108,25 @@ function startOfLocalDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-export function getUpcomingImportantDays(days: EmotionImportantDay[], now = new Date()) {
-  const today = startOfLocalDay(now);
-  return days.filter((day) => {
-    const [year, month, date] = day.dateKey.split('-').map(Number);
-    let occurrence = new Date(day.repeat === 'yearly' ? today.getFullYear() : year, month - 1, date);
-    if (day.repeat === 'yearly' && occurrence < today) occurrence = new Date(today.getFullYear() + 1, month - 1, date);
-    const daysUntil = Math.round((occurrence.getTime() - today.getTime()) / 86_400_000);
-    return daysUntil >= 0 && daysUntil <= day.remindDaysBefore;
-  }).sort((a, b) => a.dateKey.slice(5).localeCompare(b.dateKey.slice(5)));
+function yearlyOccurrence(year: number, month: number, date: number) {
+  const occurrence = new Date(year, month - 1, date);
+  if (month === 2 && date === 29 && occurrence.getMonth() !== 1) return new Date(year, 1, 28);
+  return occurrence;
 }
 
-function isHttpUrl(value: string) {
-  if (!value) return true;
-  try {
-    const url = new URL(value);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+export function getUpcomingImportantDays(days: EmotionImportantDay[], now = new Date()) {
+  const today = startOfLocalDay(now);
+  return days.map((day) => {
+    const [year, month, date] = day.dateKey.split('-').map(Number);
+    let occurrence = day.repeat === 'yearly'
+      ? yearlyOccurrence(today.getFullYear(), month, date)
+      : new Date(year, month - 1, date);
+    if (day.repeat === 'yearly' && occurrence < today) occurrence = yearlyOccurrence(today.getFullYear() + 1, month, date);
+    const daysUntil = Math.round((occurrence.getTime() - today.getTime()) / 86_400_000);
+    return { day, daysUntil };
+  }).filter(({ day, daysUntil }) => daysUntil >= 0 && daysUntil <= day.remindDaysBefore)
+    .sort((a, b) => a.daysUntil - b.daysUntil)
+    .map(({ day }) => day);
 }
 
 export function validateDraft(draft: EmotionDraft): {
@@ -149,8 +150,8 @@ export function validateDraft(draft: EmotionDraft): {
   const music = normalized.music?.[0];
   if (music && !music.title) errors.push('请填写歌曲名称');
   if (music && !music.sourceUrl && !music.playbackUrl) errors.push('请补充歌曲链接或可播放地址');
-  if (music && !isHttpUrl(music.sourceUrl)) errors.push('歌曲链接需要使用 http 或 https 地址');
-  if (music && !isHttpUrl(music.playbackUrl)) errors.push('可播放地址需要使用 http 或 https 地址');
+  if (music?.sourceUrl && !isSafeHttpUrl(music.sourceUrl)) errors.push('歌曲链接需要使用 http 或 https 地址');
+  if (music?.playbackUrl && !isSafeHttpUrl(music.playbackUrl)) errors.push('可播放地址需要使用 http 或 https 地址');
   if (!moodById.has(normalized.moodId)) errors.push('请选择此刻的情绪');
   if (normalized.note.length > 5000) errors.push('文字不能超过 5000 字');
   const images = normalized.attachments.filter((item) => item.kind === 'image');
