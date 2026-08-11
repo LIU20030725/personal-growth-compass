@@ -2,8 +2,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createInitialAbilityState, saveAbilityState } from './abilityStorage';
 import { AbilityModule } from './AbilityModule';
-import { createInitialTaskState } from '../tasks/taskEngine';
-import { saveTaskState } from '../tasks/taskStorage';
 import type { AbilityState } from './types';
 
 const stamp = '2026-08-02T00:00:00.000Z';
@@ -61,6 +59,30 @@ describe('AbilityModule', () => {
     expect(within(panel).getByText('完成状态管理项目')).toBeInTheDocument();
   });
 
+  it('keeps learning resources inside node details and removes task and rationale UI', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /查看详情 React 状态管理/ }));
+    const panel = screen.getByLabelText('技能节点详情');
+
+    expect(within(panel).queryByText('关联任务')).not.toBeInTheDocument();
+    expect(within(panel).queryByLabelText('掌握判断依据')).not.toBeInTheDocument();
+    expect(within(panel).getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      '掌握标准',
+      '学习资源0',
+      '真实成果'
+    ]);
+
+    fireEvent.click(within(panel).getByRole('button', { name: '收藏资源' }));
+    fireEvent.change(within(panel).getByLabelText('资源链接'), { target: { value: 'https://example.com/react-course' } });
+    fireEvent.change(within(panel).getByLabelText('资源标题'), { target: { value: 'React 实战课程' } });
+    fireEvent.click(within(panel).getByRole('button', { name: '保存资源' }));
+
+    expect(await within(panel).findByRole('link', { name: 'React 实战课程' })).toHaveAttribute('target', '_blank');
+    expect(within(panel).getByText(/example\.com/)).toBeInTheDocument();
+  });
+
   it('creates a tree, phase, and dependent node manually', async () => {
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
     expect(screen.queryByText(/AI/)).not.toBeInTheDocument();
@@ -79,27 +101,15 @@ describe('AbilityModule', () => {
     expect(await screen.findByRole('group', { name: /曝光三要素 可开始/ })).toBeInTheDocument();
   });
 
-  it('keeps mastery manual and links tasks without removing task data', async () => {
+  it('keeps mastery confirmation manual after all criteria are satisfied', async () => {
     const ability = seededState();
     saveAbilityState(localStorage, ability);
-    const tasks = createInitialTaskState();
-    tasks.tasks.push({
-      id: 'task-1', goalId: null, dimension: 'ability', title: '重构状态管理 Demo', completionStandard: '测试通过', cadence: 'weekly', targetCount: 1, estimatedMinutesPerOccurrence: 60, startDate: '2026-08-01', endDate: null, verificationType: 'reflection', isMaintenance: false, rewardEligible: false, status: 'active', createdAt: stamp, completedAt: null, archivedAt: null
-    });
-    saveTaskState(localStorage, tasks);
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
     fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
     fireEvent.click(await screen.findByRole('button', { name: /查看详情 React 状态管理/ }));
     const panel = screen.getByLabelText('技能节点详情');
     fireEvent.click(within(panel).getByRole('checkbox', { name: '完成状态管理项目' }));
     expect(within(panel).getByText('标准已满足，仍需你确认掌握')).toBeInTheDocument();
-    fireEvent.change(within(panel).getByLabelText('关联现有任务'), { target: { value: 'task-1' } });
-    fireEvent.click(within(panel).getByRole('button', { name: '关联任务' }));
-    expect(within(panel).getByText('重构状态管理 Demo')).toBeInTheDocument();
-    fireEvent.click(within(panel).getByRole('button', { name: '解除任务 重构状态管理 Demo' }));
-    expect(within(panel).queryByText('重构状态管理 Demo')).not.toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('dice-life.task-system.v1') ?? '{}').tasks).toHaveLength(1);
-
     fireEvent.click(within(panel).getByRole('button', { name: '确认已掌握' }));
     expect(await screen.findByRole('group', { name: /React 状态管理 已掌握/ })).toBeInTheDocument();
   });
@@ -145,9 +155,9 @@ describe('AbilityModule', () => {
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes).toHaveLength(initialNodes);
 
     fireEvent.click(await screen.findByRole('button', { name: /查看详情 HTML 基础/ }));
-    const taskSelect = within(screen.getByLabelText('技能节点详情')).getByLabelText('关联现有任务');
-    taskSelect.focus();
-    fireEvent.keyDown(taskSelect, { key: 'Delete' });
+    const criterionInput = within(screen.getByLabelText('技能节点详情')).getByLabelText('新增掌握标准');
+    criterionInput.focus();
+    fireEvent.keyDown(criterionInput, { key: 'Delete' });
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'html').archivedAt).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '编辑当前技能树' }));
@@ -195,16 +205,16 @@ describe('AbilityModule', () => {
     expect(container).not.toHaveAttribute('inert');
   });
 
-  it('shows a useful error instead of mastering a node with no evidence', async () => {
+  it('disables mastery and explains what evidence is missing', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} initialTreeId="writing" />);
     fireEvent.click(await screen.findByRole('group', { name: /文章结构/ }));
     fireEvent.click(await screen.findByRole('button', { name: /查看详情 文章结构/ }));
     const panel = screen.getByLabelText('技能节点详情');
-    fireEvent.click(within(panel).getByRole('button', { name: '确认已掌握' }));
-
-    expect(within(panel).getByRole('alert')).toHaveTextContent('请先完成掌握标准、记录成果，或填写判断依据');
-    expect(screen.getByRole('group', { name: /文章结构 可开始/ })).toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('button', { name: '开始学习' }));
+    expect(within(panel).getByRole('button', { name: '确认已掌握' })).toBeDisabled();
+    expect(within(panel).getByText('请先添加掌握标准或记录一项成果')).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /文章结构 成长中/ })).toBeInTheDocument();
   });
 
   it('offers an operable linear route for a 40-node skill tree', async () => {

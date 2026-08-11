@@ -1,24 +1,28 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Link2, Plus, Unlink } from 'lucide-react';
+import { useState } from 'react';
+import { AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
 import { NODE_STATE_LABELS } from '../abilityConfig';
-import type { MasteryCriterion, NodeDisplayState, SkillNode, SkillOutcome, SkillTaskLink } from '../types';
-import type { ShortTask } from '../../tasks/types';
+import type { MasteryCriterion, NodeDisplayState, SkillNode, SkillOutcome, SkillResource, SkillResourceLink } from '../types';
+import type { SkillResourceInput } from '../abilityEngine';
+import { AbilityResourceSection } from './AbilityResourceSection';
 
 type Props = {
   node: SkillNode | null;
   displayState: NodeDisplayState | null;
   prerequisiteWarning: boolean;
   criteria: MasteryCriterion[];
-  taskLinks: SkillTaskLink[];
-  tasks: ShortTask[];
+  resources: SkillResource[];
+  resourceLinks: SkillResourceLink[];
   outcomes: SkillOutcome[];
   onStart: () => void;
   onAddCriterion: (description: string) => void;
   onToggleCriterion: (criterionId: string) => void;
-  onConfirmMastery: (note: string) => void;
+  onConfirmMastery: () => void;
   onDemote: () => void;
-  onLinkTask: (taskId: string) => void;
-  onUnlinkTask: (linkId: string) => void;
+  onAddResource: (input: SkillResourceInput) => void;
+  onLinkResource: (resourceId: string) => void;
+  onUpdateResource: (resourceId: string, patch: { title: string; note: string }) => void;
+  onUnlinkResource: (linkId: string) => void;
+  onDeleteResource: (resourceId: string) => void;
   onRequestOutcome: () => void;
   onToggleOutcomeVisibility: (outcomeId: string, visible: boolean) => void;
   onEdit: () => void;
@@ -27,22 +31,15 @@ type Props = {
 
 export function AbilityNodePanel(props: Props) {
   const [criterionText, setCriterionText] = useState('');
-  const [masteryNote, setMasteryNote] = useState('');
-  const [taskId, setTaskId] = useState('');
-  const [masteryError, setMasteryError] = useState('');
-  useEffect(() => {
-    setMasteryNote('');
-    setMasteryError('');
-  }, [props.node?.id]);
   if (!props.node || !props.displayState) {
-    return <aside className="ability-node-panel ability-node-empty" aria-label="技能节点详情"><span>SELECT A SKILL</span><h2>选择一个技能节点</h2><p>查看掌握标准、关联任务和真实成果。</p></aside>;
+    return <aside className="ability-node-panel ability-node-empty" aria-label="技能节点详情"><span>SELECT A SKILL</span><h2>选择一个技能节点</h2><p>查看掌握标准、学习资源和真实成果。</p></aside>;
   }
   const node = props.node;
-  const linkedTaskIds = new Set(props.taskLinks.map((link) => link.taskId));
-  const linkedTasks = props.taskLinks.map((link) => ({ link, task: props.tasks.find((task) => task.id === link.taskId) })).filter((item) => item.task);
-  const availableTasks = props.tasks.filter((task) => !linkedTaskIds.has(task.id));
   const allSatisfied = props.criteria.length > 0 && props.criteria.every((criterion) => criterion.satisfied);
-  const needsEvidence = props.criteria.length === 0 || props.criteria.some((criterion) => !criterion.satisfied);
+  const canMaster = allSatisfied || props.outcomes.length > 0;
+  const masteryGuidance = props.criteria.length === 0 && props.outcomes.length === 0
+    ? '请先添加掌握标准或记录一项成果'
+    : '请先完成全部掌握标准，或记录一项真实成果';
 
   return <aside className="ability-node-panel" aria-label="技能节点详情">
     <header><div><small>Skill Detail</small><h2>{node.name}</h2></div><span className={`ability-state-badge state-${props.displayState}`}>{NODE_STATE_LABELS[props.displayState]}</span></header>
@@ -55,33 +52,14 @@ export function AbilityNodePanel(props: Props) {
       <div className="ability-inline-form"><input aria-label="新增掌握标准" value={criterionText} onChange={(event) => setCriterionText(event.target.value)} placeholder="例如：独立完成一个可访问网站" /><button type="button" aria-label="添加掌握标准" onClick={() => { if (!criterionText.trim()) return; props.onAddCriterion(criterionText); setCriterionText(''); }}><Plus size={16} /></button></div>
       {allSatisfied && node.progress !== 'mastered' ? <p className="ability-ready"><CheckCircle2 size={16} />标准已满足，仍需你确认掌握</p> : null}
       {props.displayState === 'available' ? <button className="ability-primary ability-wide" type="button" onClick={props.onStart}>开始学习</button> : null}
-      {node.progress !== 'mastered' ? <div className="ability-mastery-confirm">
-        {needsEvidence ? <label><span>掌握判断依据</span><textarea aria-label="掌握判断依据" value={masteryNote} onChange={(event) => { setMasteryNote(event.target.value); setMasteryError(''); }} placeholder="说明你已具备这项能力的依据，也可以先补充标准或成果" /></label> : null}
-        {masteryError ? <p className="ability-form-error" role="alert">{masteryError}</p> : null}
-        <button className="ability-primary ability-wide" type="button" onClick={() => {
-          if (props.criteria.length === 0 && props.outcomes.length === 0 && !masteryNote.trim()) {
-            setMasteryError('请先完成掌握标准、记录成果，或填写判断依据');
-            return;
-          }
-          if (props.criteria.some((criterion) => !criterion.satisfied) && props.outcomes.length === 0 && !masteryNote.trim()) {
-            setMasteryError('请填写提前掌握说明');
-            return;
-          }
-          try {
-            props.onConfirmMastery(masteryNote);
-            setMasteryError('');
-          } catch (error) {
-            setMasteryError(error instanceof Error ? error.message : '暂时无法确认掌握，请检查填写内容');
-          }
-        }}>确认已掌握</button>
+      {node.progress === 'in_progress' ? <div className="ability-mastery-confirm">
+        {!canMaster ? <p className="ability-mastery-guidance">{masteryGuidance}</p> : null}
+        <button className="ability-primary ability-wide" type="button" disabled={!canMaster} onClick={props.onConfirmMastery}>确认已掌握</button>
       </div> : null}
       {node.progress === 'mastered' ? <button className="ability-secondary ability-wide" type="button" onClick={props.onDemote}>退回成长中</button> : null}
     </section>
 
-    <section className="ability-detail-section"><div className="ability-detail-heading"><h3>关联任务</h3><Link2 size={17} /></div>
-      {linkedTasks.length ? <ul className="ability-linked-list">{linkedTasks.map(({ link, task }) => <li key={link.id}><span>{task?.title}</span><button type="button" aria-label={`解除任务 ${task?.title}`} onClick={() => props.onUnlinkTask(link.id)}><Unlink size={15} /></button></li>)}</ul> : <p className="ability-muted">关联任务后，可在这里查看行动参考；任务完成不会自动掌握技能。</p>}
-      <div className="ability-task-linker"><select aria-label="关联现有任务" value={taskId} onChange={(event) => setTaskId(event.target.value)}><option value="">选择任务</option>{availableTasks.map((task) => <option value={task.id} key={task.id}>可关联：{task.title}</option>)}</select><button type="button" disabled={!taskId} onClick={() => { if (!taskId) return; props.onLinkTask(taskId); setTaskId(''); }}>关联任务</button></div>
-    </section>
+    <AbilityResourceSection nodeId={node.id} resources={props.resources} resourceLinks={props.resourceLinks} onAdd={props.onAddResource} onLink={props.onLinkResource} onUpdate={props.onUpdateResource} onUnlink={props.onUnlinkResource} onDelete={props.onDeleteResource} />
 
     <section className="ability-detail-section"><div className="ability-detail-heading"><h3>真实成果</h3><button type="button" onClick={props.onRequestOutcome}><Plus size={15} />记录成果</button></div>
       {props.outcomes.length ? <ul className="ability-outcome-list">{props.outcomes.map((outcome) => <li key={outcome.id}><div><strong>{outcome.title}</strong><small>{outcome.occurredOn}</small><p>{outcome.description}</p></div><label className="ability-check"><input type="checkbox" checked={outcome.showOnTree} onChange={(event) => props.onToggleOutcomeVisibility(outcome.id, event.target.checked)} />树上展示</label></li>)}</ul> : <p className="ability-muted">成果由你手动记录，先保持简单。</p>}

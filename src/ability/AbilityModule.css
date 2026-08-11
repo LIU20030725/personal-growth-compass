@@ -99,8 +99,27 @@
 .ability-inline-form input, .ability-task-linker select { min-width: 0; flex: 1; }
 .ability-inline-form button { min-width: 40px; padding: 5px; }
 .ability-mastery-confirm { display: grid; gap: 8px; }
-.ability-mastery-confirm label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; }
-.ability-mastery-confirm textarea { min-height: 64px; }
+.ability-mastery-guidance { margin: 0; color: #8a4b00; font-size: 12px; line-height: 1.55; }
+.ability-resource-section { position: relative; }
+.ability-resource-section .ability-detail-heading h3 { display: flex; align-items: center; gap: 6px; }
+.ability-resource-section .ability-detail-heading h3 span { display: grid; min-width: 20px; height: 20px; place-items: center; border-radius: 999px; background: var(--surface-mid); color: var(--muted); font-size: 10px; }
+.ability-resource-composer { display: grid; gap: 9px; padding: 11px; border: 1px solid var(--outline-soft); border-radius: 4px; background: var(--surface-low); }
+.ability-resource-composer-title, .ability-resource-composer-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ability-resource-composer-title button { min-width: 28px; min-height: 28px; padding: 3px; border: 0; background: transparent; }
+.ability-resource-composer label { display: grid; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 800; }
+.ability-resource-composer input, .ability-resource-composer textarea, .ability-resource-composer select { width: 100%; min-height: 38px; padding: 7px 8px; border: 1px solid var(--outline); border-radius: 3px; background: var(--surface); color: var(--ink); }
+.ability-resource-composer textarea { min-height: 60px; resize: vertical; }
+.ability-resource-composer-actions button { min-height: 34px; padding: 5px 8px; font-size: 11px; }
+.ability-resource-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.ability-resource-list > li { position: relative; display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 9px; border: 1px solid var(--outline-soft); border-radius: 3px; background: var(--surface-low); }
+.ability-resource-list > li > button { min-width: 30px; min-height: 30px; padding: 4px; border-color: transparent; background: transparent; }
+.ability-resource-main { display: grid; min-width: 0; gap: 3px; }
+.ability-resource-main a { display: inline-flex; min-width: 0; align-items: center; gap: 5px; color: var(--ink); font-size: 13px; font-weight: 900; overflow-wrap: anywhere; }
+.ability-resource-main span { color: var(--muted); font-size: 10px; }.ability-resource-main p { margin: 2px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.ability-resource-menu { position: absolute; top: 40px; right: 8px; z-index: 8; display: grid; width: 190px; padding: 5px; border: 1px solid var(--outline); border-radius: 4px; background: var(--surface); box-shadow: 0 8px 22px rgba(29,34,38,.12); }
+.ability-resource-menu button { min-height: 32px; padding: 6px 8px; border: 0; background: transparent; font-size: 11px; text-align: left; }
+.ability-resource-menu button:hover { background: var(--surface-mid); }
+.ability-resource-library-link, .ability-resource-expand { width: max-content; min-height: 30px !important; padding: 4px 7px !important; border: 0 !important; background: transparent !important; color: var(--muted) !important; font-size: 11px; }
 .ability-linked-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid var(--outline-soft); background: var(--surface-low); font-size: 13px; }
 .ability-linked-list button { min-width: 32px; min-height: 30px; padding: 4px; }
 .ability-outcome-list li { display: grid; gap: 8px; padding: 9px; border: 1px solid var(--outline-soft); background: var(--surface-low); }

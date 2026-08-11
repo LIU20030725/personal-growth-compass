@@ -4,7 +4,6 @@ import { getNodeDisplayState, getPrimaryParent, getTreeProgress, hasPrerequisite
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
 import { useAbilitySystem } from './useAbilitySystem';
-import { useTaskSystem } from '../tasks/useTaskSystem';
 import type { StorageLike } from '../lib/storage';
 import type { TreeNodeFilter } from './types';
 import { AbilityTreeStage } from './components/AbilityTreeStage';
@@ -22,9 +21,8 @@ type Props = {
   onTreeChange?: (treeId: string, mode: 'push' | 'replace') => void;
 };
 
-export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = null, onTreeChange }: Props) {
+export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChange }: Props) {
   const ability = useAbilitySystem({ storage: abilityStorage });
-  const tasks = useTaskSystem({ storage: taskStorage });
   const [currentTreeId, setCurrentTreeId] = useState<string | null>(() => {
     const requested = initialTreeId ? ability.state.trees.find((tree) => tree.id === initialTreeId && tree.status === 'active') : null;
     return requested?.id ?? selectDefaultTree(ability.state)?.id ?? null;
@@ -57,7 +55,6 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
   const nodes = ability.state.nodes.filter((node) => node.skillTreeId === currentTreeId);
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const focusedTrees = ability.state.trees.filter((tree) => tree.status === 'active' && tree.focusedRank !== null).sort((a, b) => (a.focusedRank as number) - (b.focusedRank as number));
-  const availableTasks = tasks.state.tasks.filter((task) => task.status !== 'archived');
 
   useEffect(() => {
     if (currentTree) return;
@@ -95,7 +92,6 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
   const progress = currentTree ? getTreeProgress(ability.state, currentTree.id) : null;
   const currentPhase = phases.find((phase) => nodes.some((node) => node.phaseId === phase.id && node.progress !== 'mastered')) ?? phases[phases.length - 1];
   const selectedCriteria = selectedNode ? ability.state.masteryCriteria.filter((item) => item.skillNodeId === selectedNode.id) : [];
-  const selectedLinks = selectedNode ? ability.state.taskLinks.filter((item) => item.skillNodeId === selectedNode.id) : [];
   const selectedOutcomes = selectedNode ? ability.state.outcomes.filter((item) => item.skillNodeId === selectedNode.id) : [];
   const displayState = selectedNode ? getNodeDisplayState(selectedNode, ability.state) : null;
   const focusedIds = focusedTrees.map((tree) => tree.id);
@@ -192,7 +188,7 @@ export function AbilityModule({ abilityStorage, taskStorage, initialTreeId = nul
           })}
           {!visibleLinearNodes.length ? <p className="ability-muted">当前筛选下没有技能节点。</p> : null}
         </section>}
-        {detailOpen ? <AbilityNodePanel node={selectedNode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} taskLinks={selectedLinks} tasks={availableTasks} outcomes={selectedOutcomes} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={(note) => selectedNode && ability.masterNode(selectedNode.id, note)} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onLinkTask={(taskId) => selectedNode && ability.linkTask(selectedNode.id, taskId)} onUnlinkTask={ability.unlinkTask} onRequestOutcome={() => setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} onArchive={() => { if (!selectedNode) return; ability.archiveNodeBranch(selectedNode.id); setSelectedNodeId(null); setDetailOpen(false); }} /> : null}
+        {detailOpen ? <AbilityNodePanel node={selectedNode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} resources={ability.state.resources} resourceLinks={ability.state.resourceLinks} outcomes={selectedOutcomes} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={() => selectedNode && ability.masterNode(selectedNode.id, '')} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onAddResource={(input) => selectedNode && ability.addOrLinkResource(selectedNode.id, input)} onLinkResource={(resourceId) => selectedNode && ability.linkExistingResource(selectedNode.id, resourceId)} onUpdateResource={ability.updateResource} onUnlinkResource={ability.unlinkResource} onDeleteResource={ability.deleteResource} onRequestOutcome={() => setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} onArchive={() => { if (!selectedNode) return; ability.archiveNodeBranch(selectedNode.id); setSelectedNodeId(null); setDetailOpen(false); }} /> : null}
       </div>
     </>}
 

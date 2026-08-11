@@ -81,9 +81,10 @@ describe('ability engine', () => {
     let next = startNode(state(), 'root', now);
     expect(next.nodes[0].progress).toBe('in_progress');
     next = addCriterion(next, 'root', '完成语义化页面', 'criterion');
-    expect(() => masterNode(next, 'root', '', now)).toThrow('请填写提前掌握说明');
-    next = masterNode(next, 'root', '已有项目证明', now);
-    expect(next.nodes[0]).toMatchObject({ progress: 'mastered', masteryNote: '已有项目证明' });
+    expect(() => masterNode(next, 'root', '', now)).toThrow('请先完成全部掌握标准，或记录一项真实成果');
+    next = toggleCriterion(next, 'criterion');
+    next = masterNode(next, 'root', '', now);
+    expect(next.nodes[0]).toMatchObject({ progress: 'mastered', masteryNote: '' });
     expect(startNode(next, 'child', now).nodes[1].progress).toBe('in_progress');
   });
 
@@ -97,8 +98,8 @@ describe('ability engine', () => {
     expect(next.nodes.find((item) => item.id === 'child')?.progress).toBe('in_progress');
   });
 
-  it('rejects mastery without satisfied criteria, an outcome, or a written rationale', () => {
-    expect(() => masterNode(state(), 'root', '', now)).toThrow('请先完成掌握标准、记录成果，或填写判断依据');
+  it('rejects mastery without satisfied criteria or an outcome, even with a legacy rationale', () => {
+    expect(() => masterNode(state(), 'root', '', now)).toThrow('请先添加掌握标准或记录一项成果');
 
     const withOutcome = addOutcome(state(), {
       skillTreeId: 'tree',
@@ -109,7 +110,7 @@ describe('ability engine', () => {
       showOnTree: false
     }, 'proof', now);
     expect(masterNode(withOutcome, 'root', '', now).nodes[0].progress).toBe('mastered');
-    expect(masterNode(state(), 'root', '已能独立完成真实项目', now).nodes[0].progress).toBe('mastered');
+    expect(() => masterNode(state(), 'root', '已能独立完成真实项目', now)).toThrow('请先添加掌握标准或记录一项成果');
   });
 
   it('replaces dependencies and validates parallel groups', () => {

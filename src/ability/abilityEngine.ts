@@ -482,17 +482,16 @@ export function masterNode(state: AbilityState, nodeId: string, masteryNote: str
   const node = nodeById(state, nodeId);
   const criteria = state.masteryCriteria.filter((item) => item.skillNodeId === nodeId);
   const hasOutcome = state.outcomes.some((item) => item.skillNodeId === nodeId);
-  const hasRationale = Boolean(masteryNote.trim());
-  if (criteria.length === 0 && !hasOutcome && !hasRationale) {
-    throw new Error('请先完成掌握标准、记录成果，或填写判断依据');
+  if (criteria.length === 0 && !hasOutcome) {
+    throw new Error('请先添加掌握标准或记录一项成果');
   }
-  if (criteria.some((item) => !item.satisfied) && !hasOutcome && !hasRationale) {
-    throw new Error('请填写提前掌握说明');
+  if (criteria.some((item) => !item.satisfied) && !hasOutcome) {
+    throw new Error('请先完成全部掌握标准，或记录一项真实成果');
   }
   return valid(touchTree({
     ...state,
     nodes: state.nodes.map((item) => item.id === nodeId
-      ? { ...item, progress: 'mastered', masteryNote: masteryNote.trim(), updatedAt: now }
+      ? { ...item, progress: 'mastered', masteryNote: item.masteryNote, updatedAt: now }
       : item)
   }, node.skillTreeId, now));
 }
