@@ -13,15 +13,15 @@ const stamp = '2026-08-02T00:00:00.000Z';
 
 function baseState(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [
       { id: 'tree-a', name: '前端开发', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp },
       { id: 'tree-b', name: '摄影', description: '', role: 'side', status: 'active', focusedRank: null, createdAt: stamp, updatedAt: '2026-08-03T00:00:00.000Z' }
     ],
     phases: [
-      { id: 'phase-a1', skillTreeId: 'tree-a', name: '基础', description: '', order: 0 },
-      { id: 'phase-a2', skillTreeId: 'tree-a', name: '实践', description: '', order: 1 },
-      { id: 'phase-b1', skillTreeId: 'tree-b', name: '基础', description: '', order: 0 }
+      { id: 'phase-a1', skillTreeId: 'tree-a', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'phase-a2', skillTreeId: 'tree-a', name: '实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 1 },
+      { id: 'phase-b1', skillTreeId: 'tree-b', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }
     ],
     nodes: [
       node('root', 'tree-a', 'phase-a1', 'available'),
@@ -36,6 +36,8 @@ function baseState(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: null
   };
 }
@@ -48,6 +50,7 @@ function node(id: string, treeId: string, phaseId: string, progress: SkillNode['
     name: id,
     description: '',
     progress,
+    requiredForPhase: true,
     masteryNote: '',
     archivedAt: null,
     createdAt: stamp,
@@ -109,6 +112,18 @@ describe('ability graph', () => {
     const archivedTarget = baseState();
     archivedTarget.nodes[1] = { ...archivedTarget.nodes[1], archivedAt: stamp };
     expect(() => validateAbilityState(archivedTarget)).not.toThrow();
+  });
+
+  it('rejects resource links that reference missing resources', () => {
+    const state = baseState();
+    state.resourceLinks.push({
+      id: 'resource-link',
+      skillNodeId: 'root',
+      resourceId: 'missing-resource',
+      createdAt: stamp
+    });
+
+    expect(() => validateAbilityState(state)).toThrow('资源关联引用了不存在的学习资源');
   });
 
   it('returns transitive descendants and tree progress', () => {

@@ -33,19 +33,19 @@ const before = '2026-08-01T00:00:00.000Z';
 const now = '2026-08-02T00:00:00.000Z';
 
 function node(id: string, phaseId: string, progress: SkillNode['progress'] = 'available'): SkillNode {
-  return { id, skillTreeId: 'tree', phaseId, name: id, description: '', progress, masteryNote: '', archivedAt: null, createdAt: before, updatedAt: before };
+  return { id, skillTreeId: 'tree', phaseId, name: id, description: '', progress, requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: before, updatedAt: before };
 }
 
 function state(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [
       { id: 'tree', name: '前端', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: before, updatedAt: before },
       { id: 'tree-2', name: '写作', description: '', role: 'side', status: 'active', focusedRank: null, createdAt: before, updatedAt: before }
     ],
     phases: [
-      { id: 'phase-1', skillTreeId: 'tree', name: '基础', description: '', order: 0 },
-      { id: 'phase-2', skillTreeId: 'tree', name: '实践', description: '', order: 1 }
+      { id: 'phase-1', skillTreeId: 'tree', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'phase-2', skillTreeId: 'tree', name: '实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 1 }
     ],
     nodes: [node('root', 'phase-1'), node('child', 'phase-2')],
     dependencies: [{ id: 'edge', skillTreeId: 'tree', prerequisiteNodeId: 'root', dependentNodeId: 'child' }],
@@ -53,6 +53,8 @@ function state(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: 'tree'
   };
 }

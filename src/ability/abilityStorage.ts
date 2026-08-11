@@ -21,18 +21,39 @@ function numberValue(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function migrateSchemaV1(value: UnknownRecord): AbilityState {
+  return {
+    ...(value as unknown as Omit<AbilityState, 'schemaVersion' | 'phases' | 'nodes' | 'resources' | 'resourceLinks'>),
+    schemaVersion: 2,
+    phases: records(value.phases).map((phase) => ({
+      ...(phase as unknown as AbilityState['phases'][number]),
+      estimatedDuration: '',
+      requiredNodePolicy: 'all_required'
+    })),
+    nodes: records(value.nodes).map((node) => ({
+      ...(node as unknown as AbilityState['nodes'][number]),
+      requiredForPhase: true
+    })),
+    resources: [],
+    resourceLinks: []
+  };
+}
+
 function parseAbilityState(value: unknown): AbilityState {
-  if (!isRecord(value) || value.schemaVersion !== 1) throw new Error('不支持的能力数据版本');
+  if (!isRecord(value) || (value.schemaVersion !== 1 && value.schemaVersion !== 2)) throw new Error('不支持的能力数据版本');
   const requiredArrays = ['trees', 'phases', 'nodes', 'dependencies', 'parallelGroups', 'masteryCriteria', 'taskLinks', 'outcomes'];
   if (requiredArrays.some((key) => !Array.isArray(value[key]))) throw new Error('能力数据结构不完整');
-  const state = value as unknown as AbilityState;
+  if (value.schemaVersion === 2 && (!Array.isArray(value.resources) || !Array.isArray(value.resourceLinks))) {
+    throw new Error('能力数据结构不完整');
+  }
+  const state = value.schemaVersion === 1 ? migrateSchemaV1(value) : value as unknown as AbilityState;
   validateAbilityState(state);
   return state;
 }
 
 export function createInitialAbilityState(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [],
     phases: [],
     nodes: [],
@@ -41,6 +62,8 @@ export function createInitialAbilityState(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: null
   };
 }
@@ -72,7 +95,7 @@ export function migrateLegacyAbilityStore(value: unknown, now: string): AbilityS
       updatedAt: now
     };
     state.trees.push(careerTree);
-    state.phases.push({ id: 'legacy-phase-career', skillTreeId: careerTree.id, name: '职业技能', description: '', order: 0 });
+    state.phases.push({ id: 'legacy-phase-career', skillTreeId: careerTree.id, name: '职业技能', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 });
     const nodeIdByLegacyId = new Map<string, string>();
     careerSkills.forEach((skill, index) => {
       const legacyId = text(skill.id, `career-${index + 1}`);
@@ -85,6 +108,7 @@ export function migrateLegacyAbilityStore(value: unknown, now: string): AbilityS
         name: text(skill.name, `职业技能 ${index + 1}`),
         description: '',
         progress: legacyProgress(numberValue(skill.level), numberValue(skill.maxLevel, 10)),
+        requiredForPhase: true,
         masteryNote: '',
         archivedAt: null,
         createdAt: now,
@@ -129,7 +153,7 @@ export function migrateLegacyAbilityStore(value: unknown, now: string): AbilityS
       updatedAt: now
     };
     state.trees.push(sideTree);
-    state.phases.push({ id: 'legacy-phase-side', skillTreeId: sideTree.id, name: '学习实践', description: '', order: 0 });
+    state.phases.push({ id: 'legacy-phase-side', skillTreeId: sideTree.id, name: '学习实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 });
     learning.forEach((item, index) => {
       const progress = Math.max(0, numberValue(item.progress));
       state.nodes.push({
@@ -139,6 +163,7 @@ export function migrateLegacyAbilityStore(value: unknown, now: string): AbilityS
         name: text(item.title, `学习项目 ${index + 1}`),
         description: text(item.link),
         progress: progress >= 1 ? 'mastered' : progress > 0 ? 'in_progress' : 'available',
+        requiredForPhase: true,
         masteryNote: '',
         archivedAt: null,
         createdAt: now,

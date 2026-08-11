@@ -5,14 +5,14 @@ import type { AbilityState, SkillNode } from './types';
 const stamp = '2026-08-02T00:00:00.000Z';
 
 function node(id: string): SkillNode {
-  return { id, skillTreeId: 'tree', phaseId: 'phase', name: id, description: '', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp };
+  return { id, skillTreeId: 'tree', phaseId: 'phase', name: id, description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp };
 }
 
 function state(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [{ id: 'tree', name: '自媒体', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp }],
-    phases: [{ id: 'phase', skillTreeId: 'tree', name: '成长路线', description: '', order: 0 }],
+    phases: [{ id: 'phase', skillTreeId: 'tree', name: '成长路线', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }],
     nodes: ['root', 'writing', 'video', 'growth', 'analysis'].map(node),
     dependencies: [
       { id: 'root-writing', skillTreeId: 'tree', prerequisiteNodeId: 'root', dependentNodeId: 'writing', kind: 'primary' },
@@ -22,7 +22,7 @@ function state(): AbilityState {
       { id: 'video-analysis', skillTreeId: 'tree', prerequisiteNodeId: 'video', dependentNodeId: 'analysis', kind: 'auxiliary' }
     ],
     parallelGroups: [{ id: 'group', skillTreeId: 'tree', phaseId: 'phase', name: '可并行', nodeIds: ['writing', 'video'], parentNodeId: 'root', continuationNodeId: 'growth' }],
-    masteryCriteria: [], taskLinks: [], outcomes: [], lastVisitedTreeId: 'tree'
+    masteryCriteria: [], taskLinks: [], outcomes: [], resources: [], resourceLinks: [], lastVisitedTreeId: 'tree'
   };
 }
 

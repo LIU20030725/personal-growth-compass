@@ -94,7 +94,7 @@ export function reorderFocusedTrees(
 
 export function addPhase(
   state: AbilityState,
-  input: Pick<LearningPhase, 'skillTreeId' | 'name' | 'description'>,
+  input: Pick<LearningPhase, 'skillTreeId' | 'name' | 'description'> & Partial<Pick<LearningPhase, 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>>,
   id: string,
   now: string
 ): AbilityState {
@@ -103,7 +103,7 @@ export function addPhase(
   const order = Math.max(-1, ...state.phases.filter((phase) => phase.skillTreeId === input.skillTreeId).map((phase) => phase.order)) + 1;
   return valid(touchTree({
     ...state,
-    phases: [...state.phases, { ...input, id, name: input.name.trim(), description: input.description.trim(), order }]
+    phases: [...state.phases, { ...input, id, name: input.name.trim(), description: input.description.trim(), estimatedDuration: input.estimatedDuration?.trim() ?? '', requiredNodePolicy: 'all_required', order }]
   }, input.skillTreeId, now));
 }
 
@@ -140,7 +140,7 @@ export function reorderPhases(state: AbilityState, treeId: string, orderedPhaseI
 
 export function addNode(
   state: AbilityState,
-  input: Omit<SkillNode, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'>,
+  input: Omit<SkillNode, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt' | 'requiredForPhase'> & Partial<Pick<SkillNode, 'requiredForPhase'>>,
   id: string,
   now: string
 ): AbilityState {
@@ -152,6 +152,7 @@ export function addNode(
     id,
     name: input.name.trim(),
     description: input.description.trim(),
+    requiredForPhase: input.requiredForPhase ?? true,
     masteryNote: input.masteryNote.trim(),
     archivedAt: null,
     createdAt: now,

@@ -14,12 +14,12 @@ function seeded(): AbilityState {
       { id: 'writing', name: '写作', description: '', role: 'side', status: 'active', focusedRank: 2, createdAt: stamp, updatedAt: stamp }
     ],
     phases: [
-      { id: 'react-phase', skillTreeId: 'react', name: '基础', description: '', order: 0 },
-      { id: 'write-phase', skillTreeId: 'writing', name: '基础', description: '', order: 0 }
+      { id: 'react-phase', skillTreeId: 'react', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'write-phase', skillTreeId: 'writing', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }
     ],
     nodes: [
-      { id: 'react-node', skillTreeId: 'react', phaseId: 'react-phase', name: '组件设计', description: '', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
-      { id: 'write-node', skillTreeId: 'writing', phaseId: 'write-phase', name: '文章结构', description: '', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }
+      { id: 'react-node', skillTreeId: 'react', phaseId: 'react-phase', name: '组件设计', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
+      { id: 'write-node', skillTreeId: 'writing', phaseId: 'write-phase', name: '文章结构', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }
     ],
     lastVisitedTreeId: 'react'
   };

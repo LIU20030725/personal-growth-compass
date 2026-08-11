@@ -16,15 +16,15 @@ function seededState(): AbilityState {
       { id: 'writing', name: '自媒体写作', description: '稳定创作', role: 'side', status: 'active', focusedRank: 2, createdAt: stamp, updatedAt: stamp }
     ],
     phases: [
-      { id: 'base', skillTreeId: 'frontend', name: '基础认知', description: '', order: 0 },
-      { id: 'practice', skillTreeId: 'frontend', name: '独立实践', description: '', order: 1 },
-      { id: 'writing-base', skillTreeId: 'writing', name: '写作基础', description: '', order: 0 }
+      { id: 'base', skillTreeId: 'frontend', name: '基础认知', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'practice', skillTreeId: 'frontend', name: '独立实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 1 },
+      { id: 'writing-base', skillTreeId: 'writing', name: '写作基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }
     ],
     nodes: [
-      { id: 'html', skillTreeId: 'frontend', phaseId: 'base', name: 'HTML 基础', description: '语义化页面', progress: 'mastered', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
-      { id: 'react', skillTreeId: 'frontend', phaseId: 'practice', name: 'React 状态管理', description: '管理复杂状态', progress: 'in_progress', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
-      { id: 'deploy', skillTreeId: 'frontend', phaseId: 'practice', name: '部署网站', description: '公开访问', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
-      { id: 'article', skillTreeId: 'writing', phaseId: 'writing-base', name: '文章结构', description: '', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }
+      { id: 'html', skillTreeId: 'frontend', phaseId: 'base', name: 'HTML 基础', description: '语义化页面', progress: 'mastered', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
+      { id: 'react', skillTreeId: 'frontend', phaseId: 'practice', name: 'React 状态管理', description: '管理复杂状态', progress: 'in_progress', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
+      { id: 'deploy', skillTreeId: 'frontend', phaseId: 'practice', name: '部署网站', description: '公开访问', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
+      { id: 'article', skillTreeId: 'writing', phaseId: 'writing-base', name: '文章结构', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }
     ],
     dependencies: [
       { id: 'html-react', skillTreeId: 'frontend', prerequisiteNodeId: 'html', dependentNodeId: 'react' },
@@ -216,6 +216,7 @@ describe('AbilityModule', () => {
       name: `技能 ${index + 1}`,
       description: '',
       progress: index < 3 ? 'mastered' as const : 'available' as const,
+      requiredForPhase: true,
       masteryNote: '',
       archivedAt: null,
       createdAt: `${stamp}-${String(index).padStart(2, '0')}`,

@@ -4,7 +4,7 @@ import type { AbilityState, SkillTreeDraft } from './types';
 
 function emptyState(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [],
     phases: [],
     nodes: [],
@@ -13,6 +13,8 @@ function emptyState(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: null
   };
 }

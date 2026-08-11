@@ -84,7 +84,7 @@ function assertAcyclic(state: AbilityState, treeId: string): void {
 }
 
 export function validateAbilityState(state: AbilityState): void {
-  if (state.schemaVersion !== 1) throw new Error('不支持的能力数据版本');
+  if (state.schemaVersion !== 2) throw new Error('不支持的能力数据版本');
   assertUniqueIds(state.trees, '技能树');
   assertUniqueIds(state.phases, '学习阶段');
   assertUniqueIds(state.nodes, '技能节点');
@@ -93,6 +93,8 @@ export function validateAbilityState(state: AbilityState): void {
   assertUniqueIds(state.masteryCriteria, '掌握标准');
   assertUniqueIds(state.taskLinks, '任务链接');
   assertUniqueIds(state.outcomes, '成果');
+  assertUniqueIds(state.resources, '学习资源');
+  assertUniqueIds(state.resourceLinks, '资源关联');
 
   for (const phase of state.phases) requireTree(state, phase.skillTreeId);
   for (const node of state.nodes) {
@@ -147,6 +149,19 @@ export function validateAbilityState(state: AbilityState): void {
       const node = requireNode(state, outcome.skillNodeId);
       if (node.skillTreeId !== outcome.skillTreeId) throw new Error('成果关联节点必须属于同一技能树');
     }
+  }
+  const normalizedUrls = new Set<string>();
+  for (const resource of state.resources) {
+    if (!resource.normalizedUrl || normalizedUrls.has(resource.normalizedUrl)) throw new Error('学习资源 URL 必须唯一');
+    normalizedUrls.add(resource.normalizedUrl);
+  }
+  const resourceLinkKeys = new Set<string>();
+  for (const link of state.resourceLinks) {
+    requireNode(state, link.skillNodeId);
+    if (!state.resources.some((resource) => resource.id === link.resourceId)) throw new Error('资源关联引用了不存在的学习资源');
+    const key = `${link.skillNodeId}:${link.resourceId}`;
+    if (resourceLinkKeys.has(key)) throw new Error('同一节点不能重复关联资源');
+    resourceLinkKeys.add(key);
   }
   if (state.lastVisitedTreeId && !state.trees.some((tree) => tree.id === state.lastVisitedTreeId)) {
     throw new Error('最近访问技能树不存在');

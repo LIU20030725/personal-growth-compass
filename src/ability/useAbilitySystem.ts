@@ -88,7 +88,7 @@ export function useAbilitySystem(options: Options = {}) {
     reorderPhases: (treeId: string, phaseIds: string[]) =>
       commit((current) => engine.reorderPhases(current, treeId, phaseIds, currentTime())),
     addNode: (
-      input: Omit<SkillNode, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'>,
+      input: Omit<SkillNode, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt' | 'requiredForPhase'> & Partial<Pick<SkillNode, 'requiredForPhase'>>,
       prerequisiteNodeIds: string[] = []
     ) => {
       const nodeId = nextId('node');
