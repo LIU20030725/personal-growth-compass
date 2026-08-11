@@ -27,8 +27,7 @@ function matchesFilter(
   if (filter === 'next') {
     return node.progress === 'in_progress' || (node.phaseId === currentPhaseId && node.progress !== 'mastered');
   }
-  if (filter === 'current_phase') return node.phaseId === currentPhaseId;
-  return node.progress === filter;
+  return node.progress === 'mastered';
 }
 
 export function buildAbilityVisibleGraph(

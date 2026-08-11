@@ -14,11 +14,12 @@ async function createStarterTree(page: Page): Promise<void> {
   await page.getByRole('textbox', { name: '技能说明' }).fill('从内容定位到稳定增长');
   await page.getByRole('button', { name: '保存技能树' }).click();
 
-  await page.getByRole('button', { name: '添加阶段' }).click();
+  await page.getByRole('button', { name: '编辑技能树' }).click();
+  await page.getByRole('button', { name: '添加下一阶段' }).click();
   await page.getByRole('textbox', { name: '阶段名称' }).fill('定位与基本功');
   await page.getByRole('button', { name: '保存阶段' }).click();
 
-  await page.getByRole('button', { name: '添加技能节点' }).click();
+  await page.getByRole('button', { name: '在 定位与基本功 添加第一个节点' }).click();
   await page.getByRole('textbox', { name: '节点名称' }).fill('内容定位');
   await page.getByRole('button', { name: '保存节点' }).click();
   await expect(page.getByRole('group', { name: '内容定位 可开始', exact: true })).toBeVisible();
@@ -134,6 +135,7 @@ test('拖拽位置吸附网格，刷新后保持，并可由自动布局复位',
   });
   expect(persisted).toEqual(saved);
 
+  await page.getByRole('button', { name: '编辑技能树' }).click();
   await page.getByRole('button', { name: '重新自动布局' }).click();
   const positionsAfterReset = await page.evaluate(() => {
     const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
@@ -168,16 +170,7 @@ test('键盘快捷键只在画布聚焦时生效，弹窗会困住并恢复焦�
 });
 
 test('390px 手机视口默认提供可操作的线性技能路线', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.getByRole('button', { name: '创建第一棵技能树' }).click();
-  await page.getByRole('textbox', { name: '技能树名称' }).fill('移动学习');
-  await page.getByRole('button', { name: '保存技能树' }).click();
-  await page.getByRole('button', { name: '添加阶段' }).click();
-  await page.getByRole('textbox', { name: '阶段名称' }).fill('基础阶段');
-  await page.getByRole('button', { name: '保存阶段' }).click();
-  await page.getByRole('button', { name: '添加技能节点' }).click();
-  await page.getByRole('textbox', { name: '节点名称' }).fill('移动端可读节点');
-  await page.getByRole('button', { name: '保存节点' }).click();
+  await createStarterTree(page);
 
   await page.evaluate(() => {
     const key = 'dice-life.ability.v1';
@@ -194,16 +187,35 @@ test('390px 手机视口默认提供可操作的线性技能路线', async ({ pa
     }
     window.localStorage.setItem(key, JSON.stringify(state));
   });
-  await page.getByRole('button', { name: /财富状况/ }).click();
-  await page.getByRole('button', { name: /能力属性/ }).click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('region', { name: '能力属性模块' })).toBeVisible();
 
-  const route = page.getByRole('region', { name: '移动学习线性技能路线' });
+  const route = page.getByRole('region', { name: '自媒体创作线性技能路线' });
   await expect(route).toBeVisible();
   await expect(route.getByRole('button')).toHaveCount(40);
   await route.getByRole('button', { name: /移动端技能 40.*可开始/ }).click();
   await expect(page.getByRole('complementary', { name: '技能节点详情' }).getByRole('heading', { name: '移动端技能 40' })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('阶段列与节点资源在浏览和线性视图间保持同一份数据', async ({ page }) => {
+  await createStarterTree(page);
+  await expect(page.getByRole('group', { name: '阶段 定位与基本功' })).toBeVisible();
+  const node = page.getByRole('group', { name: '内容定位 可开始', exact: true });
+  await node.click();
+  await page.getByRole('button', { name: '查看详情 内容定位' }).click();
+  const detail = page.getByRole('complementary', { name: '技能节点详情' });
+  await detail.getByRole('button', { name: '收藏资源' }).click();
+  await detail.getByRole('textbox', { name: '资源链接' }).fill('https://example.com/content-guide');
+  await detail.getByRole('textbox', { name: '资源标题' }).fill('内容定位指南');
+  await detail.getByRole('button', { name: '保存资源' }).click();
+  await expect(detail.getByRole('link', { name: '内容定位指南' })).toBeVisible();
+
+  await detail.getByRole('button', { name: '关闭技能详情' }).click();
+  await page.getByRole('button', { name: '切换到线性路线' }).click();
+  await expect(page.getByTestId('ability-linear-route')).toBeVisible();
+  await expect(page.getByText('内容定位指南')).toHaveCount(0);
 });
 
 test('@a11y 能力模块没有 critical/serious 级自动可访问性问题', async ({ page }, testInfo) => {
