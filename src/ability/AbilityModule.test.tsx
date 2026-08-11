@@ -338,6 +338,34 @@ describe('AbilityModule', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
+  it('uses the same keyboard menu semantics for skill-library and resource actions', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    const libraryTrigger = screen.getByRole('button', { name: '管理技能树 自媒体写作' });
+    fireEvent.click(libraryTrigger);
+    const pin = screen.getByRole('menuitem', { name: '取消置顶' });
+    await waitFor(() => expect(pin).toHaveFocus());
+    fireEvent.keyDown(pin, { key: 'Escape' });
+    await waitFor(() => expect(libraryTrigger).toHaveFocus());
+
+    fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /查看详情 React 状态管理/ }));
+    const panel = screen.getByLabelText('技能节点详情');
+    fireEvent.click(within(panel).getByRole('button', { name: '收藏资源' }));
+    fireEvent.change(within(panel).getByLabelText('资源链接'), { target: { value: 'https://example.com/menu-test' } });
+    fireEvent.change(within(panel).getByLabelText('资源标题'), { target: { value: '菜单测试资源' } });
+    fireEvent.click(within(panel).getByRole('button', { name: '保存资源' }));
+
+    const resourceTrigger = within(panel).getByRole('button', { name: '管理资源 菜单测试资源' });
+    fireEvent.click(resourceTrigger);
+    const edit = within(panel).getByRole('menuitem', { name: '编辑标题与备注' });
+    await waitFor(() => expect(edit).toHaveFocus());
+    fireEvent.keyDown(edit, { key: 'Escape' });
+    expect(within(panel).queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(resourceTrigger).toHaveFocus());
+  });
+
   it('edits the current tree and archives a related skill node without deleting history', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);

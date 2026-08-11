@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { ExternalLink, MoreHorizontal, Plus, X } from 'lucide-react';
 import { inferResourceType, normalizeResourceUrl } from '../abilityResources';
 import type { ResourceType, SkillResource, SkillResourceLink } from '../types';
@@ -38,6 +38,24 @@ export function AbilityResourceSection(props: Props) {
   const [editTitle, setEditTitle] = useState('');
   const [editNote, setEditNote] = useState('');
   const [error, setError] = useState('');
+  const managedTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const closeMenu = () => {
+    setManagedResourceId(null);
+    window.setTimeout(() => managedTriggerRef.current?.focus(), 0);
+  };
+
+  const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+    if (event.key === 'Escape') { event.preventDefault(); closeMenu(); return; }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !items.length) return;
+    event.preventDefault();
+    const current = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+      : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+    items[next].focus();
+  };
 
   const nodeLinks = props.resourceLinks.filter((link) => link.skillNodeId === props.nodeId);
   const linkedIds = new Set(nodeLinks.map((link) => link.resourceId));
@@ -104,11 +122,11 @@ export function AbilityResourceSection(props: Props) {
           <div><button type="button" onClick={() => setEditingResourceId(null)}>取消</button><button type="submit">保存</button></div>
         </form> : <>
           <div className="ability-resource-main"><a href={resource.url} target="_blank" rel="noreferrer">{resource.title}<ExternalLink size={13} /></a><span>{RESOURCE_TYPE_LABELS[resource.type]} · {resource.sourceDomain}</span>{resource.note ? <p>{resource.note}</p> : null}</div>
-          <button type="button" aria-label={`管理资源 ${resource.title}`} onClick={() => setManagedResourceId((current) => current === resource.id ? null : resource.id)}><MoreHorizontal size={17} /></button>
-          {managedResourceId === resource.id ? <div className="ability-resource-menu">
-            <button type="button" onClick={() => { setEditTitle(resource.title); setEditNote(resource.note); setEditingResourceId(resource.id); setManagedResourceId(null); }}>编辑标题与备注</button>
-            <button type="button" onClick={() => currentLink && props.onUnlink(currentLink.id)}>从当前节点移除</button>
-            <button type="button" disabled={otherLinkCount > 0} title={otherLinkCount > 0 ? `仍被 ${otherLinkCount} 个节点使用` : undefined} onClick={() => {
+          <button type="button" aria-haspopup="menu" aria-expanded={managedResourceId === resource.id} aria-label={`管理资源 ${resource.title}`} onClick={(event) => { managedTriggerRef.current = event.currentTarget; setManagedResourceId((current) => { const next = current === resource.id ? null : resource.id; if (next) window.setTimeout(() => menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus(), 0); return next; }); }}><MoreHorizontal size={17} /></button>
+          {managedResourceId === resource.id ? <div ref={menuRef} className="ability-resource-menu" role="menu" onKeyDown={handleMenuKeyDown}>
+            <button role="menuitem" type="button" onClick={() => { setEditTitle(resource.title); setEditNote(resource.note); setEditingResourceId(resource.id); setManagedResourceId(null); }}>编辑标题与备注</button>
+            <button role="menuitem" type="button" onClick={() => currentLink && props.onUnlink(currentLink.id)}>从当前节点移除</button>
+            <button role="menuitem" type="button" disabled={otherLinkCount > 0} title={otherLinkCount > 0 ? `仍被 ${otherLinkCount} 个节点使用` : undefined} onClick={() => {
               if (!window.confirm('删除后无法恢复，确定删除该资源吗？')) return;
               if (currentLink) props.onUnlink(currentLink.id);
               props.onDelete(resource.id);

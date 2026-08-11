@@ -195,7 +195,16 @@ test('390px 手机视口默认提供可操作的线性技能路线', async ({ pa
   await expect(route).toBeVisible();
   await expect(route.getByRole('button')).toHaveCount(40);
   await route.getByRole('button', { name: /移动端技能 40.*可开始/ }).click();
-  await expect(page.getByRole('complementary', { name: '技能节点详情' }).getByRole('heading', { name: '移动端技能 40' })).toBeVisible();
+  const detail = page.getByRole('complementary', { name: '技能节点详情' });
+  await expect(detail.getByRole('heading', { name: '移动端技能 40' })).toBeVisible();
+  const undersizedTargets = await detail.locator('button, a, input, select, textarea').evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return style.visibility !== 'hidden' && style.display !== 'none' && (box.width < 44 || box.height < 44);
+    })
+    .map((element) => ({ label: element.getAttribute('aria-label') ?? element.textContent?.trim(), width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height })));
+  expect(undersizedTargets).toEqual([]);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Archive, ArrowDown, ArrowUp, Ellipsis, Pin, PinOff, Plus, RotateCcw, Search } from 'lucide-react';
 import { getTreeProgress } from '../abilityGraph';
 import type { AbilityState, SkillRole } from '../types';
@@ -31,6 +31,23 @@ export function SkillLibrary(props: Props) {
   const [filter, setFilter] = useState<Filter>('all');
   const [sort, setSort] = useState<Sort>('updated');
   const [managedTreeId, setManagedTreeId] = useState<string | null>(null);
+  const managedTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setManagedTreeId(null);
+      window.setTimeout(() => managedTriggerRef.current?.focus(), 0);
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !items.length) return;
+    event.preventDefault();
+    const current = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+      : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+    items[next].focus();
+  };
   const focusedIds = props.state.trees
     .filter((tree) => tree.status === 'active' && tree.focusedRank !== null)
     .sort((a, b) => (a.focusedRank as number) - (b.focusedRank as number))
@@ -94,8 +111,8 @@ export function SkillLibrary(props: Props) {
           <span className="ability-library-phase">{currentPhase?.name ?? (progress.total ? '路线完成' : '等待添加阶段')}</span>
           <i><b style={{ width: `${progress.percent}%` }} /></i>
         </button>
-        <button className="ability-library-more" type="button" aria-label={`管理技能树 ${tree.name}`} onClick={() => setManagedTreeId((value) => value === tree.id ? null : tree.id)}><Ellipsis size={17} /></button>
-        {managedTreeId === tree.id ? <div className="ability-library-menu" role="menu">
+        <button className="ability-library-more" type="button" aria-haspopup="menu" aria-expanded={managedTreeId === tree.id} aria-label={`管理技能树 ${tree.name}`} onClick={(event) => { managedTriggerRef.current = event.currentTarget; setManagedTreeId((value) => { const next = value === tree.id ? null : tree.id; if (next) window.setTimeout(() => menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus(), 0); return next; }); }}><Ellipsis size={17} /></button>
+        {managedTreeId === tree.id ? <div ref={menuRef} className="ability-library-menu" role="menu" onKeyDown={handleMenuKeyDown}>
           {tree.status === 'archived' ? <button role="menuitem" type="button" onClick={() => { props.onRestoreTree(tree.id); setManagedTreeId(null); }}><RotateCcw size={14} />恢复</button> : <>
             <button role="menuitem" type="button" onClick={() => { props.onChangeFocus(tree.id, tree.focusedRank === null); setManagedTreeId(null); }}>{tree.focusedRank === null ? <><Pin size={14} />置顶</> : <><PinOff size={14} />取消置顶</>}</button>
             {tree.focusedRank !== null ? <><button role="menuitem" type="button" onClick={() => moveFocused(tree.id, -1)}><ArrowUp size={14} />上移</button><button role="menuitem" type="button" onClick={() => moveFocused(tree.id, 1)}><ArrowDown size={14} />下移</button></> : null}
