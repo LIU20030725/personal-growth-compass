@@ -1,12 +1,21 @@
 import { getDependencyKind, getPrimaryChildren, getPrimaryParent, validateAbilityState } from './abilityGraph';
+import { normalizeResourceUrl, resourceDomain } from './abilityResources';
 import type {
   AbilityState,
   LearningPhase,
   ParallelGroup,
+  ResourceType,
   SkillNode,
   SkillOutcome,
   SkillTree
 } from './types';
+
+export type SkillResourceInput = {
+  url: string;
+  title: string;
+  type: ResourceType;
+  note: string;
+};
 
 function valid(next: AbilityState): AbilityState {
   validateAbilityState(next);
@@ -377,6 +386,7 @@ export function getNodeRemovalMode(state: AbilityState, nodeId: string): 'delete
   const hasRelations = state.dependencies.some((edge) => edge.prerequisiteNodeId === nodeId || edge.dependentNodeId === nodeId) ||
     state.taskLinks.some((link) => link.skillNodeId === nodeId) ||
     state.masteryCriteria.some((criterion) => criterion.skillNodeId === nodeId) ||
+    state.resourceLinks.some((link) => link.skillNodeId === nodeId) ||
     state.outcomes.some((outcome) => outcome.skillNodeId === nodeId);
   return hasRelations ? 'archive' : 'delete';
 }
@@ -503,6 +513,84 @@ export function linkTask(state: AbilityState, nodeId: string, taskId: string, id
 
 export function unlinkTask(state: AbilityState, linkId: string): AbilityState {
   return valid({ ...state, taskLinks: state.taskLinks.filter((link) => link.id !== linkId) });
+}
+
+export function linkExistingResource(
+  state: AbilityState,
+  nodeId: string,
+  resourceId: string,
+  linkId: string,
+  now: string
+): AbilityState {
+  nodeById(state, nodeId);
+  if (!state.resources.some((resource) => resource.id === resourceId)) throw new Error('学习资源不存在');
+  if (state.resourceLinks.some((link) => link.skillNodeId === nodeId && link.resourceId === resourceId)) {
+    throw new Error('该资源已经关联当前节点');
+  }
+  return valid({
+    ...state,
+    resourceLinks: [...state.resourceLinks, { id: linkId, skillNodeId: nodeId, resourceId, createdAt: now }]
+  });
+}
+
+export function addOrLinkResource(
+  state: AbilityState,
+  nodeId: string,
+  input: SkillResourceInput,
+  resourceId: string,
+  linkId: string,
+  now: string
+): AbilityState {
+  nodeById(state, nodeId);
+  const title = input.title.trim();
+  if (!title) throw new Error('学习资源标题不能为空');
+  const normalizedUrl = normalizeResourceUrl(input.url);
+  const existing = state.resources.find((resource) => resource.normalizedUrl === normalizedUrl);
+  if (existing) return linkExistingResource(state, nodeId, existing.id, linkId, now);
+  const next = {
+    ...state,
+    resources: [...state.resources, {
+      id: resourceId,
+      url: input.url.trim(),
+      normalizedUrl,
+      title,
+      type: input.type,
+      sourceDomain: resourceDomain(input.url),
+      note: input.note.trim(),
+      source: 'manual' as const,
+      createdAt: now,
+      updatedAt: now
+    }]
+  };
+  return linkExistingResource(next, nodeId, resourceId, linkId, now);
+}
+
+export function updateResource(
+  state: AbilityState,
+  resourceId: string,
+  patch: { title: string; note: string },
+  now: string
+): AbilityState {
+  if (!state.resources.some((resource) => resource.id === resourceId)) throw new Error('学习资源不存在');
+  if (!patch.title.trim()) throw new Error('学习资源标题不能为空');
+  return valid({
+    ...state,
+    resources: state.resources.map((resource) => resource.id === resourceId
+      ? { ...resource, title: patch.title.trim(), note: patch.note.trim(), updatedAt: now }
+      : resource)
+  });
+}
+
+export function unlinkResource(state: AbilityState, linkId: string): AbilityState {
+  return valid({ ...state, resourceLinks: state.resourceLinks.filter((link) => link.id !== linkId) });
+}
+
+export function deleteResource(state: AbilityState, resourceId: string): AbilityState {
+  if (!state.resources.some((resource) => resource.id === resourceId)) throw new Error('学习资源不存在');
+  if (state.resourceLinks.some((link) => link.resourceId === resourceId)) {
+    throw new Error('学习资源仍关联技能节点');
+  }
+  return valid({ ...state, resources: state.resources.filter((resource) => resource.id !== resourceId) });
 }
 
 export function addOutcome(

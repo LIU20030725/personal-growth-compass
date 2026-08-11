@@ -84,4 +84,22 @@ describe('useAbilitySystem', () => {
     act(() => result.current.undo());
     expect(result.current.state.nodes.every((node) => !node.archivedAt)).toBe(true);
   });
+
+  it('persists reusable node resources and unlinks without deleting the original', () => {
+    const { result } = renderHook(() => useAbilitySystem({ storage: localStorage, now: () => stamp, idFactory: ids() }));
+    act(() => result.current.applyTreeDraft(draft()));
+    const nodeId = result.current.state.nodes[0].id;
+
+    act(() => result.current.addOrLinkResource(nodeId, {
+      url: 'https://example.com/guide', title: '写作指南', type: 'article', note: '先看开头'
+    }));
+    const resourceId = result.current.state.resources[0].id;
+    const linkId = result.current.state.resourceLinks[0].id;
+    act(() => result.current.updateResource(resourceId, { title: '写作入门指南', note: '' }));
+    act(() => result.current.unlinkResource(linkId));
+
+    expect(result.current.state.resources[0].title).toBe('写作入门指南');
+    expect(result.current.state.resourceLinks).toEqual([]);
+    expect(JSON.parse(localStorage.getItem(ABILITY_STORAGE_KEY) ?? '{}').resources).toHaveLength(1);
+  });
 });

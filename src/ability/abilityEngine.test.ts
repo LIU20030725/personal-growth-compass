@@ -4,15 +4,19 @@ import {
   addChildNode,
   addAuxiliaryDependency,
   addOutcome,
+  addOrLinkResource,
   archiveNodeBranch,
   archiveNode,
   archiveTree,
   demoteNode,
+  deleteResource,
   getNodeRemovalMode,
   linkTask,
+  linkExistingResource,
   masterNode,
   removeEmptyNode,
   removeOutcome,
+  unlinkResource,
   reorderFocusedTrees,
   replaceNodeDependencies,
   reparentNode,
@@ -24,6 +28,7 @@ import {
   toggleCriterion,
   unlinkTask,
   updateTree,
+  updateResource,
   upsertParallelGroup
 } from './abilityEngine';
 import { getDependencyKind, getPrimaryChildren, getPrimaryParent } from './abilityGraph';
@@ -127,6 +132,46 @@ describe('ability engine', () => {
     const withoutOutcome = removeOutcome(next, 'outcome');
     expect(withoutOutcome.outcomes).toEqual([]);
     expect(withoutOutcome.nodes).toEqual(next.nodes);
+  });
+
+  it('stores one resource globally and links it to multiple nodes', () => {
+    let next = addOrLinkResource(state(), 'root', {
+      url: 'https://example.com/guide/?utm_source=feed',
+      title: '语义化指南',
+      type: 'article',
+      note: '先看第二节'
+    }, 'resource-1', 'resource-link-1', now);
+    next = addOrLinkResource(next, 'child', {
+      url: 'https://EXAMPLE.com/guide',
+      title: '重复标题不应覆盖',
+      type: 'article',
+      note: ''
+    }, 'resource-2', 'resource-link-2', now);
+
+    expect(next.resources).toHaveLength(1);
+    expect(next.resourceLinks).toHaveLength(2);
+    expect(next.resources[0]).toMatchObject({
+      id: 'resource-1',
+      normalizedUrl: 'https://example.com/guide',
+      sourceDomain: 'example.com',
+      source: 'manual'
+    });
+    expect(() => deleteResource(next, 'resource-1')).toThrow('学习资源仍关联技能节点');
+
+    next = unlinkResource(next, 'resource-link-1');
+    next = unlinkResource(next, 'resource-link-2');
+    expect(deleteResource(next, 'resource-1').resources).toEqual([]);
+  });
+
+  it('reuses existing resources, updates notes, and protects duplicate links', () => {
+    let next = addOrLinkResource(state(), 'root', {
+      url: 'https://example.com/course', title: '入门课', type: 'course', note: ''
+    }, 'resource-1', 'resource-link-1', now);
+    expect(() => linkExistingResource(next, 'root', 'resource-1', 'duplicate-link', now)).toThrow('该资源已经关联当前节点');
+
+    next = linkExistingResource(next, 'child', 'resource-1', 'resource-link-2', now);
+    next = updateResource(next, 'resource-1', { title: '入门课程', note: '重点看实战' }, '2026-08-13T00:00:00.000Z');
+    expect(next.resources[0]).toMatchObject({ title: '入门课程', note: '重点看实战', updatedAt: '2026-08-13T00:00:00.000Z' });
   });
 
   it('deletes only empty nodes and archives nodes with relationships', () => {

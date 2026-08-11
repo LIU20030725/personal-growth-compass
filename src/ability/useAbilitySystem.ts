@@ -161,6 +161,21 @@ export function useAbilitySystem(options: Options = {}) {
     linkTask: (nodeId: string, taskId: string) =>
       commit((current) => engine.linkTask(current, nodeId, taskId, nextId('task-link'))),
     unlinkTask: (linkId: string) => commit((current) => engine.unlinkTask(current, linkId)),
+    addOrLinkResource: (nodeId: string, input: engine.SkillResourceInput) =>
+      commit((current) => engine.addOrLinkResource(
+        current,
+        nodeId,
+        input,
+        nextId('resource'),
+        nextId('resource-link'),
+        currentTime()
+      )),
+    linkExistingResource: (nodeId: string, resourceId: string) =>
+      commit((current) => engine.linkExistingResource(current, nodeId, resourceId, nextId('resource-link'), currentTime())),
+    updateResource: (resourceId: string, patch: { title: string; note: string }) =>
+      commit((current) => engine.updateResource(current, resourceId, patch, currentTime())),
+    unlinkResource: (linkId: string) => commit((current) => engine.unlinkResource(current, linkId)),
+    deleteResource: (resourceId: string) => commit((current) => engine.deleteResource(current, resourceId)),
     addOutcome: (input: Omit<SkillOutcome, 'id' | 'createdAt' | 'updatedAt'>) =>
       commit((current) => engine.addOutcome(current, input, nextId('outcome'), currentTime())),
     updateOutcome: (outcomeId: string, patch: Pick<SkillOutcome, 'title' | 'description' | 'occurredOn' | 'skillNodeId'>) =>
