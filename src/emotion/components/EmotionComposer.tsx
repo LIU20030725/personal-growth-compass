@@ -6,6 +6,7 @@ import type { EmotionAttachment, EmotionAttachmentInput, EmotionDraft } from '..
 import { EmotionIcon } from './EmotionIcon';
 import { EmotionAudioPlayer } from './EmotionAudioPlayer';
 import { EmotionActivityIcon } from './EmotionActivityIcon';
+import { EmotionMusicPicker } from './EmotionMusicPicker';
 
 interface EmotionComposerProps {
   initial?: EmotionDraft;
@@ -63,6 +64,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   const [message, setMessage] = useState('');
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [musicPickerOpen, setMusicPickerOpen] = useState(false);
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -81,20 +83,6 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   );
 
   const music = draft.music?.[0];
-  function updateMusic(field: 'provider' | 'title' | 'artist' | 'sourceUrl' | 'playbackUrl', value: string) {
-    setDraft((current) => {
-      const next = current.music?.[0] ?? {
-        id: `music-${Date.now()}`,
-        provider: 'other' as const,
-        title: '',
-        artist: '',
-        sourceUrl: '',
-        playbackUrl: '',
-        isFavorite: true
-      };
-      return { ...current, music: [{ ...next, [field]: value }] };
-    });
-  }
 
   const counts = useMemo(() => ({
     images: pending.filter((item) => item.kind === 'image').length + draft.attachments.filter((item) => item.kind === 'image').length,
@@ -316,6 +304,9 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
               <button className={`emotion-attachment-button${recording ? ' is-recording' : ''}`} type="button" aria-label={recording ? '结束录音' : '语音'} onClick={recording ? () => stopRecording(false) : startRecording} disabled={!recording && counts.audio >= 1}>
                 {recording ? <Square /> : <Mic />}{recording ? `结束录音 ${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')}` : '语音'}
               </button>
+              <button className={`emotion-attachment-button${music ? ' is-added' : ''}`} type="button" aria-label="音乐" onClick={() => setMusicPickerOpen(true)}>
+                <Music2 />音乐
+              </button>
             </div>
             {allAttachments > 0 && <div className="emotion-pending-list">已添加 {allAttachments} 项内容 · 图片 {counts.images} · 视频 {counts.videos} · 语音 {counts.audio}</div>}
             {allAttachments > 0 && <div className="emotion-attachment-preview-list" aria-label="已添加附件">
@@ -324,17 +315,16 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
               {pending.map((attachment, index) => <AttachmentPreview key={`${attachment.fileName}-${index}`} attachment={attachment}
                 onRemove={() => setPending((items) => items.filter((_, itemIndex) => itemIndex !== index))} />)}
             </div>}
-            <div className="emotion-music-editor">
-              <div className="emotion-music-editor__heading"><Music2 /><div><strong>收藏一首此刻的歌</strong><span>支持网易云、QQ 音乐或其他来源</span></div></div>
-              <div className="emotion-music-editor__fields">
-                <label>音乐来源<select aria-label="音乐来源" value={music?.provider ?? 'other'} onChange={(event) => updateMusic('provider', event.target.value)}><option value="netease">网易云音乐</option><option value="qq">QQ 音乐</option><option value="other">其他</option></select></label>
-                <label>歌曲名称<input aria-label="歌曲名称" value={music?.title ?? ''} onChange={(event) => updateMusic('title', event.target.value)} /></label>
-                <label>歌手<input aria-label="歌手" value={music?.artist ?? ''} onChange={(event) => updateMusic('artist', event.target.value)} /></label>
-                <label>歌曲链接<input aria-label="歌曲链接" type="url" placeholder="粘贴网易云或 QQ 音乐分享链接" value={music?.sourceUrl ?? ''} onChange={(event) => updateMusic('sourceUrl', event.target.value)} /></label>
-                <label>可播放地址（可选）<input aria-label="可播放地址" type="url" placeholder="浏览器可播放的 mp3 / m4a 地址" value={music?.playbackUrl ?? ''} onChange={(event) => updateMusic('playbackUrl', event.target.value)} /></label>
-              </div>
-              {music && <button type="button" className="emotion-music-editor__remove" onClick={() => setDraft((current) => ({ ...current, music: [] }))}><Trash2 />移除音乐</button>}
-            </div>
+            {musicPickerOpen && <EmotionMusicPicker
+              initialText={music?.sourceUrl}
+              onCancel={() => setMusicPickerOpen(false)}
+              onConfirm={(nextMusic) => { setDraft((current) => ({ ...current, music: [nextMusic] })); setMusicPickerOpen(false); }}
+            />}
+            {music && !musicPickerOpen && <article className="emotion-music-selection">
+              <span aria-hidden="true"><Music2 /></span><div><strong>{music.title}</strong><span>{music.artist || (music.provider === 'netease' ? '网易云音乐' : music.provider === 'qq' ? 'QQ 音乐' : '音乐网页')}</span></div>
+              <button type="button" onClick={() => setMusicPickerOpen(true)}>更换</button>
+              <button type="button" aria-label={`移除音乐 ${music.title}`} onClick={() => setDraft((current) => ({ ...current, music: [] }))}><Trash2 /></button>
+            </article>}
           </section>
           {message && <p className="emotion-form-message" aria-live="polite">{message}</p>}
         </div>
