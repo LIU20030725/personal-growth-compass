@@ -149,7 +149,7 @@ export function validateDraft(draft: EmotionDraft): {
   const errors: string[] = [];
   const music = normalized.music?.[0];
   if (music && !music.title) errors.push('请填写歌曲名称');
-  if (music && !music.sourceUrl && !music.playbackUrl) errors.push('请补充歌曲链接或可播放地址');
+  if (music && !music.sourceUrl && !music.playbackUrl) errors.push('请补充歌曲链接');
   if (music?.sourceUrl && !isSafeHttpUrl(music.sourceUrl)) errors.push('歌曲链接需要使用 http 或 https 地址');
   if (music?.playbackUrl && !isSafeHttpUrl(music.playbackUrl)) errors.push('可播放地址需要使用 http 或 https 地址');
   if (!moodById.has(normalized.moodId)) errors.push('请选择此刻的情绪');

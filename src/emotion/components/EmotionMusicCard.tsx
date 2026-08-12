@@ -13,12 +13,12 @@ export function EmotionMusicCard({ music }: { music: EmotionMusicReference }) {
     <span className="emotion-music-card__cover" aria-hidden="true"><Music2 /></span>
     <div className="emotion-music-card__copy">
       <strong>{music.title}</strong>
-      <span>{music.artist || '未填写歌手'} · {provider}</span>
+      <span>{music.artist ? `${music.artist} · ` : ''}{provider}</span>
     </div>
     {playable
       ? <EmotionAudioPlayer src={music.playbackUrl} label={music.title} />
       : source
-        ? <a href={music.sourceUrl} target="_blank" rel="noreferrer" aria-label={`去${provider}收听${music.title}`}><ExternalLink />去平台收听</a>
-        : <span className="emotion-music-card__unavailable">链接不可用</span>}
+        ? <a href={music.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`去${provider}听${music.title}`}><ExternalLink />去听这首歌</a>
+        : <span className="emotion-music-card__unavailable">链接暂时不可用</span>}
   </article>;
 }

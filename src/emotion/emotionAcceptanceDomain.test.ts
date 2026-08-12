@@ -95,7 +95,7 @@ describe('0811 emotion domain acceptance', () => {
     ['data:audio/mp3;base64,AA', '', '歌曲链接需要使用 http 或 https 地址'],
     ['not a url', '', '歌曲链接需要使用 http 或 https 地址'],
     ['', 'javascript:alert(1)', '可播放地址需要使用 http 或 https 地址'],
-    ['', '', '请补充歌曲链接或可播放地址']
+    ['', '', '请补充歌曲链接']
   ])('rejects unsafe music URLs (%s / %s)', (sourceUrl, playbackUrl, error) => {
     const result = validateDraft({ moodId: 'calm', activityIds: [], note: '', attachments: [], music: [{ id: 'song', provider: 'other', title: '歌', artist: '', sourceUrl, playbackUrl, isFavorite: false }] });
     expect(result.errors).toContain(error);
@@ -143,5 +143,14 @@ describe('0811 emotion domain acceptance', () => {
     expect(result.map((item) => item.id)).not.toContain('older-8');
     expect(getRecentJournalEntries(entries.slice(0, 4))).toHaveLength(4);
     expect(getRecentJournalEntries(entries.slice(0, 10))).toHaveLength(10);
+  });
+
+  it('accepts a safe source-only music link without a playback URL', () => {
+    const result = validateDraft({
+      moodId: 'calm', activityIds: [], note: '', attachments: [],
+      music: [{ id: 'm1', provider: 'other', title: '音乐网页收藏', artist: '', sourceUrl: 'https://example.com/song', playbackUrl: '', isFavorite: true }]
+    });
+    expect(result.valid).toBe(true);
+    expect(result.errors).not.toContain('请补充歌曲链接或可播放地址');
   });
 });

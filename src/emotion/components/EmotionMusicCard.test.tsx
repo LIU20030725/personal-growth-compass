@@ -13,11 +13,15 @@ const base = {
 };
 
 describe('EmotionMusicCard', () => {
-  it('falls back to the original platform when no browser-playable URL exists', () => {
+  it('opens the original platform in a safe new tab when no browser-playable URL exists', () => {
     render(<EmotionMusicCard music={base} />);
 
     expect(screen.getByText('晴天')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '去网易云音乐收听晴天' })).toHaveAttribute('href', base.sourceUrl);
+    const link = screen.getByRole('link', { name: '去网易云音乐听晴天' });
+    expect(link).toHaveAttribute('href', base.sourceUrl);
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+    expect(link).toHaveTextContent('去听这首歌');
   });
 
   it('renders an in-app player when a playback URL exists', () => {
@@ -25,5 +29,11 @@ describe('EmotionMusicCard', () => {
 
     expect(screen.getByRole('button', { name: '播放晴天' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /收听晴天/ })).not.toBeInTheDocument();
+  });
+
+  it('never renders a dangerous navigation target', () => {
+    render(<EmotionMusicCard music={{ ...base, sourceUrl: 'javascript:alert(1)' }} />);
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    expect(screen.getByText('链接暂时不可用')).toBeInTheDocument();
   });
 });
