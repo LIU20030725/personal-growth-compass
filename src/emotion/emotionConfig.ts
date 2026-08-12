@@ -29,6 +29,7 @@ export const moodPresets: MoodPreset[] = [
   { id: 'calm', label: '平静', group: 'steady', color: '#b7dccf', face: 'soft' },
   { id: 'relaxed', label: '放松', group: 'steady', color: '#aed5c7', face: 'smile' },
   { id: 'focused', label: '专注', group: 'steady', color: '#b8d8d2', face: 'flat' },
+  { id: 'clear', label: '清醒', group: 'steady', color: '#a9cfee', face: 'soft' },
   { id: 'tired', label: '疲惫', group: 'low-energy', color: '#cac9dd', face: 'sleepy' },
   { id: 'bored', label: '无聊', group: 'low-energy', color: '#d7d5de', face: 'flat' },
   { id: 'down', label: '低落', group: 'low-energy', color: '#c8d2df', face: 'sad' },
@@ -37,7 +38,7 @@ export const moodPresets: MoodPreset[] = [
   { id: 'stressed', label: '压力', group: 'high-pressure', color: '#e9b8ae', face: 'worried' },
   { id: 'angry', label: '生气', group: 'high-pressure', color: '#e7aa9a', face: 'angry' },
   { id: 'confused', label: '迷茫', group: 'high-pressure', color: '#dabfd0', face: 'worried' },
-  { id: 'sad', label: '悲伤', group: 'high-pressure', color: '#bccbdf', face: 'sad' },
+  { id: 'sad', label: '悲伤', group: 'low-energy', color: '#bccbdf', face: 'sad' },
   { id: 'overwhelmed', label: '撑不住', group: 'high-pressure', color: '#cfb9cd', face: 'sad' }
 ];
 

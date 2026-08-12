@@ -67,6 +67,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   const [musicPickerOpen, setMusicPickerOpen] = useState(false);
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const musicButtonRef = useRef<HTMLButtonElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -83,6 +84,11 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   );
 
   const music = draft.music?.[0];
+
+  const closeMusicPicker = useCallback(() => {
+    setMusicPickerOpen(false);
+    window.requestAnimationFrame(() => musicButtonRef.current?.focus());
+  }, []);
 
   const counts = useMemo(() => ({
     images: pending.filter((item) => item.kind === 'image').length + draft.attachments.filter((item) => item.kind === 'image').length,
@@ -304,7 +310,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
               <button className={`emotion-attachment-button${recording ? ' is-recording' : ''}`} type="button" aria-label={recording ? '结束录音' : '语音'} onClick={recording ? () => stopRecording(false) : startRecording} disabled={!recording && counts.audio >= 1}>
                 {recording ? <Square /> : <Mic />}{recording ? `结束录音 ${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')}` : '语音'}
               </button>
-              <button className={`emotion-attachment-button${music ? ' is-added' : ''}`} type="button" aria-label="音乐" onClick={() => setMusicPickerOpen(true)}>
+              <button ref={musicButtonRef} className={`emotion-attachment-button${music ? ' is-added' : ''}`} type="button" aria-label="音乐" onClick={() => setMusicPickerOpen(true)}>
                 <Music2 />音乐
               </button>
             </div>
@@ -317,7 +323,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
             </div>}
             {musicPickerOpen && <EmotionMusicPicker
               initialText={music?.sourceUrl}
-              onCancel={() => setMusicPickerOpen(false)}
+              onCancel={closeMusicPicker}
               onConfirm={(nextMusic) => { setDraft((current) => ({ ...current, music: [nextMusic] })); setMusicPickerOpen(false); }}
             />}
             {music && !musicPickerOpen && <article className="emotion-music-selection">

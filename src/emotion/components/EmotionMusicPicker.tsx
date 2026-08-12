@@ -38,14 +38,19 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel }: {
     });
   }
 
-  return <section className="emotion-music-picker" aria-labelledby="emotion-music-picker-title">
+  return <section className="emotion-music-picker" aria-labelledby="emotion-music-picker-title" onKeyDown={(event) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    onCancel();
+  }}>
     <div className="emotion-music-picker__heading">
       <span aria-hidden="true"><Music2 /></span>
       <div><h4 id="emotion-music-picker-title">收藏此刻的歌</h4><p>粘贴分享内容，歌曲信息会尽量自动识别</p></div>
     </div>
     <div className="emotion-music-picker__input-row">
       <label htmlFor="emotion-music-share">音乐分享链接</label>
-      <div><input id="emotion-music-share" value={input} placeholder="粘贴网易云、QQ 音乐或其他音乐网页链接" onChange={(event) => { setInput(event.target.value); setError(''); setResult(null); }} />
+      <div><input id="emotion-music-share" value={input} autoFocus placeholder="粘贴网易云、QQ 音乐或其他音乐网页链接" onChange={(event) => { setInput(event.target.value); setError(''); setResult(null); }} />
         <button type="button" onClick={identify}>识别音乐</button></div>
     </div>
     {error && <p className="emotion-music-picker__error" role="alert">{error}</p>}

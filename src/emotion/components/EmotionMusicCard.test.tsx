@@ -34,6 +34,6 @@ describe('EmotionMusicCard', () => {
   it('never renders a dangerous navigation target', () => {
     render(<EmotionMusicCard music={{ ...base, sourceUrl: 'javascript:alert(1)' }} />);
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
-    expect(screen.getByText('链接暂时不可用')).toBeInTheDocument();
+    expect(screen.getByText('链接不可用')).toBeInTheDocument();
   });
 });

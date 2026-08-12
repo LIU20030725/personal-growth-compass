@@ -19,6 +19,6 @@ export function EmotionMusicCard({ music }: { music: EmotionMusicReference }) {
       ? <EmotionAudioPlayer src={music.playbackUrl} label={music.title} />
       : source
         ? <a href={music.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label={`去${provider}听${music.title}`}><ExternalLink />去听这首歌</a>
-        : <span className="emotion-music-card__unavailable">链接暂时不可用</span>}
+        : <span className="emotion-music-card__unavailable">链接不可用</span>}
   </article>;
 }

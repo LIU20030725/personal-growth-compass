@@ -34,4 +34,15 @@ describe('EmotionComposer quick music flow', () => {
     expect(screen.getByRole('radio', { name: '开心' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByLabelText('文字日记')).toHaveValue('今天很好');
   });
+
+  it('focuses the share link and returns focus to the music button after Escape', async () => {
+    render(<EmotionComposer onClose={vi.fn()} onSave={vi.fn()} />);
+    const trigger = screen.getByRole('button', { name: '音乐' });
+    fireEvent.click(trigger);
+    const input = screen.getByLabelText('音乐分享链接');
+    expect(input).toHaveFocus();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByLabelText('音乐分享链接')).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
 });
