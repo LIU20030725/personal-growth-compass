@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmotionModule } from './EmotionModule';
 
 describe('EmotionModule', () => {
   beforeEach(() => window.localStorage.clear());
+  afterEach(() => vi.useRealTimers());
 
   it('以日记为首页并可切换内容库与心情日历', () => {
     render(<EmotionModule />);
@@ -53,6 +54,8 @@ describe('EmotionModule', () => {
   });
 
   it('offers an upward creation menu and saves an important day', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-08-12T12:00:00+08:00'));
     render(<EmotionModule />);
     const trigger = screen.getByRole('button', { name: '记录感受' });
     fireEvent.click(trigger);
