@@ -221,7 +221,9 @@
   transform: none;
 }
 .emotion-face--vector svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.emotion-mood-choice:focus { outline: none; }
-.emotion-mood-choice:focus-visible { outline: 3px solid #3f6f60; outline-offset: 3px; }
-.emotion-mood-choice.is-selected { border-color: transparent; color: #31443d; background: #eef6f2; box-shadow: none; }
+.emotion-module .emotion-mood-choice:focus,
+.emotion-module .emotion-mood-choice:focus-visible { outline: 0; outline-offset: 0; }
+.emotion-mood-choice:focus-visible > span:last-child { color: #24483d; text-decoration: underline 3px #668f80; text-underline-offset: 6px; }
+.emotion-mood-choice.is-selected { position: relative; border-color: transparent; color: #31443d; background: transparent; box-shadow: none; font-weight: 850; }
+.emotion-mood-choice.is-selected::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: #668f80; transform: translateX(-50%); }
 .emotion-mood-choice.is-selected .emotion-face { box-shadow: none; }

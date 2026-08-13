@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 export interface FaceArtworkProps { id: string }
-type FaceArtwork = (props: FaceArtworkProps) => JSX.Element;
+type FaceArtwork = (props: FaceArtworkProps) => ReactElement;
 
 const ink = '#26332f';
 const rose = '#ef8f83';
