@@ -272,6 +272,11 @@ export function resetCanvasLayoutPreferences(preferences: CanvasPreferences): Ca
   return { ...preferences, positions: {}, phasePositions: {} };
 }
 
+export function removePhaseCanvasPreference(preferences: CanvasPreferences, phaseId: string): CanvasPreferences {
+  const { [phaseId]: _removed, ...phasePositions } = preferences.phasePositions;
+  return { ...preferences, phasePositions };
+}
+
 export function isCanvasPaneTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.classList.contains('react-flow__pane');
 }

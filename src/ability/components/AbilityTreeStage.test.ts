@@ -10,6 +10,7 @@ import {
   consumeFocusRequest,
   getRenderedSkillNodeIds,
   isCanvasPaneTarget,
+  removePhaseCanvasPreference,
   resetCanvasLayoutPreferences
 } from './AbilityTreeStage';
 import { getKeyboardNavigationTarget } from '../abilityKeyboard';
@@ -93,6 +94,16 @@ describe('AbilityTreeStage canvas drag preferences', () => {
       ...preferences,
       phasePositions: { practice: { x: 992, y: 416 } }
     })).toEqual({ ...preferences, positions: {}, phasePositions: {} });
+  });
+
+  it('removes a deleted phase position without changing other canvas preferences', () => {
+    expect(removePhaseCanvasPreference({
+      ...preferences,
+      phasePositions: { deleted: { x: 96, y: 112 }, kept: { x: 192, y: 208 } }
+    }, 'deleted')).toEqual({
+      ...preferences,
+      phasePositions: { kept: { x: 192, y: 208 } }
+    });
   });
 
   it('undoes and redoes canvas changes while a new change clears future history', () => {
