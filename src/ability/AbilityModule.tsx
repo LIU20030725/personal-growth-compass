@@ -194,6 +194,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
       return;
     }
     const node = nextCandidates[nextCursor % nextCandidates.length];
+    setFilter('all');
     setNextCursor((value) => (value + 1) % nextCandidates.length);
     setSelectedNodeId(node.id);
     setDetailOpen(true);

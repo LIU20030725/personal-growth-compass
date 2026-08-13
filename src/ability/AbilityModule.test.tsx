@@ -106,6 +106,18 @@ describe('AbilityModule', () => {
     expect(screen.getByRole('status')).toHaveTextContent('已定位：React 状态管理');
   });
 
+  it('reveals the next candidate after leaving the mastered-only filter', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    fireEvent.click(within(screen.getByLabelText('技能树显示筛选')).getByRole('button', { name: '已掌握' }));
+    fireEvent.click(screen.getByRole('button', { name: '下一步 · 1' }));
+
+    expect(within(screen.getByLabelText('技能节点详情')).getByRole('heading', { name: 'React 状态管理' })).toBeInTheDocument();
+    expect(await screen.findByRole('group', { name: /React 状态管理 成长中/ })).toBeInTheDocument();
+    expect(within(screen.getByLabelText('技能树显示筛选')).getByRole('button', { name: '全部' })).toHaveClass('active');
+  });
+
   it.each([
     ['empty_tree', '这棵技能树还没有节点'],
     ['all_mastered', '所有技能节点都已掌握'],
