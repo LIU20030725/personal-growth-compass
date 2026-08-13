@@ -16,7 +16,7 @@ import {
 import { useAbilitySystem } from './useAbilitySystem';
 import type { StorageLike } from '../lib/storage';
 import type { TreeNodeFilter } from './types';
-import { AbilityTreeStage } from './components/AbilityTreeStage';
+import { AbilityTreeStage, resetCanvasLayoutPreferences } from './components/AbilityTreeStage';
 import { AbilityNodePanel } from './components/AbilityNodePanel';
 import { SkillLibrary } from './components/SkillLibrary';
 import { NodeFormDialog, OutcomeFormDialog, PhaseFormDialog, TreeFormDialog } from './components/AbilityForms';
@@ -43,7 +43,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [filter, setFilter] = useState<TreeNodeFilter>('all');
   const [form, setForm] = useState<FormName>(null);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [resetLayoutRequest, setResetLayoutRequest] = useState(0);
+  const [fitLayoutRequest, setFitLayoutRequest] = useState(0);
   const [focusRequest, setFocusRequest] = useState<{ nodeId: string; sequence: number } | null>(null);
   const [nextCursor, setNextCursor] = useState(0);
   const [nextStatus, setNextStatus] = useState('');
@@ -95,6 +95,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   };
   const redoCanvas = () => {
     if (currentTreeId) updateCanvasHistory(currentTreeId, redoCanvasPreferenceChange);
+  };
+  const resetCanvasLayout = () => {
+    if (!currentCanvasHistory) return;
+    commitCanvasPreferences(resetCanvasLayoutPreferences(currentCanvasHistory.present));
+    setFitLayoutRequest((value) => value + 1);
   };
   const runUndo = () => {
     if (currentCanvasHistory) runAbilityHistoryAction('undo', currentCanvasHistory, ability.canUndo, undoCanvas, ability.undo);
@@ -220,7 +225,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
             {moreOpen ? <div className="ability-tree-action-menu" role="menu" onKeyDown={(event) => {
               if (event.key === 'Escape') { event.preventDefault(); setMoreOpen(false); window.setTimeout(() => moreTriggerRef.current?.focus(), 0); }
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') { event.preventDefault(); moreItemRef.current?.focus(); }
-            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { setResetLayoutRequest((value) => value + 1); setMoreOpen(false); }}>重新自动布局</button></div> : null}
+            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { resetCanvasLayout(); setMoreOpen(false); }}>重新自动布局</button></div> : null}
           </div>
         </div>
       </section>
@@ -247,7 +252,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           onRedoCanvas={redoCanvas}
           selectedNodeId={selectedNodeId}
           focusRequest={focusRequest}
-          resetLayoutRequest={resetLayoutRequest}
+          fitLayoutRequest={fitLayoutRequest}
+          onResetLayout={resetCanvasLayout}
           stateFilter={filter}
           onSelectNode={(nodeId) => { setSelectedNodeId(nodeId); setDetailOpen(Boolean(nodeId)); }}
           onSelectOutcome={(outcomeId) => { const outcome = ability.state.outcomes.find((item) => item.id === outcomeId); setSelectedNodeId(outcome?.skillNodeId ?? null); setDetailOpen(Boolean(outcome?.skillNodeId)); }}

@@ -78,7 +78,7 @@ type Props = {
   tree: SkillTree;
   selectedNodeId: string | null;
   focusRequest?: AbilityFocusRequest | null;
-  resetLayoutRequest?: number;
+  fitLayoutRequest?: number;
   stateFilter: TreeNodeFilter;
   preferences: CanvasPreferences;
   canvasHistory: CanvasPreferenceHistory;
@@ -86,6 +86,7 @@ type Props = {
   onUpdateViewport: (viewport: CanvasPreferences['viewport']) => void;
   onUndoCanvas: () => void;
   onRedoCanvas: () => void;
+  onResetLayout: () => void;
   onSelectNode: (nodeId: string | null) => void;
   onSelectOutcome: (outcomeId: string) => void;
   onAddPhase: () => void;
@@ -282,7 +283,7 @@ export function AbilityTreeStage(props: Props) {
   const previousSkillCountRef = useRef(
     props.state.nodes.filter((node) => node.skillTreeId === props.tree.id && !node.archivedAt).length
   );
-  const previousResetRequestRef = useRef(props.resetLayoutRequest ?? 0);
+  const previousFitRequestRef = useRef(props.fitLayoutRequest ?? 0);
   const phaseDragStartPositionRef = useRef<CanvasPoint | null>(null);
   const phaseDragPositionRef = useRef<CanvasPoint | null>(null);
   const consumedFocusRequestRef = useRef({ treeId: props.tree.id, sequence: 0 });
@@ -632,17 +633,12 @@ export function AbilityTreeStage(props: Props) {
     props.onUpdateViewport(viewport);
   }, [props.onUpdateViewport]);
 
-  const resetLayout = () => {
-    persistPreferences(resetCanvasLayoutPreferences(preferences));
-    queueMicrotask(() => void instanceRef.current?.fitView({ padding: 0.2, maxZoom: 1.15, duration: 220 }));
-  };
-
   useEffect(() => {
-    const request = props.resetLayoutRequest ?? 0;
-    if (request === previousResetRequestRef.current) return;
-    previousResetRequestRef.current = request;
-    resetLayout();
-  }, [props.resetLayoutRequest]);
+    const request = props.fitLayoutRequest ?? 0;
+    if (request === previousFitRequestRef.current) return;
+    previousFitRequestRef.current = request;
+    queueMicrotask(() => void instanceRef.current?.fitView({ padding: 0.2, maxZoom: 1.15, duration: 220 }));
+  }, [props.fitLayoutRequest]);
 
   const locateSelected = () => {
     const id = [...selectedIds][0];
@@ -772,7 +768,7 @@ export function AbilityTreeStage(props: Props) {
         <Panel position="top-right" className="ability-canvas-toolbar">
           <button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
           <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
-          <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>
+          <button type="button" onClick={props.onResetLayout}><RotateCcw size={15} />重新自动布局</button>
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
           <button type="button" disabled={!props.canvasHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
           <button type="button" disabled={!props.canvasHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
