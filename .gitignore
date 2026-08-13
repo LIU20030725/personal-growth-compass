@@ -17,3 +17,4 @@ exports/
 docs/docs_bak/
 canvas/*.tmp
 /.worktrees/
+.superpowers/
