@@ -14,18 +14,19 @@ describe('EmotionIcon v1.3 atlas', () => {
     expect(moodPresets.filter((mood) => mood.group === 'high-pressure')).toHaveLength(5);
   });
 
-  it('renders the original reference pixels without a system emoji glyph', () => {
+  it('renders standalone vector artwork without a raster or system emoji glyph', () => {
     const { container } = render(<><EmotionIcon moodId="excited" /><span>after</span></>);
     const face = container.querySelector('.emotion-face');
     expect(face).toHaveAttribute('data-mood-group', 'uplifted');
     expect(face).toHaveAttribute('aria-hidden', 'true');
     expect(face).toHaveTextContent('');
-    expect(face?.querySelector('svg[data-reference-face="excited"] image')).toBeInTheDocument();
-    expect(face?.querySelector('path, circle, ellipse, rect, line, polygon')).not.toBeInTheDocument();
+    expect(face?.querySelector('svg[data-reference-face="excited"]')).toBeInTheDocument();
+    expect(face?.querySelector('path, circle, ellipse, line, polygon')).toBeInTheDocument();
+    expect(face?.querySelector('image, text, foreignObject')).not.toBeInTheDocument();
     expect(screen.getByText('after')).toBeInTheDocument();
   });
 
-  it('crops one untouched region from the supplied atlas for every mood', () => {
+  it('renders one unique standalone SVG for every mood', () => {
     const { container } = render(<>{moodPresets.map((mood) => <EmotionIcon key={mood.id} moodId={mood.id} />)}</>);
     expect(container.querySelectorAll('svg[data-reference-face]')).toHaveLength(18);
     for (const mood of moodPresets) {
@@ -33,12 +34,20 @@ describe('EmotionIcon v1.3 atlas', () => {
     }
   });
 
-  it('uses the supplied reference atlas directly and never reconstructs the artwork', () => {
+  it('never embeds raster artwork, text, or a shared screenshot crop', () => {
     const { container } = render(<>{moodPresets.map((mood) => <EmotionIcon key={mood.id} moodId={mood.id} />)}</>);
-    const images = container.querySelectorAll('svg[data-reference-face] image');
-    expect(images).toHaveLength(18);
-    expect(new Set(Array.from(images, (image) => image.getAttribute('href'))).size).toBe(1);
-    expect(container.querySelector('path, circle, ellipse, rect, line, polygon')).not.toBeInTheDocument();
+    const svgs = container.querySelectorAll('svg[data-reference-face]');
+    expect(svgs).toHaveLength(18);
+    expect(container.querySelector('image, text, foreignObject')).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toMatch(/\.png|\.jpe?g|data:image/i);
+    expect(new Set(Array.from(svgs, (svg) => svg.innerHTML)).size).toBe(18);
+  });
+
+  it('keeps selection styling outside the vector artwork', () => {
+    const { container } = render(<EmotionIcon moodId="happy" selected />);
+    const svg = container.querySelector('svg[data-reference-face="happy"]');
+    expect(svg).not.toHaveClass('is-selected');
+    expect(svg).not.toHaveAttribute('style');
   });
 
   it('falls back to calm while retaining the requested size', () => {
