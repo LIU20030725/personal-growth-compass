@@ -57,6 +57,8 @@ describe('AbilityModule', () => {
     const panel = screen.getByLabelText('技能节点详情');
     expect(within(panel).getByRole('heading', { name: 'React 状态管理' })).toBeInTheDocument();
     expect(within(panel).getByText('完成状态管理项目')).toBeInTheDocument();
+    fireEvent.click(within(panel).getByRole('button', { name: '关闭技能详情' }));
+    expect(screen.queryByLabelText('技能节点详情')).not.toBeInTheDocument();
   });
 
   it('uses direct manipulation actions without a page edit mode', async () => {

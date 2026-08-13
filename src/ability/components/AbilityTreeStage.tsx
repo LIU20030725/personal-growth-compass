@@ -284,6 +284,7 @@ function sameSelection(current: ReadonlySet<string>, ids: string[]): boolean {
 export function AbilityTreeStage(props: Props) {
   const preferences = props.preferences;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(props.selectedNodeId ? [props.selectedNodeId] : []));
+  const selectedIdsRef = useRef(selectedIds);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [copiedName, setCopiedName] = useState('');
@@ -299,6 +300,10 @@ export function AbilityTreeStage(props: Props) {
   const phaseDragStartPositionRef = useRef<CanvasPoint | null>(null);
   const phaseDragPositionRef = useRef<CanvasPoint | null>(null);
   const consumedFocusRequestRef = useRef({ treeId: props.tree.id, sequence: 0 });
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
 
   useEffect(() => {
     const requestedNode = props.selectedNodeId
@@ -545,8 +550,8 @@ export function AbilityTreeStage(props: Props) {
       target: `phase:${item.toPhaseId}`,
       type: 'default',
       className: 'ability-edge-phase-order',
-      markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: '#b48a22' },
-      style: { stroke: '#b48a22', strokeWidth: 1.5 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 13, height: 13, color: '#858b91' },
+      style: { stroke: '#858b91', strokeWidth: 1.6 },
       zIndex: -3
     }));
     return [...phaseEdges, ...nodeEdges];
@@ -709,7 +714,8 @@ export function AbilityTreeStage(props: Props) {
         onSelectionChange={({ nodes: selected }) => {
           const ids = selected.filter((node) => node.type === 'skill').map((node) => node.id);
           if (ids.length === 0) return;
-          setSelectedIds((current) => sameSelection(current, ids) ? current : new Set(ids));
+          if (sameSelection(selectedIdsRef.current, ids)) return;
+          setSelectedIds(new Set(ids));
           props.onSelectNode(ids.length === 1 ? ids[0] : null);
         }}
         onNodeDragStart={(_, node) => {
