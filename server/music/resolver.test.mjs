@@ -40,5 +40,11 @@ describe('music metadata resolver security boundary', () => {
     const resolve = createMusicResolver({ fetcher });
     await expect(resolve('https://music.163.com/song?id=1')).rejects.toMatchObject({ code: 'UPSTREAM_UNAVAILABLE' });
   });
-});
 
+  it('does not follow an upstream redirect supplied by a platform response', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response('', { status: 302, headers: { location: 'http://127.0.0.1/private' } }));
+    const resolve = createMusicResolver({ fetcher });
+    await expect(resolve('https://music.163.com/song?id=1')).rejects.toMatchObject({ code: 'UPSTREAM_UNAVAILABLE' });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});

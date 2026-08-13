@@ -19,4 +19,10 @@ describe('music provider adapters', () => {
     const resolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response('{"songs":[]}', { status: 200 })) });
     await expect(resolve('https://music.163.com/song?id=1')).rejects.toMatchObject({ code: 'METADATA_NOT_FOUND' });
   });
+
+  it('drops a cover URL outside the NetEase image host allowlist', async () => {
+    const fixture = { songs: [{ name: '安全歌曲', artists: [], album: { picUrl: 'https://tracker.evil.test/pixel' } }] };
+    const resolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response(JSON.stringify(fixture), { status: 200 })) });
+    await expect(resolve('https://music.163.com/song?id=1')).resolves.toMatchObject({ coverUrl: '' });
+  });
 });

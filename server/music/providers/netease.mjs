@@ -11,8 +11,15 @@ export const neteaseAdapter = {
     return {
       provider: 'netease', title: String(song.name),
       artist: (Array.isArray(song.artists) ? song.artists : []).map((artist) => artist?.name).filter(Boolean).join(' / '),
-      coverUrl: typeof song.album?.picUrl === 'string' ? song.album.picUrl : '', sourceUrl: link.sourceUrl
+      coverUrl: safeNetEaseCover(song.album?.picUrl), sourceUrl: link.sourceUrl
     };
   }
 };
 
+function safeNetEaseCover(value) {
+  if (typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && (url.hostname === 'music.126.net' || url.hostname.endsWith('.music.126.net')) ? url.toString() : '';
+  } catch { return ''; }
+}
