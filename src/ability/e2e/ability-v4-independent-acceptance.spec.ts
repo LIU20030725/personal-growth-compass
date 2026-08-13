@@ -160,6 +160,13 @@ test('重新生成三档 V4 验收截图并核对溢出、详情与移动路线'
   await page.getByRole('region', { name: '历史能力路线线性技能路线' }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${EVIDENCE}/04-1024-linear-route.png`, animations: 'disabled' });
 
+  // A 720 CSS-pixel viewport represents the reflow pressure of 200% zoom on 1440px desktop.
+  await page.setViewportSize({ width: 720, height: 450 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('button', { name: '下一步 · 2' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '切换到线性路线' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload({ waitUntil: 'domcontentloaded' });
   const route = page.getByRole('region', { name: '历史能力路线线性技能路线' });
