@@ -18,7 +18,7 @@ export type AbilityCanvasCommand =
   | 'clear-selection'
   | 'show-shortcuts';
 
-export type AbilityKeyboardEvent = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey'>;
+export type AbilityKeyboardEvent = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey' | 'altKey'>;
 
 export type AbilityKeyboardTarget = {
   tagName?: string;
@@ -36,15 +36,18 @@ export function resolveAbilityCanvasCommand(
   const tagName = target.tagName?.toLowerCase();
   if (target.contentEditable || target.insideMenu || target.insideDialog || (tagName && ['input', 'textarea', 'select', 'button', 'a'].includes(tagName))) return null;
   if (selection.selectedNodeIds.length !== 1) return null;
-  const command = event.ctrlKey || event.metaKey;
+  if (event.altKey || (event.ctrlKey && event.metaKey)) return null;
+  const command = event.ctrlKey !== event.metaKey;
+  const plain = !event.ctrlKey && !event.metaKey;
   const key = event.key.toLowerCase();
   if (command && key === 'z') return event.shiftKey ? 'redo' : 'undo';
-  if (command && key === 'y') return 'redo';
-  if (command && key === 'c') return 'copy';
-  if (command && key === 'v') return 'paste-child';
+  if (command && key === 'y' && !event.shiftKey) return 'redo';
+  if (command && key === 'c' && !event.shiftKey) return 'copy';
+  if (command && key === 'v' && !event.shiftKey) return 'paste-child';
   if (command && event.key === 'Enter') return event.shiftKey ? 'add-sibling' : 'add-child';
-  if (event.key === 'Enter' || event.key === 'F2') return 'rename';
-  if (event.key === 'Delete' || event.key === 'Backspace') return 'delete-branch';
+  if (!plain) return null;
+  if (!event.shiftKey && (event.key === 'Enter' || event.key === 'F2')) return 'rename';
+  if (!event.shiftKey && (event.key === 'Delete' || event.key === 'Backspace')) return 'delete-branch';
   const navigation: Partial<Record<string, AbilityCanvasCommand>> = {
     ArrowLeft: 'select-parent',
     ArrowRight: 'select-first-child',
@@ -53,8 +56,8 @@ export function resolveAbilityCanvasCommand(
     Home: 'select-first-sibling',
     End: 'select-last-sibling'
   };
-  if (navigation[event.key]) return navigation[event.key] ?? null;
-  if (event.key === 'Escape') return 'clear-selection';
+  if (!event.shiftKey && navigation[event.key]) return navigation[event.key] ?? null;
+  if (!event.shiftKey && event.key === 'Escape') return 'clear-selection';
   if (event.key === '?') return 'show-shortcuts';
   return null;
 }

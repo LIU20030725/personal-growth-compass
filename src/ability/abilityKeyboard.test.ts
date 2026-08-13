@@ -23,7 +23,7 @@ function navigationState(): AbilityState {
 describe('resolveAbilityCanvasCommand', () => {
   it('maps Ctrl+Enter to add child for one selected skill', () => {
     expect(resolveAbilityCanvasCommand(
-      { key: 'Enter', ctrlKey: true, metaKey: false, shiftKey: false },
+      { key: 'Enter', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false },
       { tagName: 'div' },
       { selectedNodeIds: ['skill'] }
     )).toBe('add-child');
@@ -32,15 +32,15 @@ describe('resolveAbilityCanvasCommand', () => {
   it('maps Enter and F2 to rename for one selected skill', () => {
     const selection = { selectedNodeIds: ['skill'] };
     const target = { tagName: 'div' };
-    expect(resolveAbilityCanvasCommand({ key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false }, target, selection)).toBe('rename');
-    expect(resolveAbilityCanvasCommand({ key: 'F2', ctrlKey: false, metaKey: false, shiftKey: false }, target, selection)).toBe('rename');
+    expect(resolveAbilityCanvasCommand({ key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }, target, selection)).toBe('rename');
+    expect(resolveAbilityCanvasCommand({ key: 'F2', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false }, target, selection)).toBe('rename');
   });
 
   it('maps the remaining single-selection commands on Windows and macOS', () => {
     const target = { tagName: 'div' };
     const selection = { selectedNodeIds: ['skill'] };
     const resolve = (key: string, modifiers: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }> = {}) =>
-      resolveAbilityCanvasCommand({ key, ctrlKey: false, metaKey: false, shiftKey: false, ...modifiers }, target, selection);
+      resolveAbilityCanvasCommand({ key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...modifiers }, target, selection);
 
     expect(resolve('Enter', { metaKey: true, shiftKey: true })).toBe('add-sibling');
     expect(resolve('Delete')).toBe('delete-branch');
@@ -62,7 +62,7 @@ describe('resolveAbilityCanvasCommand', () => {
 
   it('never maps Tab and excludes interactive, menu, dialog, and contenteditable targets', () => {
     const selection = { selectedNodeIds: ['skill'] };
-    const event = { key: 'Delete', ctrlKey: false, metaKey: false, shiftKey: false };
+    const event = { key: 'Delete', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false };
     expect(resolveAbilityCanvasCommand({ ...event, key: 'Tab' }, { tagName: 'div' }, selection)).toBeNull();
     expect(resolveAbilityCanvasCommand({ ...event, key: 'Tab', shiftKey: true }, { tagName: 'div' }, selection)).toBeNull();
     for (const tagName of ['input', 'textarea', 'select', 'button', 'a']) {
@@ -75,7 +75,7 @@ describe('resolveAbilityCanvasCommand', () => {
 
   it('does not map any canvas command without exactly one selected skill', () => {
     const target = { tagName: 'div' };
-    const enter = { key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false };
+    const enter = { key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false, altKey: false };
     expect(resolveAbilityCanvasCommand(enter, target, { selectedNodeIds: [] })).toBeNull();
     expect(resolveAbilityCanvasCommand(enter, target, { selectedNodeIds: ['one', 'two'] })).toBeNull();
     for (const event of [
@@ -87,6 +87,25 @@ describe('resolveAbilityCanvasCommand', () => {
       expect(resolveAbilityCanvasCommand(event, target, { selectedNodeIds: [] })).toBeNull();
       expect(resolveAbilityCanvasCommand(event, target, { selectedNodeIds: ['one', 'two'] })).toBeNull();
     }
+  });
+
+  it('requires exact modifiers for every command', () => {
+    const target = { tagName: 'div' };
+    const selection = { selectedNodeIds: ['skill'] };
+    const resolve = (key: string, modifiers: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }> = {}) =>
+      resolveAbilityCanvasCommand({ key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...modifiers }, target, selection);
+
+    for (const key of ['Enter', 'F2', 'Delete', 'Backspace', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Escape', '?']) {
+      expect(resolve(key, { altKey: true })).toBeNull();
+    }
+    for (const key of ['F2', 'Backspace', 'ArrowLeft', 'Home', 'Escape']) {
+      expect(resolve(key, { ctrlKey: true })).toBeNull();
+    }
+    expect(resolve('v', { ctrlKey: true, shiftKey: true })).toBeNull();
+    expect(resolve('c', { metaKey: true, shiftKey: true })).toBeNull();
+    expect(resolve('y', { ctrlKey: true, shiftKey: true })).toBeNull();
+    expect(resolve('z', { ctrlKey: true, shiftKey: true })).toBe('redo');
+    expect(resolve('?', { shiftKey: true })).toBe('show-shortcuts');
   });
 });
 

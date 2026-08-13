@@ -474,6 +474,19 @@ describe('AbilityModule', () => {
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'html').archivedAt).toBeNull();
   });
 
+  it('does not intercept Alt navigation or command Shift+V', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    const before = localStorage.getItem('dice-life.ability.v1');
+
+    expect(fireEvent.keyDown(canvas, { key: 'ArrowLeft', altKey: true })).toBe(true);
+    expect(fireEvent.keyDown(canvas, { key: 'v', ctrlKey: true, shiftKey: true })).toBe(true);
+    expect(localStorage.getItem('dice-life.ability.v1')).toBe(before);
+  });
+
   it('does not intercept history, Escape, or ? when the focused canvas has no selection', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
