@@ -45,8 +45,23 @@ export async function readBoundedJson(response, maxBytes = 512 * 1024) {
   if (!response.ok) throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '音乐平台暂时无法访问', 502);
   const declared = Number(response.headers.get('content-length') || 0);
   if (declared > maxBytes) throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '音乐平台返回的数据过大', 502);
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > maxBytes) throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '音乐平台返回的数据过大', 502);
+  const chunks = [];
+  let received = 0;
+  if (!response.body) throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '音乐平台没有返回数据', 502);
+  const reader = response.body.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel();
+      throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '音乐平台返回的数据过大', 502);
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
   try { return JSON.parse(new TextDecoder().decode(bytes)); } catch {
     throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '音乐平台返回了无法识别的数据', 502);
   }
@@ -62,4 +77,3 @@ export async function fetchWithTimeout(fetcher, url, options = {}, timeoutMs = 4
     throw new MusicResolverError('UPSTREAM_UNAVAILABLE', '暂时无法连接音乐平台', 502);
   } finally { clearTimeout(timeout); }
 }
-
