@@ -1,18 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { layoutAbilityCanvas } from '../abilityCanvasLayout';
 import type { CanvasPreferences } from '../abilityCanvasStorage';
 import { createInitialAbilityState } from '../abilityStorage';
 import {
   applyCanvasDragPreference,
-  applyCanvasPreferenceChange,
   applyPhaseDragPreference,
-  createCanvasPreferenceHistory,
+  consumeAbilityFocusRequest,
   consumeFocusRequest,
+  getAbilityHistoryShortcut,
   isCanvasPaneTarget,
-  redoCanvasPreferenceChange,
-  resetCanvasLayoutPreferences,
-  undoCanvasPreferenceChange
+  resetCanvasLayoutPreferences
 } from './AbilityTreeStage';
+import {
+  applyCanvasPreferenceChange,
+  createCanvasPreferenceHistory,
+  redoCanvasPreferenceChange,
+  runAbilityHistoryAction,
+  undoCanvasPreferenceChange
+} from '../abilityCanvasHistory';
 
 const preferences: CanvasPreferences = {
   positions: { skill: { x: 32, y: 48 } },
@@ -102,5 +107,39 @@ describe('AbilityTreeStage canvas drag preferences', () => {
     expect(consumeFocusRequest(2, { nodeId: 'next-node', sequence: 3 })).toEqual({ nodeId: 'next-node', sequence: 3 });
     expect(consumeFocusRequest(3, { nodeId: 'next-node', sequence: 3 })).toBeNull();
     expect(consumeFocusRequest(3, { nodeId: 'other-node', sequence: 4 })).toEqual({ nodeId: 'other-node', sequence: 4 });
+  });
+
+  it('invokes the focus action once for a fresh request and not for the same sequence again', () => {
+    const focus = vi.fn();
+    const consumed = consumeAbilityFocusRequest(2, { nodeId: 'next-node', sequence: 3 }, focus);
+
+    expect(consumed).toBe(3);
+    expect(focus).toHaveBeenCalledTimes(1);
+    expect(focus).toHaveBeenCalledWith('next-node');
+    expect(consumeAbilityFocusRequest(consumed, { nodeId: 'next-node', sequence: 3 }, focus)).toBe(3);
+    expect(focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('routes history shortcuts to canvas before domain and falls back when canvas is empty', () => {
+    const canvasUndo = vi.fn();
+    const domainUndo = vi.fn();
+    const history = applyCanvasPreferenceChange(createCanvasPreferenceHistory(preferences), {
+      ...preferences,
+      positions: { skill: { x: 80, y: 96 } }
+    });
+
+    expect(runAbilityHistoryAction('undo', history, true, canvasUndo, domainUndo)).toBe('canvas');
+    expect(canvasUndo).toHaveBeenCalledOnce();
+    expect(domainUndo).not.toHaveBeenCalled();
+
+    expect(runAbilityHistoryAction('undo', createCanvasPreferenceHistory(preferences), true, canvasUndo, domainUndo)).toBe('domain');
+    expect(domainUndo).toHaveBeenCalledOnce();
+  });
+
+  it('recognizes canvas undo and redo keyboard events', () => {
+    expect(getAbilityHistoryShortcut({ key: 'z', ctrlKey: true, metaKey: false, shiftKey: false })).toBe('undo');
+    expect(getAbilityHistoryShortcut({ key: 'Z', ctrlKey: false, metaKey: true, shiftKey: true })).toBe('redo');
+    expect(getAbilityHistoryShortcut({ key: 'y', ctrlKey: true, metaKey: false, shiftKey: false })).toBe('redo');
+    expect(getAbilityHistoryShortcut({ key: 'z', ctrlKey: false, metaKey: false, shiftKey: false })).toBeNull();
   });
 });

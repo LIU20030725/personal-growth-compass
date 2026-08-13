@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialAbilityState, saveAbilityState } from './abilityStorage';
+import { loadCanvasPreferences, saveCanvasPreferences } from './abilityCanvasStorage';
 import { AbilityModule } from './AbilityModule';
 import type { AbilityState } from './types';
 
@@ -218,6 +219,28 @@ describe('AbilityModule', () => {
     fireEvent.click(within(library).getByRole('button', { name: '从技能库打开技能树 React 全栈' }));
     fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
     expect(within(screen.getByLabelText('技能节点详情')).getByRole('heading', { name: 'React 状态管理' })).toBeInTheDocument();
+  });
+
+  it('keeps per-tree canvas history across view and tree switches', async () => {
+    saveAbilityState(localStorage, seededState());
+    saveCanvasPreferences(localStorage, 'frontend', {
+      positions: { html: { x: 320, y: 160 } },
+      phasePositions: {},
+      collapsedNodeIds: [],
+      viewport: { x: 0, y: 0, zoom: 1 }
+    });
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '更多技能树操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '重新自动布局' }));
+    await waitFor(() => expect(loadCanvasPreferences(localStorage, 'frontend').positions).toEqual({}));
+
+    fireEvent.click(screen.getByRole('button', { name: '从技能库打开技能树 自媒体写作' }));
+    fireEvent.click(screen.getByRole('button', { name: '从技能库打开技能树 React 全栈' }));
+    fireEvent.click(screen.getByRole('button', { name: '切换到线性路线' }));
+    fireEvent.click(within(screen.getByTestId('ability-linear-route')).getByRole('button', { name: '撤销' }));
+
+    await waitFor(() => expect(loadCanvasPreferences(localStorage, 'frontend').positions.html).toEqual({ x: 320, y: 160 }));
   });
 
   it('opens a node from a cross-tree library search without losing selection or details', async () => {

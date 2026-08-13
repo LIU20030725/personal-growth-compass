@@ -39,8 +39,8 @@ import { getNodeDisplayState, getPhaseProgress, getPrimaryChildren } from '../ab
 import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type CanvasPoint } from '../abilityCanvasLayout';
 import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
 import { buildAbilityVisibleGraph } from '../abilityView';
-import { loadCanvasPreferences, saveCanvasPreferences, type CanvasPreferences } from '../abilityCanvasStorage';
-import type { StorageLike } from '../../lib/storage';
+import type { CanvasPreferences } from '../abilityCanvasStorage';
+import { runAbilityHistoryAction, type CanvasPreferenceHistory } from '../abilityCanvasHistory';
 import type { AbilityState, NodeProgress, SkillTree, TreeNodeFilter } from '../types';
 
 type SkillNodeData = Record<string, unknown> & {
@@ -80,7 +80,12 @@ type Props = {
   focusRequest?: AbilityFocusRequest | null;
   resetLayoutRequest?: number;
   stateFilter: TreeNodeFilter;
-  storage?: StorageLike;
+  preferences: CanvasPreferences;
+  canvasHistory: CanvasPreferenceHistory;
+  onCommitPreferences: (preferences: CanvasPreferences) => void;
+  onUpdateViewport: (viewport: CanvasPreferences['viewport']) => void;
+  onUndoCanvas: () => void;
+  onRedoCanvas: () => void;
   onSelectNode: (nodeId: string | null) => void;
   onSelectOutcome: (outcomeId: string) => void;
   onAddPhase: () => void;
@@ -108,6 +113,24 @@ export function consumeFocusRequest(
   request: AbilityFocusRequest | null | undefined
 ): AbilityFocusRequest | null {
   return request && request.sequence > consumedSequence ? request : null;
+}
+
+export function consumeAbilityFocusRequest(
+  consumedSequence: number,
+  request: AbilityFocusRequest | null | undefined,
+  focus: (nodeId: string) => void
+): number {
+  const freshRequest = consumeFocusRequest(consumedSequence, request);
+  if (!freshRequest) return consumedSequence;
+  focus(freshRequest.nodeId);
+  return freshRequest.sequence;
+}
+
+export function getAbilityHistoryShortcut(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey'>): 'undo' | 'redo' | null {
+  if (!event.ctrlKey && !event.metaKey) return null;
+  const key = event.key.toLowerCase();
+  if (key === 'y' || (key === 'z' && event.shiftKey)) return 'redo';
+  return key === 'z' ? 'undo' : null;
 }
 
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
@@ -210,12 +233,6 @@ export function applyCanvasDragPreference(
   return { ...preferences, positions: { ...preferences.positions, [nodeId]: snapped } };
 }
 
-export type CanvasPreferenceHistory = {
-  past: CanvasPreferences[];
-  present: CanvasPreferences;
-  future: CanvasPreferences[];
-};
-
 export function applyPhaseDragPreference(
   preferences: CanvasPreferences,
   phaseId: string,
@@ -241,29 +258,6 @@ export function resetCanvasLayoutPreferences(preferences: CanvasPreferences): Ca
   return { ...preferences, positions: {}, phasePositions: {} };
 }
 
-export function createCanvasPreferenceHistory(preferences: CanvasPreferences): CanvasPreferenceHistory {
-  return { past: [], present: preferences, future: [] };
-}
-
-export function applyCanvasPreferenceChange(
-  history: CanvasPreferenceHistory,
-  next: CanvasPreferences
-): CanvasPreferenceHistory {
-  return { past: [...history.past.slice(-49), history.present], present: next, future: [] };
-}
-
-export function undoCanvasPreferenceChange(history: CanvasPreferenceHistory): CanvasPreferenceHistory {
-  const previous = history.past[history.past.length - 1];
-  if (!previous) return history;
-  return { past: history.past.slice(0, -1), present: previous, future: [history.present, ...history.future].slice(0, 50) };
-}
-
-export function redoCanvasPreferenceChange(history: CanvasPreferenceHistory): CanvasPreferenceHistory {
-  const next = history.future[0];
-  if (!next) return history;
-  return { past: [...history.past.slice(-49), history.present], present: next, future: history.future.slice(1) };
-}
-
 export function isCanvasPaneTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.classList.contains('react-flow__pane');
 }
@@ -278,9 +272,7 @@ function sameSelection(current: ReadonlySet<string>, ids: string[]): boolean {
 }
 
 export function AbilityTreeStage(props: Props) {
-  const browserStorage = props.storage ?? window.localStorage;
-  const [preferenceHistory, setPreferenceHistory] = useState<CanvasPreferenceHistory>(() => createCanvasPreferenceHistory(loadCanvasPreferences(browserStorage, props.tree.id)));
-  const preferences = preferenceHistory.present;
+  const preferences = props.preferences;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(props.selectedNodeId ? [props.selectedNodeId] : []));
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -296,8 +288,6 @@ export function AbilityTreeStage(props: Props) {
   const consumedFocusRequestRef = useRef({ treeId: props.tree.id, sequence: 0 });
 
   useEffect(() => {
-    const next = loadCanvasPreferences(browserStorage, props.tree.id);
-    setPreferenceHistory(createCanvasPreferenceHistory(next));
     const requestedNode = props.selectedNodeId
       ? props.state.nodes.find((node) => node.id === props.selectedNodeId && node.skillTreeId === props.tree.id && !node.archivedAt)
       : null;
@@ -305,13 +295,13 @@ export function AbilityTreeStage(props: Props) {
     queueMicrotask(() => {
       const instance = instanceRef.current;
       if (!instance) return;
-      if (Object.keys(next.positions).length || next.viewport.zoom !== 1 || next.viewport.x || next.viewport.y) {
-        void instance.setViewport(next.viewport, { duration: 0 });
+      if (Object.keys(preferences.positions).length || preferences.viewport.zoom !== 1 || preferences.viewport.x || preferences.viewport.y) {
+        void instance.setViewport(preferences.viewport, { duration: 0 });
       } else {
         void instance.fitView({ padding: 0.2, maxZoom: 1.15, duration: 0 });
       }
     });
-  }, [browserStorage, props.tree.id]);
+  }, [props.tree.id]);
 
   useEffect(() => {
     const shell = shellRef.current;
@@ -336,18 +326,18 @@ export function AbilityTreeStage(props: Props) {
     const consumedSequence = consumedFocusRequestRef.current.treeId === props.tree.id
       ? consumedFocusRequestRef.current.sequence
       : 0;
-    const request = consumeFocusRequest(consumedSequence, props.focusRequest);
-    if (!request) return;
-    consumedFocusRequestRef.current = { treeId: props.tree.id, sequence: request.sequence };
-    setSelectedIds(new Set([request.nodeId]));
-    requestAnimationFrame(() => {
-      void instanceRef.current?.fitView({
-        nodes: [{ id: request.nodeId }],
-        padding: 1.6,
-        duration: 220,
-        maxZoom: 1.15
+    const sequence = consumeAbilityFocusRequest(consumedSequence, props.focusRequest, (nodeId) => {
+      setSelectedIds(new Set([nodeId]));
+      requestAnimationFrame(() => {
+        void instanceRef.current?.fitView({
+          nodes: [{ id: nodeId }],
+          padding: 1.6,
+          duration: 220,
+          maxZoom: 1.15
+        });
       });
     });
+    consumedFocusRequestRef.current = { treeId: props.tree.id, sequence };
   }, [props.focusRequest, props.tree.id]);
 
   const visibleGraph = useMemo(
@@ -385,14 +375,10 @@ export function AbilityTreeStage(props: Props) {
   }, [props.onSelectNode, props.selectedNodeId, visibleGraph.selectedNodeId]);
 
   const toggleCollapse = useCallback((nodeId: string) => {
-    setPreferenceHistory((history) => {
-      const ids = new Set(history.present.collapsedNodeIds);
-      ids.has(nodeId) ? ids.delete(nodeId) : ids.add(nodeId);
-      const next = { ...history.present, collapsedNodeIds: [...ids] };
-      saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return applyCanvasPreferenceChange(history, next);
-    });
-  }, [browserStorage, props.tree.id]);
+    const ids = new Set(preferences.collapsedNodeIds);
+    ids.has(nodeId) ? ids.delete(nodeId) : ids.add(nodeId);
+    props.onCommitPreferences({ ...preferences, collapsedNodeIds: [...ids] });
+  }, [preferences, props.onCommitPreferences]);
 
   const deleteBranch = useCallback((nodeId: string) => {
     props.onDeleteBranch(nodeId);
@@ -588,15 +574,24 @@ export function AbilityTreeStage(props: Props) {
     props.onSelectNode(created);
   }, [props.onAddChild, props.onAddParent, props.onAddSibling, props.onSelectNode, selectedIds]);
 
+  const undoAction = useCallback(() => {
+    const source = runAbilityHistoryAction('undo', props.canvasHistory, props.canUndo, props.onUndoCanvas, props.onUndo);
+    if (source !== 'none') setNotice(source === 'canvas' ? '已撤销画布调整' : '已撤销上一步操作');
+  }, [props.canvasHistory, props.canUndo, props.onUndo, props.onUndoCanvas]);
+
+  const redoAction = useCallback(() => {
+    const source = runAbilityHistoryAction('redo', props.canvasHistory, props.canRedo, props.onRedoCanvas, props.onRedo);
+    if (source !== 'none') setNotice(source === 'canvas' ? '已重做画布调整' : '已重做上一步操作');
+  }, [props.canvasHistory, props.canRedo, props.onRedo, props.onRedoCanvas]);
+
   const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isInteractiveTarget(event.target)) return;
     const command = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
-    if (command && key === 'z') {
-      if (!props.canUndo) return;
+    const historyShortcut = getAbilityHistoryShortcut(event);
+    if (historyShortcut) {
       event.preventDefault();
-      props.onUndo();
-      setNotice('已撤销上一步操作');
+      historyShortcut === 'undo' ? undoAction() : redoAction();
       return;
     }
     if (command && key === 'c') {
@@ -627,46 +622,15 @@ export function AbilityTreeStage(props: Props) {
       event.preventDefault();
       addFromKeyboard(event.shiftKey ? 'sibling' : 'child');
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
+  }, [addFromKeyboard, copiedName, deleteBranch, props.onAddChild, props.onRenameNode, props.state.nodes, redoAction, selectedIds, undoAction]);
 
   const persistPreferences = useCallback((next: CanvasPreferences) => {
-    setPreferenceHistory((history) => {
-      saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return applyCanvasPreferenceChange(history, next);
-    });
-  }, [browserStorage, props.tree.id]);
+    props.onCommitPreferences(next);
+  }, [props.onCommitPreferences]);
 
   const persistViewport = useCallback((viewport: CanvasPreferences['viewport']) => {
-    setPreferenceHistory((history) => {
-      const next = { ...history.present, viewport };
-      saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return { ...history, present: next };
-    });
-  }, [browserStorage, props.tree.id]);
-
-  const undoAction = useCallback(() => {
-    if (preferenceHistory.past.length) {
-      const next = undoCanvasPreferenceChange(preferenceHistory);
-      saveCanvasPreferences(browserStorage, props.tree.id, next.present);
-      setPreferenceHistory(next);
-      setNotice('已撤销画布调整');
-      return;
-    }
-    props.onUndo();
-    setNotice('已撤销上一步操作');
-  }, [browserStorage, preferenceHistory, props.onUndo, props.tree.id]);
-
-  const redoAction = useCallback(() => {
-    if (preferenceHistory.future.length) {
-      const next = redoCanvasPreferenceChange(preferenceHistory);
-      saveCanvasPreferences(browserStorage, props.tree.id, next.present);
-      setPreferenceHistory(next);
-      setNotice('已重做画布调整');
-      return;
-    }
-    props.onRedo();
-    setNotice('已重做上一步操作');
-  }, [browserStorage, preferenceHistory, props.onRedo, props.tree.id]);
+    props.onUpdateViewport(viewport);
+  }, [props.onUpdateViewport]);
 
   const resetLayout = () => {
     persistPreferences(resetCanvasLayoutPreferences(preferences));
@@ -810,8 +774,8 @@ export function AbilityTreeStage(props: Props) {
           <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
           <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
-          <button type="button" disabled={!preferenceHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
-          <button type="button" disabled={!preferenceHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
+          <button type="button" disabled={!props.canvasHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
+          <button type="button" disabled={!props.canvasHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
         </Panel>
         {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>

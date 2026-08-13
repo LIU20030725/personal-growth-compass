@@ -3,6 +3,16 @@ import { Ellipsis, Pencil, Plus, Redo2, Route, Sparkles, Undo2 } from 'lucide-re
 import { getCurrentPhase, getNextActionCandidates, getNextActionEmptyReason, getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
+import { loadCanvasPreferences, saveCanvasPreferences, type CanvasPreferences } from './abilityCanvasStorage';
+import {
+  applyCanvasPreferenceChange,
+  createCanvasPreferenceHistory,
+  redoCanvasPreferenceChange,
+  runAbilityHistoryAction,
+  undoCanvasPreferenceChange,
+  updateCanvasPreferenceViewport,
+  type CanvasPreferenceHistory
+} from './abilityCanvasHistory';
 import { useAbilitySystem } from './useAbilitySystem';
 import type { StorageLike } from '../lib/storage';
 import type { TreeNodeFilter } from './types';
@@ -23,6 +33,7 @@ type Props = {
 
 export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChange }: Props) {
   const ability = useAbilitySystem({ storage: abilityStorage });
+  const canvasStorage = abilityStorage ?? window.localStorage;
   const [currentTreeId, setCurrentTreeId] = useState<string | null>(() => {
     const requested = initialTreeId ? ability.state.trees.find((tree) => tree.id === initialTreeId && tree.status === 'active') : null;
     return requested?.id ?? selectDefaultTree(ability.state)?.id ?? null;
@@ -39,6 +50,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [nodePhaseId, setNodePhaseId] = useState<string | undefined>(undefined);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
+  const [canvasHistories, setCanvasHistories] = useState<Record<string, CanvasPreferenceHistory>>({});
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
   const focusSequenceRef = useRef(0);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
@@ -60,6 +72,36 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   }, []);
 
   const currentTree = ability.state.trees.find((tree) => tree.id === currentTreeId && tree.status === 'active') ?? null;
+  const currentCanvasHistory = currentTreeId
+    ? canvasHistories[currentTreeId] ?? createCanvasPreferenceHistory(loadCanvasPreferences(canvasStorage, currentTreeId))
+    : null;
+
+  const updateCanvasHistory = (treeId: string, update: (history: CanvasPreferenceHistory) => CanvasPreferenceHistory) => {
+    setCanvasHistories((histories) => {
+      const history = histories[treeId] ?? createCanvasPreferenceHistory(loadCanvasPreferences(canvasStorage, treeId));
+      const next = update(history);
+      saveCanvasPreferences(canvasStorage, treeId, next.present);
+      return { ...histories, [treeId]: next };
+    });
+  };
+  const commitCanvasPreferences = (next: CanvasPreferences) => {
+    if (currentTreeId) updateCanvasHistory(currentTreeId, (history) => applyCanvasPreferenceChange(history, next));
+  };
+  const updateCanvasViewport = (viewport: CanvasPreferences['viewport']) => {
+    if (currentTreeId) updateCanvasHistory(currentTreeId, (history) => updateCanvasPreferenceViewport(history, viewport));
+  };
+  const undoCanvas = () => {
+    if (currentTreeId) updateCanvasHistory(currentTreeId, undoCanvasPreferenceChange);
+  };
+  const redoCanvas = () => {
+    if (currentTreeId) updateCanvasHistory(currentTreeId, redoCanvasPreferenceChange);
+  };
+  const runUndo = () => {
+    if (currentCanvasHistory) runAbilityHistoryAction('undo', currentCanvasHistory, ability.canUndo, undoCanvas, ability.undo);
+  };
+  const runRedo = () => {
+    if (currentCanvasHistory) runAbilityHistoryAction('redo', currentCanvasHistory, ability.canRedo, redoCanvas, ability.redo);
+  };
   const phases = ability.state.phases.filter((phase) => phase.skillTreeId === currentTreeId).sort((a, b) => a.order - b.order);
   const nodes = ability.state.nodes.filter((node) => node.skillTreeId === currentTreeId);
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
@@ -197,11 +239,16 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
         {viewMode === 'canvas' ? <AbilityTreeStage
           state={ability.state}
           tree={currentTree}
+          preferences={currentCanvasHistory?.present ?? loadCanvasPreferences(canvasStorage, currentTree.id)}
+          canvasHistory={currentCanvasHistory ?? createCanvasPreferenceHistory(loadCanvasPreferences(canvasStorage, currentTree.id))}
+          onCommitPreferences={commitCanvasPreferences}
+          onUpdateViewport={updateCanvasViewport}
+          onUndoCanvas={undoCanvas}
+          onRedoCanvas={redoCanvas}
           selectedNodeId={selectedNodeId}
           focusRequest={focusRequest}
           resetLayoutRequest={resetLayoutRequest}
           stateFilter={filter}
-          storage={abilityStorage}
           onSelectNode={(nodeId) => { setSelectedNodeId(nodeId); setDetailOpen(Boolean(nodeId)); }}
           onSelectOutcome={(outcomeId) => { const outcome = ability.state.outcomes.find((item) => item.id === outcomeId); setSelectedNodeId(outcome?.skillNodeId ?? null); setDetailOpen(Boolean(outcome?.skillNodeId)); }}
           onAddPhase={() => setForm('phase')}
@@ -230,8 +277,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           canRedo={ability.canRedo}
         /> : <section className="ability-linear-route ability-linear-route--compact" data-testid="ability-linear-route" aria-label={`${currentTree.name}线性技能路线`}>
           <div className="ability-linear-history" aria-label="线性路线历史记录">
-            <button type="button" onClick={ability.undo} disabled={!ability.canUndo}><Undo2 size={15} />撤销</button>
-            <button type="button" onClick={ability.redo} disabled={!ability.canRedo}><Redo2 size={15} />重做</button>
+            <button type="button" onClick={runUndo} disabled={!currentCanvasHistory?.past.length && !ability.canUndo}><Undo2 size={15} />撤销</button>
+            <button type="button" onClick={runRedo} disabled={!currentCanvasHistory?.future.length && !ability.canRedo}><Redo2 size={15} />重做</button>
           </div>
           {phases.map((phase) => {
             const phaseNodes = visibleLinearNodes.filter((node) => node.phaseId === phase.id);
