@@ -164,4 +164,36 @@ describe('getKeyboardNavigationTarget', () => {
     expect(getKeyboardNavigationTarget(state, 'last', 'select-first-child')).toBe('continuation');
     expect(getKeyboardNavigationTarget(state, 'continuation', 'select-parent')).toBe('alpha');
   });
+
+  it('falls back to normalized dependencies when fewer than two parallel members are active', () => {
+    const state = navigationState();
+    state.nodes = state.nodes.map((node) => node.id === 'alpha' || node.id === 'last'
+      ? { ...node, archivedAt: '2026-02-01' }
+      : node);
+    state.nodes.push({ ...state.nodes[0], id: 'continuation', createdAt: '2026-01-09' });
+    state.dependencies.push({ id: 'parent-continuation', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'continuation', kind: 'primary' });
+    state.parallelGroups = [{
+      id: 'parallel', skillTreeId: 'tree', phaseId: 'phase', name: 'Parallel',
+      nodeIds: ['beta', 'alpha', 'last'], parentNodeId: 'parent', continuationNodeId: 'continuation'
+    }];
+
+    expect(getKeyboardNavigationTarget(state, 'beta', 'select-first-child')).toBeNull();
+    expect(getKeyboardNavigationTarget(state, 'continuation', 'select-parent')).toBe('parent');
+  });
+
+  it('does not navigate to nodes hidden by the current filter', () => {
+    const state = navigationState();
+    expect(getKeyboardNavigationTarget(
+      state,
+      'parent',
+      'select-first-child',
+      new Set(['parent', 'beta', 'last'])
+    )).toBe('beta');
+    expect(getKeyboardNavigationTarget(
+      state,
+      'beta',
+      'select-next-sibling',
+      new Set(['parent', 'beta'])
+    )).toBeNull();
+  });
 });

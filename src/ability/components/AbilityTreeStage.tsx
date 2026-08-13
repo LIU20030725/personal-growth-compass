@@ -633,13 +633,18 @@ export function AbilityTreeStage(props: Props) {
       return;
     }
     if (selectedId && command.startsWith('select-')) {
-      const nextId = getKeyboardNavigationTarget(props.state, selectedId, command as Extract<AbilityCanvasCommand, `select-${string}`>);
+      const nextId = getKeyboardNavigationTarget(
+        props.state,
+        selectedId,
+        command as Extract<AbilityCanvasCommand, `select-${string}`>,
+        new Set(visibleGraph.nodes.map((node) => node.id))
+      );
       if (!nextId) return;
       setSelectedIds(new Set([nextId]));
       props.onSelectNode(nextId);
       void instanceRef.current?.fitView({ nodes: [{ id: nextId }], padding: 1.6, duration: 180, maxZoom: 1.15 });
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, selectedIds, undoAction]);
+  }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, selectedIds, undoAction, visibleGraph.nodes]);
 
   const persistPreferences = useCallback((next: CanvasPreferences) => {
     props.onCommitPreferences(next);

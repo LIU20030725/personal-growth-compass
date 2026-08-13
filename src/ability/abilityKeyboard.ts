@@ -66,26 +66,30 @@ export function resolveAbilityCanvasCommand(
 export function getKeyboardNavigationTarget(
   state: AbilityState,
   nodeId: string,
-  command: Extract<AbilityCanvasCommand, `select-${string}`>
+  command: Extract<AbilityCanvasCommand, `select-${string}`>,
+  visibleNodeIds?: ReadonlySet<string>
 ): string | null {
-  const selected = state.nodes.find((node) => node.id === nodeId && !node.archivedAt);
+  const selected = state.nodes.find((node) => node.id === nodeId && !node.archivedAt && (!visibleNodeIds || visibleNodeIds.has(node.id)));
   if (!selected) return null;
-  const activeNodes = state.nodes.filter((node) => node.skillTreeId === selected.skillTreeId && !node.archivedAt);
-  const activeIds = new Set(activeNodes.map((node) => node.id));
-  const continuationGroups = state.parallelGroups.filter((group) =>
-    group.skillTreeId === selected.skillTreeId &&
-    group.continuationNodeId &&
-    activeIds.has(group.continuationNodeId) &&
-    group.nodeIds.some((id) => activeIds.has(id))
+  const activeNodes = state.nodes.filter((node) =>
+    node.skillTreeId === selected.skillTreeId && !node.archivedAt && (!visibleNodeIds || visibleNodeIds.has(node.id))
   );
-  const suppressedContinuations = new Set(continuationGroups.map((group) => group.continuationNodeId as string));
+  const activeIds = new Set(activeNodes.map((node) => node.id));
+  const continuationGroups = state.parallelGroups
+    .map((group) => ({ group, visibleMembers: group.nodeIds.filter((id) => activeIds.has(id)) }))
+    .filter(({ group, visibleMembers }) =>
+      group.skillTreeId === selected.skillTreeId &&
+      group.continuationNodeId &&
+      activeIds.has(group.continuationNodeId) &&
+      visibleMembers.length >= 2
+    );
+  const suppressedContinuations = new Set(continuationGroups.map(({ group }) => group.continuationNodeId as string));
   const visibleEdges = state.dependencies
     .filter((edge) => edge.skillTreeId === selected.skillTreeId && activeIds.has(edge.prerequisiteNodeId) && activeIds.has(edge.dependentNodeId))
     .filter((edge) => getDependencyKind(state, edge) === 'primary')
     .filter((edge) => !suppressedContinuations.has(edge.dependentNodeId))
     .map((edge) => ({ parentId: edge.prerequisiteNodeId, childId: edge.dependentNodeId }));
-  continuationGroups.forEach((group) => group.nodeIds
-    .filter((id) => activeIds.has(id))
+  continuationGroups.forEach(({ group, visibleMembers }) => visibleMembers
     .forEach((memberId) => visibleEdges.push({ parentId: memberId, childId: group.continuationNodeId as string })));
   const stableNodes = (ids: Set<string>) => activeNodes
     .filter((node) => ids.has(node.id))
