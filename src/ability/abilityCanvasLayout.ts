@@ -172,13 +172,6 @@ export function layoutAbilityCanvas(
     continuation.y = snapCoordinate(memberPositions.reduce((sum, point) => sum + point.y, 0) / memberPositions.length);
   }
 
-  const manuallyPositionedNodeIds = new Set<string>();
-  for (const [id, point] of Object.entries(options.manualPositions ?? {})) {
-    if (!positions.has(id) || !isFiniteCanvasPoint(point)) continue;
-    positions.set(id, snapCanvasPoint(point));
-    manuallyPositionedNodeIds.add(id);
-  }
-
   const skillPoints = [...positions.values()];
   const phaseY = snapCoordinate((skillPoints.length ? Math.min(...skillPoints.map((point) => point.y)) : 0) - PHASE_HEADER_SPACE);
   const phaseBottom = snapCoordinate((skillPoints.length ? Math.max(...skillPoints.map((point) => point.y)) + NODE_HEIGHT : 160) + PHASE_BOTTOM_SPACE);
@@ -200,6 +193,12 @@ export function layoutAbilityCanvas(
     phaseX = snapCoordinate(phaseX + width + PHASE_GAP);
     return item;
   });
+  const manuallyPositionedNodeIds = new Set<string>();
+  for (const [id, point] of Object.entries(options.manualPositions ?? {})) {
+    if (!positions.has(id) || !isFiniteCanvasPoint(point)) continue;
+    positions.set(id, snapCanvasPoint(point));
+    manuallyPositionedNodeIds.add(id);
+  }
   const manualPhasePositions = options.manualPhasePositions ?? options.phasePositions ?? {};
   phases.forEach((phase) => {
     const requestedPosition = manualPhasePositions[phase.id];
@@ -215,6 +214,15 @@ export function layoutAbilityCanvas(
       point.x += delta.x;
       point.y += delta.y;
     });
+  });
+  phases.forEach((phase) => {
+    const memberBottom = visibleNodes
+      .filter((node) => node.phaseId === phase.id)
+      .map((node) => positions.get(node.id)?.y)
+      .filter((y): y is number => y !== undefined)
+      .reduce((bottom, y) => Math.max(bottom, y + NODE_HEIGHT + PHASE_BOTTOM_SPACE), phase.y + phase.height);
+    const requiredHeight = memberBottom - phase.y;
+    phase.height = Math.ceil(Math.max(phase.height, requiredHeight) / (CANVAS_GRID * 2)) * CANVAS_GRID * 2;
   });
   const phaseEdges: AbilityCanvasPhaseEdge[] = phases.slice(0, -1).map((phase, index) => {
     const nextPhase = phases[index + 1];

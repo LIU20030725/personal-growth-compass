@@ -170,6 +170,28 @@ describe('ability canvas layout', () => {
     expect({ x: movedOutcome.x - movedAnalysis.x, y: movedOutcome.y - movedAnalysis.y }).toEqual({ x: 32, y: 96 });
   });
 
+  it('keeps phase movement stable when a manual node y is far outside automatic bounds', () => {
+    const canvasState = stateWithTwoPopulatedPhases();
+    const phasePositions = { 'phase-2': { x: 992, y: -5003 } };
+    const baseline = layoutAbilityCanvas(canvasState, 'tree', { phasePositions });
+    const reloaded = layoutAbilityCanvas(canvasState, 'tree', {
+      manualPositions: { analysis: { x: 1201, y: -4003 } },
+      phasePositions
+    });
+    const baselineGrowth = baseline.nodes.find((item) => item.id === 'growth')!;
+    const reloadedGrowth = reloaded.nodes.find((item) => item.id === 'growth')!;
+    const reloadedAnalysis = reloaded.nodes.find((item) => item.id === 'analysis')!;
+    const reloadedPhase = reloaded.phases.find((item) => item.id === 'phase-2')!;
+    const phaseEdgeCoordinates = reloaded.phaseEdges.flatMap((edge) => [edge.from.x, edge.from.y, edge.to.x, edge.to.y]);
+
+    expect(reloadedGrowth).toMatchObject({ x: baselineGrowth.x, y: baselineGrowth.y });
+    expect(reloadedAnalysis).toMatchObject({ x: 1200, y: -4000 });
+    expect(reloadedPhase).toMatchObject({ x: 992, y: -5008 });
+    expect(reloadedPhase.y + reloadedPhase.height).toBeGreaterThanOrEqual(reloadedAnalysis.y + 80 + 64);
+    expect(phaseEdgeCoordinates.every(Number.isFinite)).toBe(true);
+    expect(phaseEdgeCoordinates.every((value) => value % 16 === 0)).toBe(true);
+  });
+
   it('restores automatic phase and member alignment when phase positions are cleared', () => {
     const canvasState = stateWithTwoPopulatedPhases();
     const automatic = layoutAbilityCanvas(canvasState, 'tree');
