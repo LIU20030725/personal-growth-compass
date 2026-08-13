@@ -186,3 +186,22 @@
 
 .emotion-face.is-selected { box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--emotion-brand), inset 0 -8px 13px rgb(49 78 67 / 10%); }
 @media (prefers-reduced-motion: reduce) { .emotion-face { transition: none; } }
+
+/* v1.3.1 reference atlas: SVG owns every facial feature and decoration. */
+.emotion-face--svg { border-radius: 50%; background: transparent; box-shadow: none; transform: none; }
+.emotion-face--svg svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.emotion-face--svg .emotion-face__base { filter: drop-shadow(0 5px 8px rgb(49 78 67 / 10%)); }
+.emotion-face--svg .emotion-face__features { vector-effect: non-scaling-stroke; }
+.emotion-face--svg .emotion-face__eye, .emotion-face--svg .emotion-face__brow, .emotion-face--svg .emotion-face__mouth, .emotion-face--svg .emotion-face__cheek { position: static; width: auto; height: auto; opacity: 1; transform: none; background: none; border: 0; }
+.emotion-face--svg .emotion-face__eye .eye-white, .emotion-face--svg .mouth-white { fill: #fff; }
+.emotion-face--svg .emotion-face__cheek { fill: #ef8f83; stroke: none; }
+.emotion-face--svg .emotion-face__mouth--open { fill: #26332f; }
+.emotion-face--svg .emotion-face__tongue { fill: #ef8f83; stroke: none; }
+.emotion-face--svg .decoration { fill: none; stroke: #26332f; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.emotion-face--svg .decoration--gold { fill: #d49a17; stroke: none; }
+.emotion-face--svg .decoration--heart { fill: #ef7772; stroke: none; }
+.emotion-face--svg .decoration--blue { fill: #3093dd; stroke: #3093dd; }
+.emotion-face--svg .decoration--purple { fill: #9a8bd4; stroke: none; }
+.emotion-face--svg .decoration--breath { fill: #fff; stroke: #8bc8ed; stroke-width: 1.5; }
+.emotion-face--svg .decoration--steam { fill: #fff; stroke: #87918d; stroke-width: 1.5; }
+.emotion-face--svg.is-selected { box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--emotion-brand); }
