@@ -70,6 +70,12 @@ export function getNextActionCandidates(state: AbilityState, treeId: string): Sk
     .filter((node) => state.dependencies
       .filter((edge) => edge.dependentNodeId === node.id && getDependencyKind(state, edge) === 'primary')
       .every((edge) => requireNode(state, edge.prerequisiteNodeId).progress === 'mastered'))
+    .filter((node) => state.parallelGroups
+      .filter((group) => group.continuationNodeId === node.id)
+      .every((group) => group.nodeIds
+        .map((nodeId) => requireNode(state, nodeId))
+        .filter((member) => !member.archivedAt)
+        .every((member) => member.progress === 'mastered')))
     .sort((a, b) =>
       Number(b.progress === 'in_progress') - Number(a.progress === 'in_progress') ||
       (phaseOrder.get(a.phaseId) ?? 0) - (phaseOrder.get(b.phaseId) ?? 0) ||

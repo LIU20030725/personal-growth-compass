@@ -83,6 +83,36 @@ describe('ability graph', () => {
     ]);
   });
 
+  it('requires every unarchived parallel member to be mastered before recommending its continuation', () => {
+    const state = baseState();
+    state.nodes = [
+      node('parent', 'tree-a', 'phase-a1', 'mastered'),
+      node('parallel-a', 'tree-a', 'phase-a1', 'mastered'),
+      node('parallel-b', 'tree-a', 'phase-a1', 'available'),
+      { ...node('parallel-archived', 'tree-a', 'phase-a1', 'available'), archivedAt: stamp },
+      node('continuation', 'tree-a', 'phase-a1', 'available')
+    ];
+    state.dependencies = [
+      { id: 'parent-a', skillTreeId: 'tree-a', prerequisiteNodeId: 'parent', dependentNodeId: 'parallel-a', kind: 'primary' },
+      { id: 'parent-b', skillTreeId: 'tree-a', prerequisiteNodeId: 'parent', dependentNodeId: 'parallel-b', kind: 'primary' },
+      { id: 'parent-continuation', skillTreeId: 'tree-a', prerequisiteNodeId: 'parent', dependentNodeId: 'continuation', kind: 'primary' }
+    ];
+    state.parallelGroups = [{
+      id: 'parallel-group',
+      skillTreeId: 'tree-a',
+      phaseId: 'phase-a1',
+      name: '可并行',
+      nodeIds: ['parallel-a', 'parallel-b', 'parallel-archived'],
+      parentNodeId: 'parent',
+      continuationNodeId: 'continuation'
+    }];
+
+    expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual(['parallel-b']);
+
+    state.nodes[2] = { ...state.nodes[2], progress: 'mastered' };
+    expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual(['continuation']);
+  });
+
   it('stably sorts parallel candidates by progress, phase, creation time, then id', () => {
     const state = baseState();
     state.dependencies = [];
