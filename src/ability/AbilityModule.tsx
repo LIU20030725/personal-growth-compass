@@ -41,6 +41,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const linearNodeRefs = useRef(new Map<string, HTMLButtonElement>());
   const [filter, setFilter] = useState<TreeNodeFilter>('all');
   const [form, setForm] = useState<FormName>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -217,6 +218,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     setFocusRequest({ nodeId: node.id, sequence: focusSequenceRef.current });
     setNextStatus(`已定位：${node.name}`);
   };
+  const closeDetails = () => {
+    const linearNode = selectedNodeId ? linearNodeRefs.current.get(selectedNodeId) : null;
+    (linearNode ?? document.querySelector<HTMLElement>('.ability-flow-shell'))?.focus();
+    setDetailOpen(false);
+  };
 
   return <section className="ability-module" aria-label="能力属性模块">
     <header className="ability-hero">
@@ -310,13 +316,13 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
               <header><span>{String(phase.order + 1).padStart(2, '0')}</span><div><h3 id={`ability-phase-${phase.id}`}>{phase.name}</h3><p>{phase.description || phase.estimatedDuration || '按顺序推进本阶段技能'}</p></div><strong>{phaseProgress.mastered}/{phaseProgress.required}</strong><button className="ability-linear-phase-add" type="button" aria-label={`在 ${phase.name} 添加技能`} onClick={() => { setNodePhaseId(phase.id); setForm('node'); }}><Plus size={15} /></button></header>
               {phaseNodes.length ? <ol>{phaseNodes.map((node, index) => {
                 const state = getNodeDisplayState(node, ability.state);
-                return <li className="ability-linear-node-row" key={node.id}><button data-testid="linear-skill-node" type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button><button className="ability-linear-node-add" type="button" aria-label={`在 ${node.name} 后添加下一步`} onClick={() => { const id = ability.addChildNode(node.id); setSelectedNodeId(id); setDetailOpen(true); }}><Plus size={15} /></button></li>;
+                return <li className="ability-linear-node-row" key={node.id}><button ref={(element) => { if (element) linearNodeRefs.current.set(node.id, element); else linearNodeRefs.current.delete(node.id); }} data-testid="linear-skill-node" type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button><button className="ability-linear-node-add" type="button" aria-label={`在 ${node.name} 后添加下一步`} onClick={() => { const id = ability.addChildNode(node.id); setSelectedNodeId(id); setDetailOpen(true); }}><Plus size={15} /></button></li>;
               })}</ol> : <p className="ability-linear-empty">这个阶段还没有技能节点</p>}
             </section>;
           })}
           {!visibleLinearNodes.length ? <p className="ability-muted">当前筛选下没有技能节点。</p> : null}
         </section>}
-        {detailOpen ? <AbilityNodePanel node={selectedNode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} resources={ability.state.resources} resourceLinks={ability.state.resourceLinks} outcomes={selectedOutcomes} onClose={() => setDetailOpen(false)} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={() => selectedNode && ability.masterNode(selectedNode.id, '')} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onAddResource={(input) => selectedNode && ability.addOrLinkResource(selectedNode.id, input)} onLinkResource={(resourceId) => selectedNode && ability.linkExistingResource(selectedNode.id, resourceId)} onUpdateResource={ability.updateResource} onUnlinkResource={ability.unlinkResource} onDeleteResource={ability.deleteResource} onRequestOutcome={() => selectedNode && setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} /> : null}
+        {detailOpen ? <AbilityNodePanel node={selectedNode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} resources={ability.state.resources} resourceLinks={ability.state.resourceLinks} outcomes={selectedOutcomes} onClose={closeDetails} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={() => selectedNode && ability.masterNode(selectedNode.id, '')} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onAddResource={(input) => selectedNode && ability.addOrLinkResource(selectedNode.id, input)} onLinkResource={(resourceId) => selectedNode && ability.linkExistingResource(selectedNode.id, resourceId)} onUpdateResource={ability.updateResource} onUnlinkResource={ability.unlinkResource} onDeleteResource={ability.deleteResource} onRequestOutcome={() => selectedNode && setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} /> : null}
       </div>
     </>}
 

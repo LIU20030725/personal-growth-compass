@@ -605,10 +605,12 @@ describe('AbilityModule', () => {
     expect(route).toHaveAttribute('data-testid', 'ability-linear-route');
     expect(within(route).getAllByTestId('linear-skill-node')).toHaveLength(40);
     fireEvent.click(within(route).getAllByTestId('linear-skill-node')[39]);
+    const openingNode = within(route).getAllByTestId('linear-skill-node')[39];
     const detail = await screen.findByLabelText('技能节点详情');
     expect(within(detail).getByRole('heading', { name: '技能 40' })).toBeInTheDocument();
     fireEvent.click(within(detail).getByRole('button', { name: '关闭技能详情' }));
     expect(screen.queryByLabelText('技能节点详情')).not.toBeInTheDocument();
+    expect(openingNode).toHaveFocus();
   });
 
   it('uses a compact skill library and exposes only the core tree actions and filters', async () => {
