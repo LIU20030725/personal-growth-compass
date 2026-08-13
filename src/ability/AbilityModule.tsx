@@ -185,7 +185,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
         <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div>
         <button className="ability-next-action" type="button" onClick={runNextAction}>下一步 · {nextCandidates.length}</button>
       </div>
-      <div className="ability-next-status" role="status" aria-live="polite">{nextStatus}</div>
+      <div className="ability-next-status" role={nextStatus ? 'status' : undefined} aria-live="polite">{nextStatus}</div>
 
       <div className="ability-stage-view-switch" aria-label="技能路线视图">
         <button type="button" aria-pressed={viewMode === 'linear'} onClick={() => setViewMode(viewMode === 'canvas' ? 'linear' : 'canvas')}>{viewMode === 'canvas' ? '切换到线性路线' : '切换到技能树画布'}</button>
