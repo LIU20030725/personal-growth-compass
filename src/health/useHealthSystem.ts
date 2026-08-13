@@ -1,10 +1,20 @@
-import { useMemo, useState } from "react";
-import { calculateBmiHundredths, kilogramsToGrams } from "./healthEngine";
+import { useMemo, useRef, useState } from "react";
+import {
+  calculateBmiHundredths,
+  kilogramsToGrams,
+  localDateKey,
+  validateActivity,
+  validateSleepMinutes,
+  validateWaterMl,
+  validateWorkoutInput,
+} from "./healthEngine";
 import { getBrowserHealthStorage } from "./healthStorage";
 import {
   exportHealthState,
+  createHealthBundle,
   importHealthBundle,
   importHealthState,
+  previewHealthBundle,
 } from "./healthStorage";
 import {
   createIndexedDbHealthMediaStore,
@@ -41,16 +51,21 @@ export function useHealthSystem(options: Options = {}) {
   const now = options.now ?? (() => new Date().toISOString());
   const idFactory = options.idFactory ?? makeId;
   const [state, setState] = useState<HealthState>(() => storage.load());
+  const stateRef = useRef(state);
+  const recentSubmissions = useRef(new Map<string, number>());
   const [error, setError] = useState("");
-  const [draftWorkout, setDraftWorkout] = useState<WorkoutSession>();
+  const [draftWorkout, setDraftWorkout] = useState<WorkoutSession | undefined>(
+    () => state.workoutSessions.find((w) => w.state === "draft"),
+  );
   const commit = (next: HealthState) => {
     storage.save(next);
+    stateRef.current = next;
     setState(next);
   };
   const mutate = (fn: (s: HealthState) => HealthState) => {
     try {
       setError("");
-      commit(fn(state));
+      commit(fn(stateRef.current));
       return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存失败");
@@ -89,8 +104,12 @@ export function useHealthSystem(options: Options = {}) {
     bodyFatPercent?: number;
     bodyFatMethod?: string;
     note?: string;
-  }) =>
-    mutate((s) => {
+  }) => {
+    const submissionKey = JSON.stringify(input);
+    const timestampMs = Date.now();
+    if (timestampMs - (recentSubmissions.current.get(submissionKey) ?? 0) < 800)
+      return false;
+    const saved = mutate((s) => {
       if (
         input.heightCm === undefined &&
         input.weightKg === undefined &&
@@ -167,9 +186,12 @@ export function useHealthSystem(options: Options = {}) {
         meta: { ...s.meta, updatedAt: timestamp },
       };
     });
+    if (saved) recentSubmissions.current.set(submissionKey, timestampMs);
+    return saved;
+  };
   const reviseBodyRecord = (
     id: string,
-    input: { weightKg?: number; bodyFatPercent?: number },
+    input: { weightKg?: number; bodyFatPercent?: number; reason?: string },
   ) =>
     mutate((s) => {
       const before = s.bodyRecords.find((r) => r.id === id);
@@ -202,6 +224,7 @@ export function useHealthSystem(options: Options = {}) {
             entityId: id,
             before,
             after,
+            reason: input.reason?.trim() || undefined,
             revisedAt: timestamp,
           },
         ],
@@ -210,6 +233,7 @@ export function useHealthSystem(options: Options = {}) {
     });
   const addWater = (milliliters: number) =>
     mutate((s) => {
+      validateWaterMl(milliliters);
       const t = now();
       return {
         ...s,
@@ -229,6 +253,7 @@ export function useHealthSystem(options: Options = {}) {
     });
   const addActivity = (count: number) =>
     mutate((s) => {
+      validateActivity(count, s.preferences.activityMode);
       const t = now();
       return {
         ...s,
@@ -250,6 +275,8 @@ export function useHealthSystem(options: Options = {}) {
     });
   const addEnergy = (level: 1 | 2 | 3 | 4 | 5) =>
     mutate((s) => {
+      if (!Number.isInteger(level) || level < 1 || level > 5)
+        throw new Error("精力需在 1–5 之间");
       const t = now();
       return {
         ...s,
@@ -276,6 +303,12 @@ export function useHealthSystem(options: Options = {}) {
           : [...s.preferences.enabledDailyMetrics, metric],
       },
     }));
+  const setActivityMode = (mode: "steps" | "activity-minutes") =>
+    mutate((s) => ({
+      ...s,
+      preferences: { ...s.preferences, activityMode: mode },
+      meta: { ...s.meta, updatedAt: now() },
+    }));
   const addSleep = (input: {
     startAt?: string;
     endAt?: string;
@@ -283,6 +316,7 @@ export function useHealthSystem(options: Options = {}) {
     quality?: 1 | 2 | 3 | 4 | 5;
   }) =>
     mutate((s) => {
+      validateSleepMinutes(input.durationMinutes);
       const t = now();
       return {
         ...s,
@@ -311,6 +345,9 @@ export function useHealthSystem(options: Options = {}) {
         throw new Error("请填写餐食内容或添加照片");
       if ((input.mediaIds?.length ?? 0) > 3)
         throw new Error("每餐最多保存 3 张照片");
+      if ((input.description?.length ?? 0) > 500)
+        throw new Error("餐食内容最多 500 字");
+      if ((input.note?.length ?? 0) > 300) throw new Error("备注最多 300 字");
       const t = now();
       return {
         ...s,
@@ -339,6 +376,19 @@ export function useHealthSystem(options: Options = {}) {
   }) => {
     if (input.photos.length > 3) {
       setError("每餐最多保存 3 张照片");
+      return false;
+    }
+    if (
+      input.photos.some(
+        (photo) =>
+          !["image/jpeg", "image/png", "image/webp"].includes(photo.type),
+      )
+    ) {
+      setError("照片仅支持 JPG、PNG 或 WebP");
+      return false;
+    }
+    if (input.photos.some((photo) => photo.size > 8 * 1024 * 1024)) {
+      setError("单张照片不能超过 8 MB");
       return false;
     }
     const ids = input.photos.map(() => idFactory());
@@ -393,6 +443,13 @@ export function useHealthSystem(options: Options = {}) {
     durationSeconds?: number;
   }) =>
     mutate((s) => {
+      validateWorkoutInput(input);
+      if (
+        !s.exerciseDefinitions.some(
+          (x) => x.id === input.exerciseDefinitionId && !x.archivedAt,
+        )
+      )
+        throw new Error("训练项目不存在或已归档");
       const t = now();
       return {
         ...s,
@@ -431,10 +488,12 @@ export function useHealthSystem(options: Options = {}) {
       };
     });
   const copyLastWorkout = () => {
-    const last = state.workoutSessions.find((w) => w.state === "completed");
+    const last = stateRef.current.workoutSessions.find(
+      (w) => w.state === "completed",
+    );
     if (!last) return false;
     const t = now();
-    setDraftWorkout({
+    const draft = {
       ...last,
       id: idFactory(),
       startedAt: t,
@@ -453,24 +512,44 @@ export function useHealthSystem(options: Options = {}) {
           actualRestSeconds: undefined,
         })),
       })),
-    });
+    } as WorkoutSession;
+    mutate((s) => ({
+      ...s,
+      workoutSessions: [draft, ...s.workoutSessions],
+      meta: { ...s.meta, updatedAt: t },
+    }));
+    setDraftWorkout(draft);
     return true;
   };
-  const exportData = () => exportHealthState(state);
-  const exportBundle = async () =>
-    JSON.stringify({
-      format: "dice-life-health-bundle",
-      version: 1,
-      exportedAt: now(),
-      state,
-      media: await Promise.all(
-        (await mediaStore.exportAll()).map(async (item) => ({
-          id: item.id,
-          type: item.type,
-          dataUrl: await blobToDataUrl(item.blob),
-        })),
+  const discardDraftWorkout = () => {
+    if (!draftWorkout) return false;
+    const id = draftWorkout.id;
+    const ok = mutate((s) => ({
+      ...s,
+      workoutSessions: s.workoutSessions.map((w) =>
+        w.id === id
+          ? { ...w, state: "discarded" as const, updatedAt: now() }
+          : w,
       ),
-    });
+    }));
+    if (ok) setDraftWorkout(undefined);
+    return ok;
+  };
+  const exportData = () => exportHealthState(stateRef.current);
+  const exportBundle = async () =>
+    JSON.stringify(
+      createHealthBundle(
+        stateRef.current,
+        await Promise.all(
+          (await mediaStore.exportAll()).map(async (item) => ({
+            id: item.id,
+            type: item.type,
+            dataUrl: await blobToDataUrl(item.blob),
+          })),
+        ),
+        now(),
+      ),
+    );
   const importData = (raw: string) => {
     try {
       const next = importHealthState(raw);
@@ -483,24 +562,70 @@ export function useHealthSystem(options: Options = {}) {
     }
   };
   const importBundle = async (raw: string) => {
-    const written: string[] = [];
     try {
       const bundle = importHealthBundle(raw);
-      for (const item of bundle.media) {
-        await mediaStore.put(item.id, dataUrlToBlob(item.dataUrl, item.type));
-        written.push(item.id);
+      const previous = await mediaStore.exportAll();
+      try {
+        await mediaStore.replaceAll(
+          bundle.media.map((item) => ({
+            id: item.id,
+            blob: dataUrlToBlob(item.dataUrl, item.type),
+          })),
+        );
+        commit(bundle.state);
+      } catch (error) {
+        await mediaStore.replaceAll(
+          previous.map((item) => ({ id: item.id, blob: item.blob })),
+        );
+        throw error;
       }
-      commit(bundle.state);
       setError("");
       return true;
     } catch (e) {
-      await Promise.all(
-        written.map((id) => mediaStore.remove(id).catch(() => undefined)),
-      );
       setError(e instanceof Error ? e.message : "导入失败");
       return false;
     }
   };
+  const previewBundle = (raw: string) => {
+    try {
+      const result = previewHealthBundle(raw);
+      setError("");
+      return result.summary;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "导入预检失败");
+      return undefined;
+    }
+  };
+  const permanentlyDeleteMeal = async (id: string) => {
+    const meal = stateRef.current.mealRecords.find(
+      (x) => x.id === id && x.status === "deleted",
+    );
+    if (!meal) {
+      setError("只能永久删除垃圾箱中的餐食");
+      return false;
+    }
+    try {
+      for (const mediaId of meal.mediaIds) await mediaStore.remove(mediaId);
+      const ok = mutate((s) => ({
+        ...s,
+        mealRecords: s.mealRecords.filter((x) => x.id !== id),
+      }));
+      await mediaStore.removeOrphans(
+        new Set(stateRef.current.mealRecords.flatMap((x) => x.mediaIds)),
+      );
+      return ok;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "永久删除失败");
+      return false;
+    }
+  };
+  const archiveExercise = (id: string) =>
+    mutate((s) => ({
+      ...s,
+      exerciseDefinitions: s.exerciseDefinitions.map((x) =>
+        x.id === id ? { ...x, archivedAt: now() } : x,
+      ),
+    }));
   const changeStatus = (
     kind: "body" | "meal" | "daily" | "workout",
     id: string,
@@ -539,7 +664,7 @@ export function useHealthSystem(options: Options = {}) {
       };
     });
 
-  const today = now().slice(0, 10);
+  const today = localDateKey(now());
   return {
     state,
     error,
@@ -563,7 +688,7 @@ export function useHealthSystem(options: Options = {}) {
       .filter(
         (r) =>
           r.status === "active" &&
-          r.occurredAt.slice(0, 10) === today &&
+          localDateKey(r.occurredAt) === today &&
           r.payload.kind === "water",
       )
       .reduce(
@@ -578,15 +703,21 @@ export function useHealthSystem(options: Options = {}) {
     addActivity,
     addEnergy,
     toggleMetric,
+    setActivityMode,
     addMeal,
     addMealWithPhotos,
     addExercise,
     saveQuickWorkout,
     copyLastWorkout,
+    discardDraftWorkout,
+    archiveExercise,
     exportData,
     exportBundle,
     importData,
     importBundle,
+    previewBundle,
+    permanentlyDeleteMeal,
+    getMedia: (id: string) => mediaStore.get(id),
     softDelete: (kind: "body" | "meal" | "daily" | "workout", id: string) =>
       changeStatus(kind, id, "deleted"),
     restore: (kind: "body" | "meal" | "daily" | "workout", id: string) =>

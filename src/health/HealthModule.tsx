@@ -15,6 +15,7 @@ import { useHealthSystem } from "./useHealthSystem";
 import { deriveBodyTrend } from "./healthEngine";
 import type { ExerciseMode, MealRecord } from "./types";
 import "./healthModule.css";
+import { useRestTimer } from "./useRestTimer";
 
 type View = "home" | "body" | "meals" | "daily" | "workouts" | "data";
 const cards: Array<{
@@ -53,22 +54,21 @@ export function HealthModule() {
   const [mode, setMode] = useState<ExerciseMode>("weight-reps");
   const [sleepHours, setSleepHours] = useState("");
   const [steps, setSteps] = useState("");
+  const [customWater, setCustomWater] = useState("");
   const [sleepQuality, setSleepQuality] = useState("");
   const [energy, setEnergy] = useState("");
   const [selectedExercise, setSelectedExercise] = useState("");
   const [workoutDistance, setWorkoutDistance] = useState("");
   const [workoutMinutes, setWorkoutMinutes] = useState("");
-  const [restSeconds, setRestSeconds] = useState(0);
+  const restTimer = useRestTimer();
   const [importText, setImportText] = useState("");
+  const [importPreview, setImportPreview] = useState<{
+    records: number;
+    media: number;
+    updatedAt: string;
+  }>();
+  const [status, setStatus] = useState("");
   const [mealPhotos, setMealPhotos] = useState<File[]>([]);
-  useEffect(() => {
-    if (restSeconds <= 0) return;
-    const timer = window.setInterval(
-      () => setRestSeconds((value) => Math.max(0, value - 1)),
-      1000,
-    );
-    return () => window.clearInterval(timer);
-  }, [restSeconds]);
   const latest = health.bodyRecords[0];
   const bodyTrend = deriveBodyTrend(health.bodyRecords, 30);
   const recentCount = (days: number) => {
@@ -99,6 +99,9 @@ export function HealthModule() {
         : cards.find((c) => c.id === view)!.title;
   return (
     <section className="health-module" aria-labelledby="health-title">
+      <p className="sr-only" role="status" aria-live="polite">
+        {status}
+      </p>
       <header className="health-hero">
         {view !== "home" && (
           <button className="health-back" onClick={() => setView("home")}>
@@ -269,10 +272,14 @@ export function HealthModule() {
                         "更正体重（kg）",
                         r.weightGrams ? String(r.weightGrams / 1000) : "",
                       );
-                      if (next)
+                      if (next) {
+                        const reason =
+                          window.prompt("更正原因（可选）", "") ?? undefined;
                         health.reviseBodyRecord(r.id, {
                           weightKg: Number(next),
+                          reason,
                         });
+                      }
                     }}
                   >
                     更正
@@ -381,7 +388,22 @@ export function HealthModule() {
                         ? `饱腹：${m.satiety}`
                         : m.mealType}
                   </span>
+                  {m.mediaIds.length > 0 && (
+                    <div className="health-photo-grid">
+                      {m.mediaIds.map((id) => (
+                        <MealPhoto key={id} id={id} load={health.getMedia} />
+                      ))}
+                    </div>
+                  )}
                   <time>{m.eatenAt.slice(0, 16).replace("T", " ")}</time>
+                  <button
+                    onClick={() => {
+                      health.softDelete("meal", m.id);
+                      setStatus("餐食已移到垃圾箱，可在数据与隐私中恢复");
+                    }}
+                  >
+                    移到垃圾箱
+                  </button>
                 </article>
               ))
             ) : (
@@ -394,76 +416,126 @@ export function HealthModule() {
         <div className="health-two-column">
           <div className="health-panel">
             <h2>今日快速记录</h2>
-            <div className="water-actions">
-              {health.preferences.waterQuickAmountsMl.map((n) => (
-                <button key={n} onClick={() => health.addWater(n)}>
-                  记录 {n} ml
+            {health.preferences.enabledDailyMetrics.includes("water") && (
+              <>
+                <div className="water-actions">
+                  {health.preferences.waterQuickAmountsMl.map((n) => (
+                    <button key={n} onClick={() => health.addWater(n)}>
+                      记录 {n} ml
+                    </button>
+                  ))}
+                </div>
+                <strong className="health-total">
+                  今日饮水 {health.todayWaterMl} ml
+                </strong>
+                <label>
+                  自定义饮水（ml）
+                  <input
+                    aria-label="自定义饮水（ml）"
+                    type="number"
+                    inputMode="numeric"
+                    value={customWater}
+                    onChange={(e) => setCustomWater(e.target.value)}
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    if (customWater && health.addWater(Number(customWater)))
+                      setCustomWater("");
+                  }}
+                >
+                  保存自定义饮水
                 </button>
-              ))}
-            </div>
-            <strong className="health-total">
-              今日饮水 {health.todayWaterMl} ml
-            </strong>
-            <label>
-              睡眠时长（小时）
-              <input
-                aria-label="睡眠时长（小时）"
-                type="number"
-                step="0.1"
-                value={sleepHours}
-                onChange={(e) => setSleepHours(e.target.value)}
-              />
-            </label>
-            <label>
-              睡眠质量（可选）
-              <select
-                aria-label="睡眠质量（可选）"
-                value={sleepQuality}
-                onChange={(e) => setSleepQuality(e.target.value)}
-              >
-                <option value="">不选择</option>
-                <option value="1">很差</option>
-                <option value="2">较差</option>
-                <option value="3">一般</option>
-                <option value="4">较好</option>
-                <option value="5">很好</option>
-              </select>
-            </label>
-            <button
-              onClick={() => {
-                if (sleepHours) {
-                  health.addSleep({
-                    durationMinutes: Math.round(Number(sleepHours) * 60),
-                    quality: sleepQuality
-                      ? (Number(sleepQuality) as 1 | 2 | 3 | 4 | 5)
-                      : undefined,
-                  });
-                  setSleepHours("");
-                  setSleepQuality("");
-                }
-              }}
-            >
-              保存睡眠
-            </button>
-            <label>
-              今日步数
-              <input
-                aria-label="今日步数"
-                type="number"
-                value={steps}
-                onChange={(e) => setSteps(e.target.value)}
-              />
-            </label>
-            <button
-              onClick={() => {
-                if (steps) {
-                  health.addActivity(Number(steps));
-                  setSteps("");
-                }
-              }}
-            >
-              保存活动
-            </button>
+              </>
+            )}
+            {health.preferences.enabledDailyMetrics.includes("sleep") && (
+              <>
+                <label>
+                  睡眠时长（小时）
+                  <input
+                    aria-label="睡眠时长（小时）"
+                    type="number"
+                    step="0.1"
+                    value={sleepHours}
+                    onChange={(e) => setSleepHours(e.target.value)}
+                  />
+                </label>
+                <label>
+                  睡眠质量（可选）
+                  <select
+                    aria-label="睡眠质量（可选）"
+                    value={sleepQuality}
+                    onChange={(e) => setSleepQuality(e.target.value)}
+                  >
+                    <option value="">不选择</option>
+                    <option value="1">很差</option>
+                    <option value="2">较差</option>
+                    <option value="3">一般</option>
+                    <option value="4">较好</option>
+                    <option value="5">很好</option>
+                  </select>
+                </label>
+                <button
+                  onClick={() => {
+                    if (sleepHours) {
+                      health.addSleep({
+                        durationMinutes: Math.round(Number(sleepHours) * 60),
+                        quality: sleepQuality
+                          ? (Number(sleepQuality) as 1 | 2 | 3 | 4 | 5)
+                          : undefined,
+                      });
+                      setSleepHours("");
+                      setSleepQuality("");
+                    }
+                  }}
+                >
+                  保存睡眠
+                </button>
+              </>
+            )}
+            {health.preferences.enabledDailyMetrics.includes("activity") && (
+              <>
+                <label>
+                  活动记录方式
+                  <select
+                    value={health.preferences.activityMode}
+                    onChange={(e) =>
+                      health.setActivityMode(
+                        e.target.value as "steps" | "activity-minutes",
+                      )
+                    }
+                  >
+                    <option value="steps">步数</option>
+                    <option value="activity-minutes">活动分钟</option>
+                  </select>
+                </label>
+                <label>
+                  {health.preferences.activityMode === "steps"
+                    ? "今日步数"
+                    : "活动分钟"}
+                  <input
+                    aria-label={
+                      health.preferences.activityMode === "steps"
+                        ? "今日步数"
+                        : "活动分钟"
+                    }
+                    type="number"
+                    value={steps}
+                    onChange={(e) => setSteps(e.target.value)}
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    if (steps) {
+                      health.addActivity(Number(steps));
+                      setSteps("");
+                    }
+                  }}
+                >
+                  保存活动
+                </button>
+              </>
+            )}
             {health.preferences.enabledDailyMetrics.includes("energy") && (
               <>
                 <label>
@@ -571,10 +643,52 @@ export function HealthModule() {
           </form>
           <div className="health-panel">
             <h2>我的训练项目</h2>
+            {restTimer.seconds > 0 && (
+              <div className="health-trend" aria-live="polite">
+                <strong>休息 {restTimer.seconds} 秒</strong>
+                <div className="water-actions">
+                  {restTimer.running && (
+                    <button onClick={restTimer.pause}>暂停</button>
+                  )}
+                  {restTimer.paused && (
+                    <button onClick={restTimer.resume}>继续</button>
+                  )}
+                  <button onClick={() => restTimer.extend(30)}>
+                    延长 30 秒
+                  </button>
+                  <button onClick={restTimer.skip}>跳过</button>
+                </div>
+              </div>
+            )}
             {health.workouts.length > 0 && (
               <button onClick={() => health.copyLastWorkout()}>
                 复制上次训练为草稿
               </button>
+            )}
+            {health.draftWorkout && (
+              <div className="health-trend">
+                <strong>有一份未完成训练草稿</strong>
+                <div className="water-actions">
+                  <button
+                    onClick={() =>
+                      setSelectedExercise(
+                        health.draftWorkout!.entries[0]?.exerciseDefinitionId ??
+                          "",
+                      )
+                    }
+                  >
+                    恢复草稿
+                  </button>
+                  <button
+                    onClick={() => {
+                      health.discardDraftWorkout();
+                      setStatus("训练草稿已放弃");
+                    }}
+                  >
+                    放弃草稿
+                  </button>
+                </div>
+              </div>
             )}
             {health.exercises.length ? (
               health.exercises.map((x) => (
@@ -597,10 +711,9 @@ export function HealthModule() {
                 }
                 distance={workoutDistance}
                 minutes={workoutMinutes}
-                restSeconds={restSeconds}
+                restTimer={restTimer}
                 onDistance={setWorkoutDistance}
                 onMinutes={setWorkoutMinutes}
-                onRest={setRestSeconds}
                 onSave={(sets) => {
                   health.saveQuickWorkout({
                     exerciseDefinitionId: selectedExercise,
@@ -638,12 +751,37 @@ export function HealthModule() {
               <textarea
                 aria-label="导入备份内容"
                 value={importText}
-                onChange={(e) => setImportText(e.target.value)}
+                onChange={(e) => {
+                  setImportText(e.target.value);
+                  setImportPreview(undefined);
+                }}
               />
             </label>
-            <button onClick={() => health.importBundle(importText)}>
-              校验并导入
+            <button
+              onClick={() => setImportPreview(health.previewBundle(importText))}
+            >
+              预检备份
             </button>
+            {importPreview && (
+              <div className="health-trend">
+                <strong>预检通过</strong>
+                <p>
+                  {importPreview.records} 条结构记录 · {importPreview.media}{" "}
+                  个媒体文件
+                </p>
+                <p>将替换当前健康数据，原数据保留在上次有效快照中。</p>
+                <button
+                  onClick={async () => {
+                    if (window.confirm("确认用此备份替换当前健康数据？")) {
+                      const ok = await health.importBundle(importText);
+                      setStatus(ok ? "备份导入完成" : "导入失败，原数据已保留");
+                    }
+                  }}
+                >
+                  确认替换并导入
+                </button>
+              </div>
+            )}
           </div>
           <div className="health-panel">
             <h2>垃圾箱</h2>
@@ -660,6 +798,16 @@ export function HealthModule() {
                 <strong>{x.description}</strong>
                 <button onClick={() => health.restore("meal", x.id)}>
                   恢复
+                </button>
+                <button
+                  onClick={async () => {
+                    if (window.confirm("永久删除后无法恢复，确定继续？")) {
+                      await health.permanentlyDeleteMeal(x.id);
+                      setStatus("餐食及关联照片已永久删除");
+                    }
+                  }}
+                >
+                  永久删除
                 </button>
               </article>
             ))}
@@ -678,23 +826,58 @@ export function HealthModule() {
 function Empty({ text }: { text: string }) {
   return <div className="health-empty">{text}</div>;
 }
+function MealPhoto({
+  id,
+  load,
+}: {
+  id: string;
+  load: (id: string) => Promise<Blob | undefined>;
+}) {
+  const [url, setUrl] = useState("");
+  useEffect(() => {
+    let active = true;
+    let objectUrl = "";
+    load(id).then((blob) => {
+      if (blob && active) {
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      }
+    });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id, load]);
+  return url ? (
+    <img className="health-meal-photo" src={url} alt="本地餐食照片" />
+  ) : (
+    <span className="health-photo-placeholder">照片读取中</span>
+  );
+}
 function WorkoutRecorder({
   definition,
   distance,
   minutes,
-  restSeconds,
+  restTimer,
   onDistance,
   onMinutes,
-  onRest,
   onSave,
 }: {
   definition: { mode: ExerciseMode; defaultRestSeconds?: number };
   distance: string;
   minutes: string;
-  restSeconds: number;
+  restTimer: {
+    seconds: number;
+    running: boolean;
+    paused: boolean;
+    start: (value: number) => void;
+    pause: () => void;
+    resume: () => void;
+    extend: (value?: number) => void;
+    skip: () => void;
+  };
   onDistance: (v: string) => void;
   onMinutes: (v: string) => void;
-  onRest: (v: number) => void;
   onSave: (
     sets?: Array<{
       weightKg?: number;
@@ -801,9 +984,23 @@ function WorkoutRecorder({
         </label>
       )}
       {grouped && (
-        <button onClick={() => onRest(definition.defaultRestSeconds ?? 90)}>
-          {restSeconds ? `休息 ${restSeconds} 秒` : "完成本组并开始休息"}
-        </button>
+        <div className="water-actions" aria-live="polite">
+          <button
+            onClick={() => restTimer.start(definition.defaultRestSeconds ?? 90)}
+          >
+            {restTimer.seconds
+              ? `休息 ${restTimer.seconds} 秒`
+              : "完成本组并开始休息"}
+          </button>
+          {restTimer.running && <button onClick={restTimer.pause}>暂停</button>}
+          {restTimer.paused && <button onClick={restTimer.resume}>继续</button>}
+          {restTimer.seconds > 0 && (
+            <>
+              <button onClick={() => restTimer.extend(30)}>延长 30 秒</button>
+              <button onClick={restTimer.skip}>跳过</button>
+            </>
+          )}
+        </div>
       )}
       <button
         onClick={() =>
