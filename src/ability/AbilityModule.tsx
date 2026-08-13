@@ -9,6 +9,7 @@ import {
   createCanvasPreferenceHistory,
   redoCanvasPreferenceChange,
   runAbilityHistoryAction,
+  runCanvasPreferenceReset,
   undoCanvasPreferenceChange,
   updateCanvasPreferenceViewport,
   type CanvasPreferenceHistory
@@ -95,21 +96,25 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     return true;
   };
   const commitCanvasPreferences = (next: CanvasPreferences) => {
-    if (currentTreeId) updateCanvasHistory(currentTreeId, (history) => applyCanvasPreferenceChange(history, next));
+    return currentTreeId ? updateCanvasHistory(currentTreeId, (history) => applyCanvasPreferenceChange(history, next)) : false;
   };
   const updateCanvasViewport = (viewport: CanvasPreferences['viewport']) => {
     if (currentTreeId) updateCanvasHistory(currentTreeId, (history) => updateCanvasPreferenceViewport(history, viewport));
   };
   const undoCanvas = () => {
-    if (currentTreeId) updateCanvasHistory(currentTreeId, undoCanvasPreferenceChange);
+    return currentTreeId ? updateCanvasHistory(currentTreeId, undoCanvasPreferenceChange) : false;
   };
   const redoCanvas = () => {
-    if (currentTreeId) updateCanvasHistory(currentTreeId, redoCanvasPreferenceChange);
+    return currentTreeId ? updateCanvasHistory(currentTreeId, redoCanvasPreferenceChange) : false;
   };
   const resetCanvasLayout = () => {
-    if (!currentCanvasHistory) return;
-    commitCanvasPreferences(resetCanvasLayoutPreferences(currentCanvasHistory.present));
-    setFitLayoutRequest((value) => value + 1);
+    if (!currentCanvasHistory) return false;
+    return runCanvasPreferenceReset(
+      currentCanvasHistory.present,
+      resetCanvasLayoutPreferences,
+      commitCanvasPreferences,
+      () => setFitLayoutRequest((value) => value + 1)
+    );
   };
   const runUndo = () => {
     if (currentCanvasHistory) runAbilityHistoryAction('undo', currentCanvasHistory, ability.canUndo, undoCanvas, ability.undo);

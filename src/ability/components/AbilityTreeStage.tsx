@@ -84,9 +84,9 @@ type Props = {
   canvasHistory: CanvasPreferenceHistory;
   onCommitPreferences: (preferences: CanvasPreferences) => void;
   onUpdateViewport: (viewport: CanvasPreferences['viewport']) => void;
-  onUndoCanvas: () => void;
-  onRedoCanvas: () => void;
-  onResetLayout: () => void;
+  onUndoCanvas: () => boolean;
+  onRedoCanvas: () => boolean;
+  onResetLayout: () => boolean;
   onSelectNode: (nodeId: string | null) => void;
   onSelectOutcome: (outcomeId: string) => void;
   onAddPhase: () => void;
@@ -577,12 +577,12 @@ export function AbilityTreeStage(props: Props) {
 
   const undoAction = useCallback(() => {
     const source = runAbilityHistoryAction('undo', props.canvasHistory, props.canUndo, props.onUndoCanvas, props.onUndo);
-    if (source !== 'none') setNotice(source === 'canvas' ? '已撤销画布调整' : '已撤销上一步操作');
+    if (source) setNotice(source === 'canvas' ? '已撤销画布调整' : '已撤销上一步操作');
   }, [props.canvasHistory, props.canUndo, props.onUndo, props.onUndoCanvas]);
 
   const redoAction = useCallback(() => {
     const source = runAbilityHistoryAction('redo', props.canvasHistory, props.canRedo, props.onRedoCanvas, props.onRedo);
-    if (source !== 'none') setNotice(source === 'canvas' ? '已重做画布调整' : '已重做上一步操作');
+    if (source) setNotice(source === 'canvas' ? '已重做画布调整' : '已重做上一步操作');
   }, [props.canvasHistory, props.canRedo, props.onRedo, props.onRedoCanvas]);
 
   const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {

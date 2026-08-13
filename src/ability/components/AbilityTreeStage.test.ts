@@ -15,6 +15,7 @@ import {
   applyCanvasPreferenceChange,
   createCanvasPreferenceHistory,
   redoCanvasPreferenceChange,
+  runCanvasPreferenceReset,
   runAbilityHistoryAction,
   undoCanvasPreferenceChange
 } from '../abilityCanvasHistory';
@@ -121,7 +122,7 @@ describe('AbilityTreeStage canvas drag preferences', () => {
   });
 
   it('routes history shortcuts to canvas before domain and falls back when canvas is empty', () => {
-    const canvasUndo = vi.fn();
+    const canvasUndo = vi.fn(() => true);
     const domainUndo = vi.fn();
     const history = applyCanvasPreferenceChange(createCanvasPreferenceHistory(preferences), {
       ...preferences,
@@ -134,6 +135,28 @@ describe('AbilityTreeStage canvas drag preferences', () => {
 
     expect(runAbilityHistoryAction('undo', createCanvasPreferenceHistory(preferences), true, canvasUndo, domainUndo)).toBe('domain');
     expect(domainUndo).toHaveBeenCalledOnce();
+  });
+
+  it('does not report success or fall back to domain when a canvas history action fails', () => {
+    const canvasUndo = vi.fn(() => false);
+    const domainUndo = vi.fn();
+    const history = applyCanvasPreferenceChange(createCanvasPreferenceHistory(preferences), {
+      ...preferences,
+      positions: { skill: { x: 80, y: 96 } }
+    });
+
+    expect(runAbilityHistoryAction('undo', history, true, canvasUndo, domainUndo)).toBeNull();
+    expect(canvasUndo).toHaveBeenCalledOnce();
+    expect(domainUndo).not.toHaveBeenCalled();
+  });
+
+  it('does not request a fit when resetting canvas preferences fails', () => {
+    const commit = vi.fn(() => false);
+    const requestFit = vi.fn();
+
+    expect(runCanvasPreferenceReset(preferences, resetCanvasLayoutPreferences, commit, requestFit)).toBe(false);
+    expect(commit).toHaveBeenCalledOnce();
+    expect(requestFit).not.toHaveBeenCalled();
   });
 
   it('recognizes canvas undo and redo keyboard events', () => {

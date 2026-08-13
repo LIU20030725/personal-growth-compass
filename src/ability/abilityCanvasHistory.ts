@@ -40,17 +40,27 @@ export function runAbilityHistoryAction(
   direction: 'undo' | 'redo',
   canvasHistory: CanvasPreferenceHistory,
   canRunDomainAction: boolean,
-  runCanvasAction: () => void,
+  runCanvasAction: () => boolean,
   runDomainAction: () => void
-): 'canvas' | 'domain' | 'none' {
+): 'canvas' | 'domain' | null {
   const hasCanvasAction = direction === 'undo' ? canvasHistory.past.length > 0 : canvasHistory.future.length > 0;
   if (hasCanvasAction) {
-    runCanvasAction();
-    return 'canvas';
+    return runCanvasAction() ? 'canvas' : null;
   }
   if (canRunDomainAction) {
     runDomainAction();
     return 'domain';
   }
-  return 'none';
+  return null;
+}
+
+export function runCanvasPreferenceReset(
+  preferences: CanvasPreferences,
+  reset: (preferences: CanvasPreferences) => CanvasPreferences,
+  commit: (preferences: CanvasPreferences) => boolean,
+  requestFit: () => void
+): boolean {
+  if (!commit(reset(preferences))) return false;
+  requestFit();
+  return true;
 }

@@ -313,6 +313,8 @@ describe('AbilityModule', () => {
       phasePositions: { base: { x: 64, y: 32 } }
     });
     expect(screen.getByRole('alert')).toHaveTextContent('画布布局保存失败，调整未应用');
+    expect(screen.queryByText('已撤销画布调整')).not.toBeInTheDocument();
+    expect(screen.queryByText('已重做画布调整')).not.toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: '关闭' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
