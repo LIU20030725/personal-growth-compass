@@ -19,7 +19,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure'
   },
-  projects: [{ name: 'desktop-chrome', use: { ...devices['Desktop Chrome'], channel: 'chrome' } }],
+  projects: [{ name: 'desktop-chrome', use: { ...devices['Desktop Chrome'], channel: 'chrome', viewport: { width: 1440, height: 900 } } }],
   webServer: {
     command: `npm run dev -- --host 127.0.0.1 --port ${e2ePort} --strictPort`,
     url: `${e2eBaseUrl}/ability`,

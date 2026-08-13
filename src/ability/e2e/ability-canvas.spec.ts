@@ -77,7 +77,7 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
 
   await page.getByRole('button', { name: 'Fit View' }).click();
   const canvas = page.getByRole('group', { name: '自媒体创作交互画布', exact: true });
-  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveScreenshot('aligned-3-branches.png', { animations: 'disabled', maxDiffPixels: 100 });
 
   await page.getByRole('group', { name: '内容定位 可开始', exact: true }).click();
   await addChild.click();
@@ -85,6 +85,7 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
   await expect(children).toHaveCount(5);
   await page.getByRole('button', { name: 'Fit View' }).click();
   await expectPrimaryEdgesReady(page, 5);
+  await expect(canvas).toHaveScreenshot('aligned-5-branches.png', { animations: 'disabled', maxDiffPixels: 100 });
 
   await children.first().dblclick();
   const rename = page.getByRole('textbox', { name: '编辑节点名称' });
@@ -98,6 +99,7 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
   await expect(children).toHaveCount(6);
   await page.getByRole('button', { name: 'Fit View' }).click();
   await expectPrimaryEdgesReady(page, 7);
+  await expect(canvas).toHaveScreenshot('aligned-multi-level.png', { animations: 'disabled', maxDiffPixels: 100 });
 });
 
 test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async ({ page }) => {
@@ -195,7 +197,8 @@ test('390px 手机视口默认提供可操作的线性技能路线', async ({ pa
   const route = page.getByRole('region', { name: '自媒体创作线性技能路线' });
   await expect(route).toBeVisible();
   await expect(route.getByTestId('linear-skill-node')).toHaveCount(40);
-  await route.getByRole('button', { name: /移动端技能 40.*可开始/ }).click();
+  const openingNode = route.getByRole('button', { name: /移动端技能 40.*可开始/ });
+  await openingNode.click();
   const detail = page.getByRole('complementary', { name: '技能节点详情' });
   await expect(detail.getByRole('heading', { name: '移动端技能 40' })).toBeVisible();
   const undersizedTargets = await detail.locator('button, a, input, select, textarea').evaluateAll((elements) => elements
@@ -206,6 +209,8 @@ test('390px 手机视口默认提供可操作的线性技能路线', async ({ pa
     })
     .map((element) => ({ label: element.getAttribute('aria-label') ?? element.textContent?.trim(), width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height })));
   expect(undersizedTargets).toEqual([]);
+  await detail.getByRole('button', { name: '关闭技能详情' }).click();
+  await expect(openingNode).toBeFocused();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
@@ -244,9 +249,11 @@ test('下一步显示候选数并轮换打开并行节点详情', async ({ page 
   await addChild.click();
   await page.evaluate(() => {
     const key = 'dice-life.ability.v1';
-    const state = JSON.parse(window.localStorage.getItem(key) ?? '{}') as { nodes: Array<{ name: string; progress: string }> };
+    const state = JSON.parse(window.localStorage.getItem(key) ?? '{}') as { nodes: Array<{ name: string; progress: string; createdAt: string }> };
     const rootNode = state.nodes.find((node) => node.name === '内容定位');
     if (rootNode) rootNode.progress = 'mastered';
+    const candidates = state.nodes.filter((node) => node.name === '新技能').sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    candidates.forEach((node, index) => { node.name = `候选${String.fromCharCode(65 + index)}`; });
     window.localStorage.setItem(key, JSON.stringify(state));
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
@@ -255,10 +262,10 @@ test('下一步显示候选数并轮换打开并行节点详情', async ({ page 
   await expect(next).toBeVisible();
   await next.click();
   const detail = page.getByRole('complementary', { name: '技能节点详情' });
-  await expect(detail.getByRole('heading', { name: '新技能' })).toBeVisible();
+  await expect(detail.getByRole('heading', { name: '候选A' })).toBeVisible();
   await detail.getByRole('button', { name: '关闭技能详情' }).click();
   await next.click();
-  await expect(detail.getByRole('heading', { name: '新技能' })).toBeVisible();
+  await expect(detail.getByRole('heading', { name: '候选B' })).toBeVisible();
 });
 
 test('@a11y 能力模块没有 critical/serious 级自动可访问性问题', async ({ page }, testInfo) => {

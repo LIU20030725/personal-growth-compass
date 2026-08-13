@@ -207,6 +207,7 @@ test('B：V1 复杂历史树无损迁移并保留旧任务与掌握说明但不�
 
 test('重新生成桌面、窄屏、资源、线性、移动详情与 40 节点视觉证据', async ({ page }, testInfo) => {
   const problems = watchBrowserProblems(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
   const threeBranch = visualState();
   threeBranch.nodes = threeBranch.nodes.slice(0, 4);
   threeBranch.dependencies = threeBranch.dependencies.slice(0, 3);
@@ -217,10 +218,12 @@ test('重新生成桌面、窄屏、资源、线性、移动详情与 40 节点�
   threeBranch.outcomes = [];
   await seed(page, threeBranch);
   await page.getByRole('button', { name: 'Fit View' }).click();
-  await page.getByRole('group', { name: '自媒体创作系统交互画布' }).screenshot({ path: `${EVIDENCE}/00-1440-three-branch.png`, animations: 'disabled' });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: `${EVIDENCE}/00-1440-three-branch.png`, animations: 'disabled' });
 
   await seed(page, visualState());
   await page.getByRole('button', { name: 'Fit View' }).click();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: `${EVIDENCE}/01-1440-five-branch-multilevel.png`, animations: 'disabled' });
 
   await page.setViewportSize({ width: 1024, height: 768 });
