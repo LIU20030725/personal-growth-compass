@@ -127,4 +127,41 @@ describe('getKeyboardNavigationTarget', () => {
     expect(getKeyboardNavigationTarget(state, 'last', 'select-next-sibling')).toBeNull();
     expect(getKeyboardNavigationTarget(state, 'parent', 'select-next-sibling')).toBeNull();
   });
+
+  it('uses legacy primary semantics and excludes archived, cross-tree, and malformed nodes', () => {
+    const state = navigationState();
+    state.nodes.push(
+      { ...state.nodes[0], id: 'legacy-first', createdAt: '2026-01-05' },
+      { ...state.nodes[0], id: 'legacy-aux', createdAt: '2026-01-06' },
+      { ...state.nodes[0], id: 'archived', createdAt: '2026-01-07', archivedAt: '2026-02-01' },
+      { ...state.nodes[0], id: 'other', skillTreeId: 'other', createdAt: '2026-01-08' }
+    );
+    state.dependencies.push(
+      { id: 'legacy-first-edge', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'legacy-first' },
+      { id: 'legacy-aux-edge', skillTreeId: 'tree', prerequisiteNodeId: 'beta', dependentNodeId: 'legacy-first' },
+      { id: 'archived-edge', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'archived', kind: 'primary' },
+      { id: 'cross-tree', skillTreeId: 'other', prerequisiteNodeId: 'parent', dependentNodeId: 'other', kind: 'primary' },
+      { id: 'malformed', skillTreeId: 'tree', prerequisiteNodeId: 'missing', dependentNodeId: 'beta', kind: 'primary' }
+    );
+
+    expect(getKeyboardNavigationTarget(state, 'legacy-first', 'select-parent')).toBe('parent');
+    expect(getKeyboardNavigationTarget(state, 'legacy-first', 'select-first-child')).toBeNull();
+    expect(getKeyboardNavigationTarget(state, 'parent', 'select-last-sibling')).toBeNull();
+    expect(getKeyboardNavigationTarget(state, 'archived', 'select-parent')).toBeNull();
+    expect(getKeyboardNavigationTarget(state, 'other', 'select-parent')).toBeNull();
+  });
+
+  it('navigates the visible parallel merge from every branch and back to a stable branch', () => {
+    const state = navigationState();
+    state.nodes.push({ ...state.nodes[0], id: 'continuation', createdAt: '2026-01-09' });
+    state.dependencies.push({ id: 'suppressed-parent-continuation', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'continuation', kind: 'primary' });
+    state.parallelGroups = [{
+      id: 'parallel', skillTreeId: 'tree', phaseId: 'phase', name: 'Parallel',
+      nodeIds: ['beta', 'alpha', 'last'], parentNodeId: 'parent', continuationNodeId: 'continuation'
+    }];
+
+    expect(getKeyboardNavigationTarget(state, 'beta', 'select-first-child')).toBe('continuation');
+    expect(getKeyboardNavigationTarget(state, 'last', 'select-first-child')).toBe('continuation');
+    expect(getKeyboardNavigationTarget(state, 'continuation', 'select-parent')).toBe('alpha');
+  });
 });
