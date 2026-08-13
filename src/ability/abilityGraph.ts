@@ -61,6 +61,35 @@ export function getNodeDisplayState(node: SkillNode, state: AbilityState): NodeD
   return node.progress;
 }
 
+export function getNextActionCandidates(state: AbilityState, treeId: string): SkillNode[] {
+  const phaseOrder = new Map(
+    state.phases.filter((phase) => phase.skillTreeId === treeId).map((phase) => [phase.id, phase.order])
+  );
+  return state.nodes
+    .filter((node) => node.skillTreeId === treeId && !node.archivedAt && node.progress !== 'mastered')
+    .filter((node) => state.dependencies
+      .filter((edge) => edge.dependentNodeId === node.id && getDependencyKind(state, edge) === 'primary')
+      .every((edge) => requireNode(state, edge.prerequisiteNodeId).progress === 'mastered'))
+    .sort((a, b) =>
+      Number(b.progress === 'in_progress') - Number(a.progress === 'in_progress') ||
+      (phaseOrder.get(a.phaseId) ?? 0) - (phaseOrder.get(b.phaseId) ?? 0) ||
+      a.createdAt.localeCompare(b.createdAt) ||
+      a.id.localeCompare(b.id)
+    );
+}
+
+export type NextActionEmptyReason = 'empty_tree' | 'all_mastered' | 'prerequisites_blocked';
+
+export function getNextActionEmptyReason(
+  state: AbilityState,
+  treeId: string
+): NextActionEmptyReason | null {
+  const nodes = state.nodes.filter((node) => node.skillTreeId === treeId && !node.archivedAt);
+  if (nodes.length === 0) return 'empty_tree';
+  if (nodes.every((node) => node.progress === 'mastered')) return 'all_mastered';
+  return getNextActionCandidates(state, treeId).length === 0 ? 'prerequisites_blocked' : null;
+}
+
 export function hasPrerequisiteWarning(node: SkillNode, state: AbilityState): boolean {
   return node.progress !== 'available' &&
     getPrerequisiteNodes(state, node.id).some((item) => item.progress !== 'mastered');

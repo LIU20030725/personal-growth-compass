@@ -69,7 +69,7 @@ describe('useAbilitySystem', () => {
     expect(result.current.persistenceError).toBe('');
   });
 
-  it('creates canvas children and undoes destructive branch changes', () => {
+  it('undoes and redoes destructive branch changes', () => {
     const { result } = renderHook(() => useAbilitySystem({ storage: localStorage, now: () => stamp, idFactory: ids() }));
     act(() => result.current.applyTreeDraft(draft()));
     const parentId = result.current.state.nodes[0].id;
@@ -83,6 +83,52 @@ describe('useAbilitySystem', () => {
 
     act(() => result.current.undo());
     expect(result.current.state.nodes.every((node) => !node.archivedAt)).toBe(true);
+    expect(result.current.canRedo).toBe(true);
+
+    act(() => result.current.redo());
+    expect(result.current.state.nodes.every((node) => node.archivedAt)).toBe(true);
+  });
+
+  it('clears redo history after a new domain change', () => {
+    const { result } = renderHook(() => useAbilitySystem({ storage: localStorage, now: () => stamp, idFactory: ids() }));
+    act(() => result.current.applyTreeDraft(draft()));
+    const treeId = result.current.state.trees[0].id;
+    act(() => result.current.archiveTree(treeId));
+    act(() => result.current.undo());
+    expect(result.current.canRedo).toBe(true);
+
+    act(() => result.current.updateTree(treeId, { name: '小说写作' }));
+
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it('keeps undo and redo stacks in place when persistence fails', () => {
+    let shouldFail = false;
+    const storage: StorageLike = {
+      getItem: (key) => localStorage.getItem(key),
+      removeItem: (key) => localStorage.removeItem(key),
+      setItem: (key, value) => {
+        if (shouldFail) throw new DOMException('quota', 'QuotaExceededError');
+        localStorage.setItem(key, value);
+      }
+    };
+    const { result } = renderHook(() => useAbilitySystem({ storage, now: () => stamp, idFactory: ids() }));
+    act(() => result.current.applyTreeDraft(draft()));
+    const treeId = result.current.state.trees[0].id;
+    act(() => result.current.archiveTree(treeId));
+
+    shouldFail = true;
+    act(() => result.current.undo());
+    expect(result.current.state.trees[0].status).toBe('archived');
+    expect(result.current.canUndo).toBe(true);
+    expect(result.current.canRedo).toBe(false);
+
+    shouldFail = false;
+    act(() => result.current.undo());
+    shouldFail = true;
+    act(() => result.current.redo());
+    expect(result.current.state.trees[0].status).toBe('active');
+    expect(result.current.canRedo).toBe(true);
   });
 
   it('persists reusable node resources and unlinks without deleting the original', () => {

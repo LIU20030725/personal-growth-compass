@@ -34,6 +34,7 @@ export function useAbilitySystem(options: Options = {}) {
   const [state, setState] = useState(() => loadAbilityState(storageRef.current));
   const stateRef = useRef(state);
   const historyRef = useRef<Array<typeof state>>([]);
+  const redoRef = useRef<Array<typeof state>>([]);
   const [persistenceError, setPersistenceError] = useState('');
 
   const commit = useCallback((transform: (current: typeof state) => typeof state): void => {
@@ -41,6 +42,7 @@ export function useAbilitySystem(options: Options = {}) {
       const next = transform(stateRef.current);
       saveAbilityState(storageRef.current, next);
       historyRef.current = [...historyRef.current.slice(-49), stateRef.current];
+      redoRef.current = [];
       stateRef.current = next;
       setState(next);
       setPersistenceError('');
@@ -58,8 +60,24 @@ export function useAbilitySystem(options: Options = {}) {
     try {
       saveAbilityState(storageRef.current, previous);
       historyRef.current = historyRef.current.slice(0, -1);
+      redoRef.current = [...redoRef.current.slice(-49), stateRef.current];
       stateRef.current = previous;
       setState(previous);
+      setPersistenceError('');
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : '能力数据保存失败');
+    }
+  }, []);
+
+  const redo = useCallback((): void => {
+    const next = redoRef.current[redoRef.current.length - 1];
+    if (!next) return;
+    try {
+      saveAbilityState(storageRef.current, next);
+      redoRef.current = redoRef.current.slice(0, -1);
+      historyRef.current = [...historyRef.current.slice(-49), stateRef.current];
+      stateRef.current = next;
+      setState(next);
       setPersistenceError('');
     } catch (error) {
       setPersistenceError(error instanceof Error ? error.message : '能力数据保存失败');
@@ -70,6 +88,8 @@ export function useAbilitySystem(options: Options = {}) {
     state,
     canUndo: historyRef.current.length > 0,
     undo,
+    canRedo: redoRef.current.length > 0,
+    redo,
     persistenceError,
     clearPersistenceError: () => setPersistenceError(''),
     applyTreeDraft: (draft: SkillTreeDraft) => commit((current) => applyDraft(current, draft, nextId, currentTime())),
