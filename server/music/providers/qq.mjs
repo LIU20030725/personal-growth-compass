@@ -1,4 +1,4 @@
-import { MusicResolverError, fetchWithTimeout, readBoundedJson } from '../security.mjs';
+import { MusicResolverError, fetchWithTimeout, normalizePublicText, readBoundedJson } from '../security.mjs';
 
 export const qqAdapter = {
   provider: 'qq',
@@ -10,10 +10,9 @@ export const qqAdapter = {
     if (!song?.name) throw new MusicResolverError('METADATA_NOT_FOUND', '没有找到这首 QQ 音乐歌曲的公开信息', 404);
     const albumMid = typeof song.album?.mid === 'string' ? song.album.mid : '';
     return {
-      provider: 'qq', title: String(song.name),
-      artist: (Array.isArray(song.singer) ? song.singer : []).map((artist) => artist?.name).filter(Boolean).join(' / '),
+      provider: 'qq', title: normalizePublicText(song.name, 300, { required: true }),
+      artist: normalizePublicText((Array.isArray(song.singer) ? song.singer : []).map((artist) => typeof artist?.name === 'string' ? artist.name : '').filter(Boolean).join(' / '), 1000),
       coverUrl: albumMid ? `https://y.gtimg.cn/music/photo_new/T002R500x500M000${albumMid}.jpg` : '', sourceUrl: link.sourceUrl
     };
   }
 };
-

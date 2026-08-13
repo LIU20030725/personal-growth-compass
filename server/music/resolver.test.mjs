@@ -6,6 +6,18 @@ const neteaseFixture = {
 };
 
 describe('music metadata resolver security boundary', () => {
+  it.each([
+    [' https://music.163.com/m/song?id=1495784933 ', 'netease'],
+    ['https://MUSIC.163.COM/song/1495784933', 'netease'],
+    ['https://y.qq.com/n/ryqq/songDetail/0039MnYb0qxYhV?ADTAG=share', 'qq']
+  ])('accepts official mobile, case and whitespace variants: %s', async (url, provider) => {
+    const payload = provider === 'netease'
+      ? { songs: [{ name: '歌', artists: [], album: {} }] }
+      : { code: 0, data: [{ name: '歌', singer: [], album: {} }] };
+    const resolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response(JSON.stringify(payload), { status: 200 })) });
+    await expect(resolve(url)).resolves.toMatchObject({ provider });
+  });
+
   it('uses a fixed NetEase metadata endpoint and returns normalized public metadata', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify(neteaseFixture), { status: 200 }));
     const resolve = createMusicResolver({ fetcher });
@@ -28,6 +40,12 @@ describe('music metadata resolver security boundary', () => {
     'https://music.163.com:8443/song?id=1',
     'https://music.163.com/playlist?id=1',
     'https://music.163.com/song?id=not-a-number'
+    ,'https://evil-music.163.com/song?id=1'
+    ,'https://music.163.com./song?id=1'
+    ,'https://music.163.com/album?id=1'
+    ,'https://y.qq.com/n/ryqq/playlist/123456'
+    ,'https://y.qq.com/n/ryqq/singer/123456'
+    ,'https://y.qq.com/n/ryqq/search?w=song'
   ])('rejects an unsafe or unsupported input without fetching: %s', async (url) => {
     const fetcher = vi.fn();
     const resolve = createMusicResolver({ fetcher });

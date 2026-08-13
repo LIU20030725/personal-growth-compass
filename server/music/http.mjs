@@ -3,10 +3,12 @@ import { resolveMusic as defaultResolve } from './resolver.mjs';
 
 const jsonHeaders = { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' };
 
-export function createMusicHttpHandler({ resolve = defaultResolve, limit = 20, windowMs = 60_000, clock = () => Date.now() } = {}) {
+export function createMusicHttpHandler({ resolve = defaultResolve, limit = 20, windowMs = 60_000, maxClients = 10_000, clock = () => Date.now() } = {}) {
   const clients = new Map();
-  return async function handle({ method, body, clientId = 'unknown' }) {
+  return async function handle({ method, headers = {}, body, clientId = 'unknown' }) {
     if (method !== 'POST') return { status: 405, headers: { ...jsonHeaders, allow: 'POST' }, body: { ok: false, error: { code: 'INVALID_REQUEST', message: '仅支持 POST 请求' } } };
+    const contentType = String(headers['content-type'] || headers['Content-Type'] || '').split(';')[0].trim().toLowerCase();
+    if (contentType !== 'application/json') return { status: 415, headers: jsonHeaders, body: { ok: false, error: { code: 'INVALID_REQUEST', message: '请求必须使用 application/json' } } };
     const rawSize = typeof body === 'string' ? body.length : JSON.stringify(body ?? {}).length;
     if (rawSize > 8192) return { status: 413, headers: jsonHeaders, body: { ok: false, error: { code: 'INVALID_REQUEST', message: '请求内容过大' } } };
     let payload;
@@ -20,6 +22,12 @@ export function createMusicHttpHandler({ resolve = defaultResolve, limit = 20, w
     const bucket = !previous || now - previous.startedAt >= windowMs ? { startedAt: now, count: 0 } : previous;
     bucket.count += 1;
     clients.set(clientId, bucket);
+    if (clients.size > maxClients) {
+      for (const [key, value] of clients) {
+        if (now - value.startedAt >= windowMs || clients.size > maxClients) clients.delete(key);
+        if (clients.size <= maxClients) break;
+      }
+    }
     if (bucket.count > limit) return { status: 429, headers: { ...jsonHeaders, 'retry-after': String(Math.ceil(windowMs / 1000)) }, body: { ok: false, error: { code: 'RATE_LIMITED', message: '识别次数过多，请稍后再试' } } };
 
     try {
@@ -32,4 +40,3 @@ export function createMusicHttpHandler({ resolve = defaultResolve, limit = 20, w
 }
 
 export const musicHttpHandler = createMusicHttpHandler();
-

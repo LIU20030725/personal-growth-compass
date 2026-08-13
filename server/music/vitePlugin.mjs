@@ -19,7 +19,7 @@ export function emotionMusicResolverPlugin() {
     server.middlewares.use('/api/music/resolve', async (request, response) => {
       try {
         const body = await readBody(request);
-        const result = await musicHttpHandler({ method: request.method, body, clientId: request.socket.remoteAddress || 'local' });
+        const result = await musicHttpHandler({ method: request.method, headers: request.headers, body, clientId: request.socket.remoteAddress || 'local' });
         response.statusCode = result.status;
         for (const [name, value] of Object.entries(result.headers)) response.setHeader(name, value);
         response.end(JSON.stringify(result.body));

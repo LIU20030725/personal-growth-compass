@@ -61,4 +61,21 @@ describe('EmotionMusicPicker', () => {
     finish({ provider: 'netease', title: '旧结果', artist: '', coverUrl: '', sourceUrl: 'https://music.163.com/song?id=1' });
     await waitFor(() => expect(screen.queryByText('旧结果')).not.toBeInTheDocument());
   });
+
+  it('aborts an in-flight request when the link changes and when the picker unmounts', async () => {
+    const signals: AbortSignal[] = [];
+    const resolveMetadata = vi.fn((_url: string, signal?: AbortSignal) => {
+      if (signal) signals.push(signal);
+      return new Promise(() => undefined);
+    });
+    const view = render(<EmotionMusicPicker onConfirm={vi.fn()} onCancel={vi.fn()} resolveMetadata={resolveMetadata} />);
+    const input = screen.getByLabelText('音乐分享链接');
+    fireEvent.change(input, { target: { value: 'https://music.163.com/song?id=1' } });
+    fireEvent.click(screen.getByRole('button', { name: '识别音乐' }));
+    fireEvent.change(input, { target: { value: 'https://music.163.com/song?id=2' } });
+    expect(signals[0]?.aborted).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: '识别音乐' }));
+    view.unmount();
+    expect(signals[1]?.aborted).toBe(true);
+  });
 });

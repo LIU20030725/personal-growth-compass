@@ -18,6 +18,12 @@ describe('EmotionMusicCard', () => {
     expect(screen.getByRole('img', { name: `${base.title} 封面` })).toHaveAttribute('src', 'https://p1.music.126.net/cover.jpg');
   });
 
+  it.each(['javascript:alert(1)', 'data:image/svg+xml,<svg/>', 'https://evil.test/cover.jpg'])('uses the stable placeholder for an unsafe cover: %s', (coverUrl) => {
+    render(<EmotionMusicCard music={{ ...base, coverUrl }} />);
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByTestId('music-cover-placeholder')).toBeInTheDocument();
+  });
+
   it('opens the original platform in a safe new tab when no browser-playable URL exists', () => {
     render(<EmotionMusicCard music={base} />);
 

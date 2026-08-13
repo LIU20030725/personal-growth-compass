@@ -19,5 +19,11 @@ describe('music resolver client', () => {
     const fetcher = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
     await expect(resolveMusicMetadata('https://music.163.com/song?id=1', { fetcher })).rejects.toMatchObject({ code: 'SERVICE_UNAVAILABLE' });
   });
-});
 
+  it('rejects dangerous or malformed metadata returned by the service', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, music: {
+      provider: 'netease', title: '', artist: 123, coverUrl: 'javascript:alert(1)', sourceUrl: 'https://evil.test/song'
+    } }), { status: 200 }));
+    await expect(resolveMusicMetadata('https://music.163.com/song?id=1', { fetcher })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  });
+});

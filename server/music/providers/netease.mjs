@@ -1,4 +1,4 @@
-import { MusicResolverError, fetchWithTimeout, readBoundedJson } from '../security.mjs';
+import { MusicResolverError, fetchWithTimeout, normalizePublicText, readBoundedJson } from '../security.mjs';
 
 export const neteaseAdapter = {
   provider: 'netease',
@@ -9,8 +9,8 @@ export const neteaseAdapter = {
     const song = Array.isArray(data?.songs) ? data.songs[0] : null;
     if (!song?.name) throw new MusicResolverError('METADATA_NOT_FOUND', '没有找到这首网易云歌曲的公开信息', 404);
     return {
-      provider: 'netease', title: String(song.name),
-      artist: (Array.isArray(song.artists) ? song.artists : []).map((artist) => artist?.name).filter(Boolean).join(' / '),
+      provider: 'netease', title: normalizePublicText(song.name, 300, { required: true }),
+      artist: normalizePublicText((Array.isArray(song.artists) ? song.artists : []).map((artist) => typeof artist?.name === 'string' ? artist.name : '').filter(Boolean).join(' / '), 1000),
       coverUrl: safeNetEaseCover(song.album?.picUrl), sourceUrl: link.sourceUrl
     };
   }

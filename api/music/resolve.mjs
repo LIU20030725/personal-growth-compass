@@ -6,8 +6,6 @@ function send(response, result) {
 }
 
 export default async function handler(request, response) {
-  const forwarded = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  const clientId = forwarded || request.socket?.remoteAddress || 'unknown';
-  send(response, await musicHttpHandler({ method: request.method, body: request.body, clientId }));
+  const clientId = request.socket?.remoteAddress || request.headers['x-vercel-id'] || 'serverless-instance';
+  send(response, await musicHttpHandler({ method: request.method, headers: request.headers, body: request.body, clientId }));
 }
-

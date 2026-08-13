@@ -1,5 +1,5 @@
 import { ExternalLink, LoaderCircle, Music2, RotateCcw } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseMusicShare, type ParsedMusicShare } from '../emotionMusicLink';
 import { resolveMusicMetadata, type ResolvedMusicMetadata } from '../emotionMusicResolverClient';
 import type { EmotionMusicReference } from '../types';
@@ -11,13 +11,16 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
   initialText?: string;
   onConfirm: (music: EmotionMusicReference) => void;
   onCancel: () => void;
-  resolveMetadata?: (sourceUrl: string) => Promise<ResolvedMusicMetadata>;
+  resolveMetadata?: (sourceUrl: string, signal?: AbortSignal) => Promise<ResolvedMusicMetadata>;
 }) {
   const [input, setInput] = useState(initialText);
   const [result, setResult] = useState<PickerResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const requestId = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
+
+  useEffect(() => () => activeRequest.current?.abort(), []);
 
   async function identify() {
     const parsed = parseMusicShare(input);
@@ -26,9 +29,12 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
       setResult({ ...parsed, coverUrl: '' }); setError(''); return;
     }
     const currentRequest = ++requestId.current;
+    activeRequest.current?.abort();
+    const controller = new AbortController();
+    activeRequest.current = controller;
     setLoading(true); setResult(null); setError('');
     try {
-      const remote = await resolveMetadata(parsed.sourceUrl);
+      const remote = await resolveMetadata(parsed.sourceUrl, controller.signal);
       if (currentRequest !== requestId.current) return;
       setResult({ ...remote, confidence: 'identified' });
     } catch (reason) {
@@ -36,7 +42,7 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
       setResult({ ...parsed, coverUrl: '' });
       setError(reason instanceof Error ? reason.message : '暂时没有识别到歌曲信息，仍可仅保存链接');
     } finally {
-      if (currentRequest === requestId.current) setLoading(false);
+      if (currentRequest === requestId.current) { setLoading(false); activeRequest.current = null; }
     }
   }
 
@@ -47,7 +53,8 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
   }
 
   function changeInput(value: string) {
-    requestId.current += 1; setInput(value); setError(''); setResult(null); setLoading(false);
+    requestId.current += 1; activeRequest.current?.abort(); activeRequest.current = null;
+    setInput(value); setError(''); setResult(null); setLoading(false);
   }
 
   return <section className="emotion-music-picker" aria-labelledby="emotion-music-picker-title" onKeyDown={(event) => {
@@ -78,4 +85,3 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
     </div>
   </section>;
 }
-

@@ -25,4 +25,23 @@ describe('music provider adapters', () => {
     const resolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response(JSON.stringify(fixture), { status: 200 })) });
     await expect(resolve('https://music.163.com/song?id=1')).resolves.toMatchObject({ coverUrl: '' });
   });
+
+  it('normalizes missing optional fields and rejects invalid required fields', async () => {
+    const noOptional = { songs: [{ name: '纯音乐', artists: [{ name: null }, { name: '艺术家' }], album: {} }] };
+    const resolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response(JSON.stringify(noOptional), { status: 200, headers: { 'content-type': 'application/json' } })) });
+    await expect(resolve('https://music.163.com/song?id=1')).resolves.toMatchObject({ title: '纯音乐', artist: '艺术家', coverUrl: '' });
+
+    const invalid = { songs: [{ name: { nested: true }, artists: 'bad', album: {} }] };
+    const invalidResolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response(JSON.stringify(invalid), { status: 200, headers: { 'content-type': 'application/json' } })) });
+    await expect(invalidResolve('https://music.163.com/song?id=1')).rejects.toMatchObject({ code: 'UPSTREAM_UNAVAILABLE' });
+  });
+
+  it('bounds Unicode metadata lengths without splitting surrogate pairs', async () => {
+    const fixture = { code: 0, data: [{ name: `🎵${'歌'.repeat(500)}`, singer: [{ name: '艺'.repeat(1500) }], album: {} }] };
+    const resolve = createMusicResolver({ fetcher: vi.fn().mockResolvedValue(new Response(JSON.stringify(fixture), { status: 200, headers: { 'content-type': 'application/json' } })) });
+    const result = await resolve('https://y.qq.com/n/ryqq/songDetail/0039MnYb0qxYhV');
+    expect([...result.title].length).toBeLessThanOrEqual(300);
+    expect([...result.artist].length).toBeLessThanOrEqual(1000);
+    expect(result.title.startsWith('🎵')).toBe(true);
+  });
 });
