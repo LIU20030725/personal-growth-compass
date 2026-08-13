@@ -210,3 +210,18 @@
 .emotion-face--reference { border-radius: 0; background: transparent; box-shadow: none; transform: none; overflow: visible; }
 .emotion-face--reference svg { display: block; width: 100%; height: 100%; overflow: hidden; background: #fff; }
 .emotion-face--reference.is-selected { border-radius: 50%; box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--emotion-brand); }
+
+/* v1.3.3 standalone vectors: artwork stays transparent and interaction chrome belongs to the button. */
+.emotion-face--vector,
+.emotion-face--vector:is(.emotion-face--happy, .emotion-face--excited, .emotion-face--grateful, .emotion-face--satisfied, .emotion-face--calm, .emotion-face--relaxed, .emotion-face--focused, .emotion-face--clear, .emotion-face--tired, .emotion-face--bored, .emotion-face--down, .emotion-face--lonely, .emotion-face--sad, .emotion-face--anxious, .emotion-face--stressed, .emotion-face--angry, .emotion-face--confused, .emotion-face--overwhelmed) {
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.emotion-face--vector svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.emotion-mood-choice:focus { outline: none; }
+.emotion-mood-choice:focus-visible { outline: 3px solid #3f6f60; outline-offset: 3px; }
+.emotion-mood-choice.is-selected { border-color: transparent; color: #31443d; background: #eef6f2; box-shadow: none; }
+.emotion-mood-choice.is-selected .emotion-face { box-shadow: none; }

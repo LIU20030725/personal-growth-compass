@@ -279,7 +279,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
                   key={mood.id} className={`emotion-mood-choice${draft.moodId === mood.id ? ' is-selected' : ''}`}
                   type="button" role="radio" aria-checked={draft.moodId === mood.id} aria-label={mood.label}
                   onClick={() => setDraft((value) => ({ ...value, moodId: mood.id }))}
-                ><EmotionIcon moodId={mood.id} size="medium" selected={draft.moodId === mood.id} /><span>{mood.label}</span></button>)}
+                ><EmotionIcon moodId={mood.id} size="medium" /><span>{mood.label}</span></button>)}
               </div>
             </div>)}
           </section>

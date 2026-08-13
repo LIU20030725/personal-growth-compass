@@ -30,6 +30,16 @@ describe('EmotionComposer media lifecycle', () => {
 
   afterEach(() => { vi.unstubAllGlobals(); });
 
+  it('keeps the selected state on the mood button rather than the artwork', () => {
+    render(<EmotionComposer onClose={vi.fn()} onSave={vi.fn()} />);
+    const calm = screen.getByRole('radio', { name: '平静' });
+    fireEvent.click(calm);
+    expect(calm).toHaveAttribute('aria-checked', 'true');
+    expect(calm).toHaveClass('is-selected');
+    expect(calm.querySelector('.emotion-face')).not.toHaveClass('is-selected');
+    expect(calm.querySelector('svg[data-reference-face="calm"]')).not.toHaveClass('is-selected');
+  });
+
   it('录音中关闭编辑器会停止 recorder 与全部 tracks', async () => {
     const onClose = vi.fn();
     render(<EmotionComposer onClose={onClose} onSave={vi.fn()} />);
