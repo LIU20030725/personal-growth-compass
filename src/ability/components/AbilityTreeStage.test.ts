@@ -7,6 +7,7 @@ import {
   applyCanvasPreferenceChange,
   applyPhaseDragPreference,
   createCanvasPreferenceHistory,
+  consumeFocusRequest,
   isCanvasPaneTarget,
   redoCanvasPreferenceChange,
   resetCanvasLayoutPreferences,
@@ -95,5 +96,11 @@ describe('AbilityTreeStage canvas drag preferences', () => {
 
     expect(isCanvasPaneTarget(pane)).toBe(true);
     expect(isCanvasPaneTarget(node)).toBe(false);
+  });
+
+  it('focuses a fresh request token once and ignores an already consumed request', () => {
+    expect(consumeFocusRequest(2, { nodeId: 'next-node', sequence: 3 })).toEqual({ nodeId: 'next-node', sequence: 3 });
+    expect(consumeFocusRequest(3, { nodeId: 'next-node', sequence: 3 })).toBeNull();
+    expect(consumeFocusRequest(3, { nodeId: 'other-node', sequence: 4 })).toEqual({ nodeId: 'other-node', sequence: 4 });
   });
 });

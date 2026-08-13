@@ -78,6 +78,14 @@ describe('AbilityModule', () => {
     await waitFor(() => expect(container.querySelectorAll('.react-flow__edge.ability-edge-phase-order')).toHaveLength(2));
   });
 
+  it('keeps every node add-child action visible before selection', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    expect(await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '为 React 状态管理 添加子节点' })).toBeInTheDocument();
+  });
+
   it('focuses and cycles through next action candidates in a stable order', async () => {
     const ability = seededState();
     ability.dependencies = [];
@@ -331,8 +339,7 @@ describe('AbilityModule', () => {
     expect(route).toHaveClass('ability-linear-route--compact');
     expect(route).toHaveAttribute('data-testid', 'ability-linear-route');
     expect(within(route).getAllByTestId('linear-skill-node')).toHaveLength(40);
-    expect(within(route).getAllByRole('button', { name: /技能 \d+/ })).toHaveLength(40);
-    fireEvent.click(within(route).getByRole('button', { name: /技能 40/ }));
+    fireEvent.click(within(route).getAllByTestId('linear-skill-node')[39]);
     const detail = await screen.findByLabelText('技能节点详情');
     expect(within(detail).getByRole('heading', { name: '技能 40' })).toBeInTheDocument();
     fireEvent.click(within(detail).getByRole('button', { name: '关闭技能详情' }));
@@ -368,6 +375,23 @@ describe('AbilityModule', () => {
     const route = screen.getByRole('region', { name: 'React 全栈线性技能路线' });
     expect(within(route).getByRole('heading', { name: '发布复盘' })).toBeInTheDocument();
     expect(within(route).getByText('这个阶段还没有技能节点')).toBeInTheDocument();
+    expect(within(route).getByRole('button', { name: '在 基础认知 添加技能' })).toBeInTheDocument();
+    expect(within(route).getByRole('button', { name: '在 发布复盘 添加技能' })).toBeInTheDocument();
+    fireEvent.click(within(route).getByRole('button', { name: '在 HTML 基础 后添加下一步' }));
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}');
+      expect(saved.dependencies.filter((edge: { prerequisiteNodeId: string }) => edge.prerequisiteNodeId === 'html')).toHaveLength(2);
+    });
+    fireEvent.click(within(route).getByRole('button', { name: '撤销' }));
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}');
+      expect(saved.dependencies.filter((edge: { prerequisiteNodeId: string }) => edge.prerequisiteNodeId === 'html')).toHaveLength(1);
+    });
+    fireEvent.click(within(route).getByRole('button', { name: '重做' }));
+    await waitFor(() => {
+      const saved = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}');
+      expect(saved.dependencies.filter((edge: { prerequisiteNodeId: string }) => edge.prerequisiteNodeId === 'html')).toHaveLength(2);
+    });
   });
 
   it('uses required-node progress for the current-stage summary', () => {

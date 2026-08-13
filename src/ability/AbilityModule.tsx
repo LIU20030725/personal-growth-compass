@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Ellipsis, Pencil, Plus, Route, Sparkles } from 'lucide-react';
+import { Ellipsis, Pencil, Plus, Redo2, Route, Sparkles, Undo2 } from 'lucide-react';
 import { getCurrentPhase, getNextActionCandidates, getNextActionEmptyReason, getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
@@ -40,6 +40,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
+  const focusSequenceRef = useRef(0);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
   const moreItemRef = useRef<HTMLButtonElement>(null);
   const [routeNotice, setRouteNotice] = useState(() => {
@@ -149,7 +150,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     setNextCursor((value) => (value + 1) % nextCandidates.length);
     setSelectedNodeId(node.id);
     setDetailOpen(true);
-    setFocusRequest((current) => ({ nodeId: node.id, sequence: (current?.sequence ?? 0) + 1 }));
+    focusSequenceRef.current += 1;
+    setFocusRequest({ nodeId: node.id, sequence: focusSequenceRef.current });
     setNextStatus(`已定位：${node.name}`);
   };
 
@@ -227,14 +229,18 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           onRedo={ability.redo}
           canRedo={ability.canRedo}
         /> : <section className="ability-linear-route ability-linear-route--compact" data-testid="ability-linear-route" aria-label={`${currentTree.name}线性技能路线`}>
+          <div className="ability-linear-history" aria-label="线性路线历史记录">
+            <button type="button" onClick={ability.undo} disabled={!ability.canUndo}><Undo2 size={15} />撤销</button>
+            <button type="button" onClick={ability.redo} disabled={!ability.canRedo}><Redo2 size={15} />重做</button>
+          </div>
           {phases.map((phase) => {
             const phaseNodes = visibleLinearNodes.filter((node) => node.phaseId === phase.id);
             const phaseProgress = getPhaseProgress(ability.state, phase.id);
             return <section className="ability-linear-phase" key={phase.id} aria-labelledby={`ability-phase-${phase.id}`}>
-              <header><span>{String(phase.order + 1).padStart(2, '0')}</span><div><h3 id={`ability-phase-${phase.id}`}>{phase.name}</h3><p>{phase.description || phase.estimatedDuration || '按顺序推进本阶段技能'}</p></div><strong>{phaseProgress.mastered}/{phaseProgress.required}</strong></header>
+              <header><span>{String(phase.order + 1).padStart(2, '0')}</span><div><h3 id={`ability-phase-${phase.id}`}>{phase.name}</h3><p>{phase.description || phase.estimatedDuration || '按顺序推进本阶段技能'}</p></div><strong>{phaseProgress.mastered}/{phaseProgress.required}</strong><button className="ability-linear-phase-add" type="button" aria-label={`在 ${phase.name} 添加技能`} onClick={() => { setNodePhaseId(phase.id); setForm('node'); }}><Plus size={15} /></button></header>
               {phaseNodes.length ? <ol>{phaseNodes.map((node, index) => {
                 const state = getNodeDisplayState(node, ability.state);
-                return <li key={node.id}><button data-testid="linear-skill-node" type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button></li>;
+                return <li className="ability-linear-node-row" key={node.id}><button data-testid="linear-skill-node" type="button" aria-current={selectedNodeId === node.id ? 'true' : undefined} onClick={() => { setSelectedNodeId(node.id); setDetailOpen(true); }}><i aria-hidden="true">{String(index + 1).padStart(2, '0')}</i><strong>{node.name}</strong><span>{NODE_STATE_LABELS[state]}</span></button><button className="ability-linear-node-add" type="button" aria-label={`在 ${node.name} 后添加下一步`} onClick={() => { const id = ability.addChildNode(node.id); setSelectedNodeId(id); setDetailOpen(true); }}><Plus size={15} /></button></li>;
               })}</ol> : <p className="ability-linear-empty">这个阶段还没有技能节点</p>}
             </section>;
           })}

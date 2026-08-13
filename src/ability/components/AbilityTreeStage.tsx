@@ -77,7 +77,7 @@ type Props = {
   state: AbilityState;
   tree: SkillTree;
   selectedNodeId: string | null;
-  focusRequest?: { nodeId: string; sequence: number } | null;
+  focusRequest?: AbilityFocusRequest | null;
   resetLayoutRequest?: number;
   stateFilter: TreeNodeFilter;
   storage?: StorageLike;
@@ -100,6 +100,15 @@ type Props = {
   onRedo: () => void;
   canRedo: boolean;
 };
+
+export type AbilityFocusRequest = { nodeId: string; sequence: number };
+
+export function consumeFocusRequest(
+  consumedSequence: number,
+  request: AbilityFocusRequest | null | undefined
+): AbilityFocusRequest | null {
+  return request && request.sequence > consumedSequence ? request : null;
+}
 
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
   const [editing, setEditing] = useState(false);
@@ -141,12 +150,12 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
       aria-label={`${data.hiddenChildCount ? '展开' : '折叠'} ${data.label} 分支`}
       onClick={(event) => { event.stopPropagation(); data.onToggleCollapse(); }}
     >{data.hiddenChildCount ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}{data.hiddenChildCount ? data.hiddenChildCount : ''}</button> : null}
-    {data.selected ? <button
+    <button
       className="nodrag ability-add-child"
       type="button"
       aria-label={`为 ${data.label} 添加子节点`}
       onClick={(event) => { event.stopPropagation(); data.onAddChild(); }}
-    ><Plus size={18} /></button> : null}
+    ><Plus size={18} /></button>
     <Handle className="ability-flow-handle" type="source" position={Position.Right} />
   </div>;
 }
@@ -284,6 +293,7 @@ export function AbilityTreeStage(props: Props) {
   const previousResetRequestRef = useRef(props.resetLayoutRequest ?? 0);
   const phaseDragStartPositionRef = useRef<CanvasPoint | null>(null);
   const phaseDragPositionRef = useRef<CanvasPoint | null>(null);
+  const consumedFocusRequestRef = useRef({ treeId: props.tree.id, sequence: 0 });
 
   useEffect(() => {
     const next = loadCanvasPreferences(browserStorage, props.tree.id);
@@ -323,17 +333,22 @@ export function AbilityTreeStage(props: Props) {
   }, [props.selectedNodeId, props.state.nodes, props.tree.id]);
 
   useEffect(() => {
-    if (!props.focusRequest) return;
-    setSelectedIds(new Set([props.focusRequest.nodeId]));
+    const consumedSequence = consumedFocusRequestRef.current.treeId === props.tree.id
+      ? consumedFocusRequestRef.current.sequence
+      : 0;
+    const request = consumeFocusRequest(consumedSequence, props.focusRequest);
+    if (!request) return;
+    consumedFocusRequestRef.current = { treeId: props.tree.id, sequence: request.sequence };
+    setSelectedIds(new Set([request.nodeId]));
     requestAnimationFrame(() => {
       void instanceRef.current?.fitView({
-        nodes: [{ id: props.focusRequest?.nodeId ?? '' }],
+        nodes: [{ id: request.nodeId }],
         padding: 1.6,
         duration: 220,
         maxZoom: 1.15
       });
     });
-  }, [props.focusRequest]);
+  }, [props.focusRequest, props.tree.id]);
 
   const visibleGraph = useMemo(
     () => buildAbilityVisibleGraph(props.state, props.tree.id, props.stateFilter, props.selectedNodeId),
