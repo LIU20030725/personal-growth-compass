@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { NODE_STATE_LABELS } from '../abilityConfig';
 import { getNodeDisplayState, getPhaseProgress, getPrimaryChildren } from '../abilityGraph';
-import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type CanvasPoint } from '../abilityCanvasLayout';
+import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type AbilityCanvasNode, type CanvasPoint } from '../abilityCanvasLayout';
 import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
 import { buildAbilityVisibleGraph } from '../abilityView';
 import type { CanvasPreferences } from '../abilityCanvasStorage';
@@ -112,6 +112,10 @@ type Props = {
 };
 
 export type AbilityFocusRequest = { nodeId: string; sequence: number };
+
+export function getRenderedSkillNodeIds(nodes: readonly AbilityCanvasNode[]): ReadonlySet<string> {
+  return new Set(nodes.filter((node) => node.kind === 'skill').map((node) => node.id));
+}
 
 export function consumeFocusRequest(
   consumedSequence: number,
@@ -366,6 +370,7 @@ export function AbilityTreeStage(props: Props) {
     manualPositions: preferences.positions,
     phasePositions: preferences.phasePositions
   }), [layoutState, props.tree.id, collapsedNodeIds, preferences.phasePositions, preferences.positions]);
+  const renderedSkillNodeIds = useMemo(() => getRenderedSkillNodeIds(layout.nodes), [layout.nodes]);
 
   useEffect(() => {
     const skillCount = layout.nodes.filter((node) => node.kind === 'skill').length;
@@ -637,14 +642,14 @@ export function AbilityTreeStage(props: Props) {
         props.state,
         selectedId,
         command as Extract<AbilityCanvasCommand, `select-${string}`>,
-        new Set(visibleGraph.nodes.map((node) => node.id))
+        renderedSkillNodeIds
       );
       if (!nextId) return;
       setSelectedIds(new Set([nextId]));
       props.onSelectNode(nextId);
       void instanceRef.current?.fitView({ nodes: [{ id: nextId }], padding: 1.6, duration: 180, maxZoom: 1.15 });
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, selectedIds, undoAction, visibleGraph.nodes]);
+  }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, renderedSkillNodeIds, selectedIds, undoAction]);
 
   const persistPreferences = useCallback((next: CanvasPreferences) => {
     props.onCommitPreferences(next);

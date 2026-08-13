@@ -7,9 +7,11 @@ import {
   applyPhaseDragPreference,
   consumeAbilityFocusRequest,
   consumeFocusRequest,
+  getRenderedSkillNodeIds,
   isCanvasPaneTarget,
   resetCanvasLayoutPreferences
 } from './AbilityTreeStage';
+import { getKeyboardNavigationTarget } from '../abilityKeyboard';
 import {
   applyCanvasPreferenceChange,
   createCanvasPreferenceHistory,
@@ -64,6 +66,25 @@ describe('AbilityTreeStage canvas drag preferences', () => {
     });
     expect(reloaded.nodes.find((node) => node.id === 'member')).toMatchObject({ x: 144, y: 112 });
     expect(reloaded.phases[0]).toMatchObject({ x: 32, y: -112 });
+  });
+
+  it('excludes descendants hidden by a collapsed branch from keyboard navigation', () => {
+    const state = createInitialAbilityState();
+    state.trees = [{ id: 'tree', name: 'Tree', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: '', updatedAt: '' }];
+    state.phases = [{ id: 'phase', skillTreeId: 'tree', name: 'Phase', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }];
+    state.nodes = [
+      { id: 'root', skillTreeId: 'tree', phaseId: 'phase', name: 'Root', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: '1', updatedAt: '' },
+      { id: 'child', skillTreeId: 'tree', phaseId: 'phase', name: 'Child', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: '2', updatedAt: '' }
+    ];
+    state.dependencies = [{ id: 'edge', skillTreeId: 'tree', prerequisiteNodeId: 'root', dependentNodeId: 'child', kind: 'primary' }];
+    const layout = layoutAbilityCanvas(state, 'tree', { collapsedNodeIds: new Set(['root']) });
+
+    expect(getKeyboardNavigationTarget(
+      state,
+      'root',
+      'select-first-child',
+      getRenderedSkillNodeIds(layout.nodes)
+    )).toBeNull();
   });
 
   it('resets both skill and phase manual positions', () => {
