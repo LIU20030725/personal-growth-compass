@@ -432,16 +432,24 @@ export function useHealthSystem(options: Options = {}) {
     }));
     return id;
   };
-  const saveQuickWorkout = (input: {
-    exerciseDefinitionId: string;
-    sets?: Array<{
-      weightKg?: number;
-      reps?: number;
+  const saveQuickWorkout = (
+    input: {
+      exerciseDefinitionId: string;
+      sets?: Array<{
+        weightKg?: number;
+        reps?: number;
+        durationSeconds?: number;
+        setType?: "warmup" | "working" | "drop";
+        side?: "left" | "right" | "both";
+        addedWeightKg?: number;
+        assistanceWeightKg?: number;
+      }>;
+      segments?: Array<{ distanceMeters: number; durationSeconds: number }>;
+      distanceMeters?: number;
       durationSeconds?: number;
-    }>;
-    distanceMeters?: number;
-    durationSeconds?: number;
-  }) =>
+    },
+    existingSessionId?: string,
+  ) =>
     mutate((s) => {
       validateWorkoutInput(input);
       if (
@@ -451,40 +459,62 @@ export function useHealthSystem(options: Options = {}) {
       )
         throw new Error("训练项目不存在或已归档");
       const t = now();
-      return {
-        ...s,
-        workoutSessions: [
+      const session: WorkoutSession = {
+        id: existingSessionId ?? idFactory(),
+        startedAt: t,
+        endedAt: t,
+        state: "completed",
+        source: "quick-entry",
+        entries: [
           {
             id: idFactory(),
-            startedAt: t,
-            endedAt: t,
-            state: "completed",
-            source: "quick-entry",
-            entries: [
-              {
-                id: idFactory(),
-                exerciseDefinitionId: input.exerciseDefinitionId,
-                order: 0,
-                distanceMeters: input.distanceMeters,
-                durationSeconds: input.durationSeconds,
-                sets: input.sets?.map((set, i) => ({
-                  id: idFactory(),
-                  order: i,
-                  weightGrams:
-                    set.weightKg === undefined
-                      ? undefined
-                      : kilogramsToGrams(set.weightKg),
-                  reps: set.reps,
-                  durationSeconds: set.durationSeconds,
-                  completedAt: t,
-                })),
-              },
-            ],
-            createdAt: t,
-            updatedAt: t,
+            exerciseDefinitionId: input.exerciseDefinitionId,
+            order: 0,
+            distanceMeters: input.distanceMeters,
+            durationSeconds: input.durationSeconds,
+            segments: input.segments?.map((segment, i) => ({
+              id: idFactory(),
+              order: i,
+              distanceMeters: segment.distanceMeters,
+              durationSeconds: segment.durationSeconds,
+            })),
+            sets: input.sets?.map((set, i) => ({
+              id: idFactory(),
+              order: i,
+              weightGrams:
+                set.weightKg === undefined
+                  ? undefined
+                  : kilogramsToGrams(set.weightKg),
+              reps: set.reps,
+              durationSeconds: set.durationSeconds,
+              setType: set.setType,
+              side: set.side,
+              addedWeightGrams:
+                set.addedWeightKg === undefined
+                  ? undefined
+                  : kilogramsToGrams(set.addedWeightKg),
+              assistanceWeightGrams:
+                set.assistanceWeightKg === undefined
+                  ? undefined
+                  : kilogramsToGrams(set.assistanceWeightKg),
+              completedAt: t,
+            })),
           },
-          ...s.workoutSessions,
         ],
+        createdAt:
+          existingSessionId === undefined
+            ? t
+            : (s.workoutSessions.find((x) => x.id === existingSessionId)
+                ?.createdAt ?? t),
+        updatedAt: t,
+      };
+      return {
+        ...s,
+        workoutSessions: existingSessionId
+          ? s.workoutSessions.map((x) =>
+              x.id === existingSessionId ? session : x,
+            )
+          : [session, ...s.workoutSessions],
       };
     });
   const copyLastWorkout = () => {
@@ -533,6 +563,18 @@ export function useHealthSystem(options: Options = {}) {
       ),
     }));
     if (ok) setDraftWorkout(undefined);
+    return ok;
+  };
+  const completeDraftWorkout = (id: string) => {
+    const ok = mutate((s) => ({
+      ...s,
+      workoutSessions: s.workoutSessions.map((workout) =>
+        workout.id === id
+          ? { ...workout, state: "discarded" as const, updatedAt: now() }
+          : workout,
+      ),
+    }));
+    if (ok && draftWorkout?.id === id) setDraftWorkout(undefined);
     return ok;
   };
   const exportData = () => exportHealthState(stateRef.current);
@@ -745,6 +787,7 @@ export function useHealthSystem(options: Options = {}) {
     saveQuickWorkout,
     copyLastWorkout,
     discardDraftWorkout,
+    completeDraftWorkout,
     archiveExercise,
     exportData,
     exportBundle,

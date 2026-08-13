@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ExerciseMode } from "./types";
 type Fixture = { name: string; mode: ExerciseMode; advanced?: string };
+const exposedAdvancedFields = new Set([
+  "segments",
+  "singleSide",
+  "addedWeight",
+  "assistance",
+]);
 const fixtures: Fixture[] = [
   { name: "5公里跑", mode: "distance-time" },
   { name: "间歇跑", mode: "distance-time", advanced: "segments" },
@@ -38,6 +44,8 @@ describe("20 realistic workout fixtures", () => {
     ).toHaveLength(20));
   it("keeps uncovered UI variants at or below 20 percent", () =>
     expect(
-      fixtures.filter((x) => x.advanced).length / fixtures.length,
-    ).toBeLessThanOrEqual(0.25));
+      fixtures.filter(
+        (x) => x.advanced && !exposedAdvancedFields.has(x.advanced),
+      ).length / fixtures.length,
+    ).toBeLessThanOrEqual(0.2));
 });

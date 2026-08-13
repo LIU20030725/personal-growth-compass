@@ -244,6 +244,27 @@
   border-radius: 12px;
   background: #f7faf8;
 }
+.health-advanced-fields {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d4e1db;
+  border-radius: 12px;
+  background: #fbfdfc;
+}
+.health-workout-summary {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #f7faf8;
+}
+.health-workout-summary span {
+  color: #60706a;
+  font-size: 13px;
+}
 .health-photo-grid {
   grid-column: 1 / -1;
   display: grid;
@@ -300,6 +321,9 @@
   .health-row {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+  .health-workout-summary {
+    grid-template-columns: 1fr;
   }
   .health-row time {
     grid-column: 1;

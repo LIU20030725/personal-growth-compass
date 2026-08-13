@@ -7,7 +7,7 @@ platform: desktop-and-mobile-web
 screens: 9
 findings-critical: 0
 findings-major: 0
-findings-minor: 2
+findings-minor: 1
 findings-cosmetic: 1
 ---
 
@@ -15,15 +15,14 @@ findings-cosmetic: 1
 
 ## Executive Summary
 
-修订后核心旅程在 1440×900、1024×768 与 390×844 下无页面横向溢出；四入口渐进披露明显降低首页选择负担。首次审计发现的移动遮挡、触控目标、导入无确认和倒计时不可发现均已修复。剩余问题不阻断核心任务：长列表缺少分页，以及数据页的安全说明仍可更简练。
+修订后核心旅程在 1440×900、1024×768 与 390×844 下无页面横向溢出；四入口渐进披露明显降低首页选择负担。数据页已明确 V1 单文件 JSON bundle、整体替换和 V1.1 延后能力；训练进阶字段默认折叠，不增加普通记录首屏负担。剩余问题不阻断核心任务：长列表缺少分页。
 
 ## Findings Overview
 
-| ID   | Sev | 屏幕          | Check         | 发现                                      | 启发式                   |
-| ---- | --: | ------------- | ------------- | ----------------------------------------- | ------------------------ |
-| F-01 |   2 | 身体/餐食历史 | OVERLOAD      | 长历史会增加滚动成本                      | Nielsen #8、B&S Workload |
-| F-02 |   2 | 数据与隐私    | TRUST-GAP     | 单文件 JSON bundle 的格式细节未在页面说明 | Nielsen #10、Content #7  |
-| F-03 |   1 | 全模块        | PATTERN-DRIFT | 英文眉题与中文界面混用                    | Nielsen #4、Content #5   |
+| ID   | Sev | 屏幕          | Check         | 发现                   | 启发式                   |
+| ---- | --: | ------------- | ------------- | ---------------------- | ------------------------ |
+| F-01 |   2 | 身体/餐食历史 | OVERLOAD      | 长历史会增加滚动成本   | Nielsen #8、B&S Workload |
+| F-03 |   1 | 全模块        | PATTERN-DRIFT | 英文眉题与中文界面混用 | Nielsen #4、Content #5   |
 
 ## What Works
 
@@ -31,6 +30,7 @@ findings-cosmetic: 1
 - P-02：冷白、鼠尾草和柔黄形成低焦虑层级；没有红色健康警报或综合评分。
 - P-03：移动端输入与按钮宽度充足，主要健康按钮≥44px，符合 Fitts's Law。
 - P-04：趋势不足时直接说明，不画误导曲线，符合 Nielsen #5 与 Content #7。
+- P-05：训练高级字段以“展开进阶记录”按需呈现，普通训练仍只看到核心字段，符合渐进披露和 Hick's Law。
 
 ## Journey-Level
 

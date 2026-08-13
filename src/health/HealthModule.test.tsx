@@ -64,6 +64,71 @@ describe("HealthModule", () => {
     expect(screen.getByText("已完成 1 次训练")).toBeInTheDocument();
   });
 
+  it("progressively reveals, edits and restores advanced set details", () => {
+    render(<HealthModule />);
+    fireEvent.click(screen.getByRole("button", { name: /运动健身/ }));
+    fireEvent.change(screen.getByLabelText("训练项目名称"), {
+      target: { value: "单侧哑铃划船" },
+    });
+    fireEvent.change(screen.getByLabelText("记录模式"), {
+      target: { value: "weight-reps" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "创建训练项目" }));
+    expect(screen.queryByLabelText("第 1 组类型")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "展开进阶记录" }));
+    fireEvent.change(screen.getByLabelText("第 1 组类型"), {
+      target: { value: "working" },
+    });
+    fireEvent.change(screen.getByLabelText("第 1 组侧别"), {
+      target: { value: "left" },
+    });
+    fireEvent.change(screen.getByLabelText("第 1 组重量（kg）"), {
+      target: { value: "20" },
+    });
+    fireEvent.change(screen.getByLabelText("第 1 组次数"), {
+      target: { value: "10" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存本次训练" }));
+    expect(screen.getByText(/正式组 · 左侧/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "编辑训练" }));
+    expect(screen.getByLabelText("第 1 组类型")).toHaveValue("working");
+    expect(screen.getByLabelText("第 1 组侧别")).toHaveValue("left");
+    fireEvent.click(screen.getByRole("button", { name: "保存训练修改" }));
+    fireEvent.click(screen.getByRole("button", { name: "复制上次训练为草稿" }));
+    fireEvent.click(screen.getByRole("button", { name: "恢复草稿" }));
+    expect(screen.getByLabelText("第 1 组类型")).toHaveValue("working");
+    expect(screen.getByLabelText("第 1 组侧别")).toHaveValue("left");
+    fireEvent.click(screen.getByRole("button", { name: "保存本次训练" }));
+    expect(screen.queryByText("有一份未完成训练草稿")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["distance-time", "间歇跑", "第 1 段距离（km）", "第 1 段用时（分钟）"],
+    [
+      "bodyweight-reps",
+      "辅助引体",
+      "第 1 组额外负重（kg）",
+      "第 1 组辅助重量（kg）",
+    ],
+    ["timed-sets", "单侧平板支撑", "第 1 组侧别", "第 1 组时长（分钟）"],
+  ])(
+    "exposes %s advanced fields without adding a new mode",
+    (mode, name, first, second) => {
+      render(<HealthModule />);
+      fireEvent.click(screen.getByRole("button", { name: /运动健身/ }));
+      fireEvent.change(screen.getByLabelText("训练项目名称"), {
+        target: { value: name },
+      });
+      fireEvent.change(screen.getByLabelText("记录模式"), {
+        target: { value: mode },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "创建训练项目" }));
+      fireEvent.click(screen.getByRole("button", { name: "展开进阶记录" }));
+      expect(screen.getByLabelText(first)).toBeInTheDocument();
+      expect(screen.getByLabelText(second)).toBeInTheDocument();
+    },
+  );
+
   it("lets users record sleep, activity and optional energy", () => {
     render(<HealthModule />);
     fireEvent.click(screen.getByRole("button", { name: /日常健康/ }));

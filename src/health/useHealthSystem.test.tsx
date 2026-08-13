@@ -146,6 +146,122 @@ describe("useHealthSystem", () => {
     expect(result.current.workouts[0].entries[0].sets).toHaveLength(2);
   });
 
+  it("persists advanced workout structures through edit and copied drafts", () => {
+    const sharedStorage = memory();
+    const sharedAdapter = createHealthStorage(sharedStorage);
+    const options = {
+      storage: sharedAdapter,
+      now: () => "2026-08-14T08:00:00Z",
+      idFactory: (() => {
+        let i = 0;
+        return () => `advanced-${++i}`;
+      })(),
+    };
+    const first = renderHook(() => useHealthSystem(options));
+    let exerciseId = "";
+    act(() => {
+      exerciseId = first.result.current.addExercise({
+        name: "单侧哑铃划船",
+        mode: "weight-reps",
+        displayUnit: "kg",
+      });
+    });
+    act(() =>
+      first.result.current.saveQuickWorkout({
+        exerciseDefinitionId: exerciseId,
+        sets: [
+          {
+            weightKg: 20,
+            reps: 10,
+            setType: "working",
+            side: "left",
+          },
+        ],
+      }),
+    );
+    const sessionId = first.result.current.workouts[0].id;
+    act(() =>
+      first.result.current.saveQuickWorkout(
+        {
+          exerciseDefinitionId: exerciseId,
+          sets: [
+            {
+              weightKg: 22,
+              reps: 8,
+              setType: "drop",
+              side: "right",
+            },
+          ],
+        },
+        sessionId,
+      ),
+    );
+    expect(first.result.current.workouts).toHaveLength(1);
+    expect(first.result.current.workouts[0].entries[0].sets?.[0]).toMatchObject(
+      {
+        weightGrams: 22000,
+        reps: 8,
+        setType: "drop",
+        side: "right",
+      },
+    );
+    act(() => first.result.current.copyLastWorkout());
+    expect(
+      first.result.current.draftWorkout?.entries[0].sets?.[0],
+    ).toMatchObject({
+      setType: "drop",
+      side: "right",
+    });
+    expect(
+      first.result.current.state.workoutSessions.find(
+        (x) => x.state === "draft",
+      )?.entries[0].sets?.[0],
+    ).toMatchObject({ setType: "drop", side: "right" });
+  });
+
+  it("keeps distance segments and bodyweight assistance in standard entries", () => {
+    const { result } = renderHook(() =>
+      useHealthSystem({ storage: createHealthStorage(memory()) }),
+    );
+    let runId = "";
+    let pullupId = "";
+    act(() => {
+      runId = result.current.addExercise({
+        name: "间歇跑",
+        mode: "distance-time",
+        displayUnit: "km",
+      });
+      pullupId = result.current.addExercise({
+        name: "辅助引体",
+        mode: "bodyweight-reps",
+        displayUnit: "次",
+      });
+    });
+    act(() => {
+      result.current.saveQuickWorkout({
+        exerciseDefinitionId: runId,
+        segments: [
+          { distanceMeters: 400, durationSeconds: 90 },
+          { distanceMeters: 400, durationSeconds: 88 },
+        ],
+      });
+      result.current.saveQuickWorkout({
+        exerciseDefinitionId: pullupId,
+        sets: [
+          { reps: 8, assistanceWeightKg: 15, side: "both" },
+          { reps: 5, addedWeightKg: 5, side: "left" },
+        ],
+      });
+    });
+    expect(result.current.workouts[1].entries[0].segments).toHaveLength(2);
+    expect(result.current.workouts[0].entries[0].sets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ assistanceWeightGrams: 15000 }),
+        expect.objectContaining({ addedWeightGrams: 5000, side: "left" }),
+      ]),
+    );
+  });
+
   it("archives projects without deleting history and permanently deletes every trash kind", async () => {
     const { result } = renderHook(() =>
       useHealthSystem({

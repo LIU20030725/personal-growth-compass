@@ -14,6 +14,7 @@ import {
 import { useHealthSystem } from "./useHealthSystem";
 import { deriveBodyTrend } from "./healthEngine";
 import type { ExerciseMode, MealRecord } from "./types";
+import type { WorkoutSession, WorkoutSet } from "./types";
 import "./healthModule.css";
 import { useRestTimer } from "./useRestTimer";
 
@@ -60,6 +61,8 @@ export function HealthModule() {
   const [selectedExercise, setSelectedExercise] = useState("");
   const [workoutDistance, setWorkoutDistance] = useState("");
   const [workoutMinutes, setWorkoutMinutes] = useState("");
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string>();
+  const [workoutSeed, setWorkoutSeed] = useState<WorkoutSession>();
   const restTimer = useRestTimer();
   const [importText, setImportText] = useState("");
   const [importPreview, setImportPreview] = useState<{
@@ -670,12 +673,13 @@ export function HealthModule() {
                 <strong>有一份未完成训练草稿</strong>
                 <div className="water-actions">
                   <button
-                    onClick={() =>
+                    onClick={() => {
+                      setWorkoutSeed(health.draftWorkout);
                       setSelectedExercise(
                         health.draftWorkout!.entries[0]?.exerciseDefinitionId ??
                           "",
-                      )
-                    }
+                      );
+                    }}
                   >
                     恢复草稿
                   </button>
@@ -718,31 +722,56 @@ export function HealthModule() {
             )}
             {selectedExercise && (
               <WorkoutRecorder
-                key={selectedExercise}
+                key={`${selectedExercise}-${editingWorkoutId ?? workoutSeed?.id ?? "new"}`}
                 definition={health.exercises.find(
                   (x) => x.id === selectedExercise,
                 )!}
+                initialEntry={workoutSeed?.entries[0]}
                 distance={workoutDistance}
                 minutes={workoutMinutes}
                 restTimer={restTimer}
                 onDistance={setWorkoutDistance}
                 onMinutes={setWorkoutMinutes}
-                onSave={(sets) => {
-                  health.saveQuickWorkout({
-                    exerciseDefinitionId: selectedExercise,
-                    distanceMeters: workoutDistance
-                      ? Number(workoutDistance) * 1000
-                      : undefined,
-                    durationSeconds: workoutMinutes
-                      ? Number(workoutMinutes) * 60
-                      : undefined,
-                    sets,
-                  });
+                onSave={(entry) => {
+                  const copiedDraftId =
+                    workoutSeed?.state === "draft" ? workoutSeed.id : undefined;
+                  health.saveQuickWorkout(
+                    {
+                      exerciseDefinitionId: selectedExercise,
+                      ...entry,
+                    },
+                    editingWorkoutId,
+                  );
+                  if (copiedDraftId) health.completeDraftWorkout(copiedDraftId);
                   setWorkoutDistance("");
                   setWorkoutMinutes("");
+                  setEditingWorkoutId(undefined);
+                  setWorkoutSeed(undefined);
                 }}
+                saveLabel={editingWorkoutId ? "保存训练修改" : "保存本次训练"}
               />
             )}
+            {health.workouts.map((session) => {
+              const entry = session.entries[0];
+              const definition = health.state.exerciseDefinitions.find(
+                (x) => x.id === entry?.exerciseDefinitionId,
+              );
+              return (
+                <article className="health-workout-summary" key={session.id}>
+                  <strong>{definition?.name ?? "训练记录"}</strong>
+                  <span>{formatWorkoutEntry(entry)}</span>
+                  <button
+                    onClick={() => {
+                      setEditingWorkoutId(session.id);
+                      setWorkoutSeed(session);
+                      setSelectedExercise(entry.exerciseDefinitionId);
+                    }}
+                  >
+                    编辑训练
+                  </button>
+                </article>
+              );
+            })}
             <strong>已完成 {health.workouts.length} 次训练</strong>
           </div>
         </div>
@@ -752,7 +781,8 @@ export function HealthModule() {
           <div className="health-panel">
             <h2>导出与恢复</h2>
             <p>
-              健康数据保存在当前浏览器。请定期导出并保存到自己的设备。备份包含结构化记录与本地餐食照片。
+              健康数据保存在当前浏览器。V1 导出单文件 JSON
+              bundle，包含结构数据、媒体编码、清单与校验和。
             </p>
             <button
               onClick={async () => downloadBackup(await health.exportBundle())}
@@ -782,7 +812,11 @@ export function HealthModule() {
                   {importPreview.records} 条结构记录 · {importPreview.media}{" "}
                   个媒体文件
                 </p>
-                <p>将替换当前健康数据，原数据保留在上次有效快照中。</p>
+                <p>
+                  V1
+                  不做逐条合并；确认后整体替换。导入失败会回滚，当前数据不会被静默覆盖。ZIP
+                  与 updatedAt 分叉合并延后到 V1.1。
+                </p>
                 <button
                   onClick={async () => {
                     if (window.confirm("确认用此备份替换当前健康数据？")) {
@@ -922,14 +956,17 @@ function MealPhoto({
 }
 function WorkoutRecorder({
   definition,
+  initialEntry,
   distance,
   minutes,
   restTimer,
   onDistance,
   onMinutes,
   onSave,
+  saveLabel,
 }: {
   definition: { mode: ExerciseMode; defaultRestSeconds?: number };
+  initialEntry?: WorkoutSession["entries"][number];
   distance: string;
   minutes: string;
   restTimer: {
@@ -944,22 +981,78 @@ function WorkoutRecorder({
   };
   onDistance: (v: string) => void;
   onMinutes: (v: string) => void;
-  onSave: (
+  onSave: (entry: {
     sets?: Array<{
       weightKg?: number;
       reps?: number;
       durationSeconds?: number;
-    }>,
-  ) => void;
+      setType?: WorkoutSet["setType"];
+      side?: WorkoutSet["side"];
+      addedWeightKg?: number;
+      assistanceWeightKg?: number;
+    }>;
+    segments?: Array<{ distanceMeters: number; durationSeconds: number }>;
+    distanceMeters?: number;
+    durationSeconds?: number;
+  }) => void;
+  saveLabel: string;
 }) {
-  const [sets, setSets] = useState([{ weight: "", reps: "", minutes: "" }]);
+  const toSet = (set?: WorkoutSet) => ({
+    weight:
+      set?.weightGrams === undefined ? "" : String(set.weightGrams / 1000),
+    reps: set?.reps === undefined ? "" : String(set.reps),
+    minutes:
+      set?.durationSeconds === undefined
+        ? ""
+        : String(set.durationSeconds / 60),
+    setType: set?.setType ?? "working",
+    side: set?.side ?? "both",
+    addedWeight:
+      set?.addedWeightGrams === undefined
+        ? ""
+        : String(set.addedWeightGrams / 1000),
+    assistanceWeight:
+      set?.assistanceWeightGrams === undefined
+        ? ""
+        : String(set.assistanceWeightGrams / 1000),
+  });
+  const [sets, setSets] = useState(
+    initialEntry?.sets?.length ? initialEntry.sets.map(toSet) : [toSet()],
+  );
+  const [segments, setSegments] = useState(
+    initialEntry?.segments?.length
+      ? initialEntry.segments.map((segment) => ({
+          distance: String(segment.distanceMeters / 1000),
+          minutes: String(segment.durationSeconds / 60),
+        }))
+      : [{ distance: "", minutes: "" }],
+  );
+  const [advanced, setAdvanced] = useState(
+    Boolean(
+      initialEntry?.segments?.length ||
+      initialEntry?.sets?.some(
+        (set) =>
+          set.setType ||
+          set.side ||
+          set.addedWeightGrams !== undefined ||
+          set.assistanceWeightGrams !== undefined,
+      ),
+    ),
+  );
   const grouped =
     definition.mode === "weight-reps" ||
     definition.mode === "bodyweight-reps" ||
     definition.mode === "timed-sets";
   const update = (
     index: number,
-    key: "weight" | "reps" | "minutes",
+    key:
+      | "weight"
+      | "reps"
+      | "minutes"
+      | "setType"
+      | "side"
+      | "addedWeight"
+      | "assistanceWeight",
     value: string,
   ) =>
     setSets((current) =>
@@ -987,6 +1080,61 @@ function WorkoutRecorder({
             />
           </label>
         </>
+      )}
+      {definition.mode !== "duration" && (
+        <button onClick={() => setAdvanced((value) => !value)}>
+          {advanced ? "收起进阶记录" : "展开进阶记录"}
+        </button>
+      )}
+      {advanced && definition.mode === "distance-time" && (
+        <div className="health-advanced-fields">
+          <strong>分段记录</strong>
+          {segments.map((segment, index) => (
+            <div className="health-set" key={index}>
+              <label>
+                第 {index + 1} 段距离（km）
+                <input
+                  aria-label={`第 ${index + 1} 段距离（km）`}
+                  type="number"
+                  value={segment.distance}
+                  onChange={(e) =>
+                    setSegments((items) =>
+                      items.map((item, i) =>
+                        i === index
+                          ? { ...item, distance: e.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label>
+                第 {index + 1} 段用时（分钟）
+                <input
+                  aria-label={`第 ${index + 1} 段用时（分钟）`}
+                  type="number"
+                  value={segment.minutes}
+                  onChange={(e) =>
+                    setSegments((items) =>
+                      items.map((item, i) =>
+                        i === index
+                          ? { ...item, minutes: e.target.value }
+                          : item,
+                      ),
+                    )
+                  }
+                />
+              </label>
+            </div>
+          ))}
+          <button
+            onClick={() =>
+              setSegments((items) => [...items, { distance: "", minutes: "" }])
+            }
+          >
+            添加分段
+          </button>
+        </div>
       )}
       {grouped &&
         sets.map((set, index) => (
@@ -1025,17 +1173,64 @@ function WorkoutRecorder({
                 />
               </label>
             )}
+            {advanced && definition.mode === "weight-reps" && (
+              <label>
+                组类型
+                <select
+                  aria-label={`第 ${index + 1} 组类型`}
+                  value={set.setType}
+                  onChange={(e) => update(index, "setType", e.target.value)}
+                >
+                  <option value="warmup">热身组</option>
+                  <option value="working">正式组</option>
+                  <option value="drop">递减组</option>
+                </select>
+              </label>
+            )}
+            {advanced && (
+              <label>
+                侧别
+                <select
+                  aria-label={`第 ${index + 1} 组侧别`}
+                  value={set.side}
+                  onChange={(e) => update(index, "side", e.target.value)}
+                >
+                  <option value="both">双侧</option>
+                  <option value="left">左侧</option>
+                  <option value="right">右侧</option>
+                </select>
+              </label>
+            )}
+            {advanced && definition.mode === "bodyweight-reps" && (
+              <>
+                <label>
+                  额外负重（kg）
+                  <input
+                    aria-label={`第 ${index + 1} 组额外负重（kg）`}
+                    type="number"
+                    value={set.addedWeight}
+                    onChange={(e) =>
+                      update(index, "addedWeight", e.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  辅助重量（kg）
+                  <input
+                    aria-label={`第 ${index + 1} 组辅助重量（kg）`}
+                    type="number"
+                    value={set.assistanceWeight}
+                    onChange={(e) =>
+                      update(index, "assistanceWeight", e.target.value)
+                    }
+                  />
+                </label>
+              </>
+            )}
           </div>
         ))}
       {grouped && (
-        <button
-          onClick={() =>
-            setSets((current) => [
-              ...current,
-              { weight: "", reps: "", minutes: "" },
-            ])
-          }
-        >
+        <button onClick={() => setSets((current) => [...current, toSet()])}>
           添加一组
         </button>
       )}
@@ -1070,23 +1265,78 @@ function WorkoutRecorder({
       )}
       <button
         onClick={() =>
-          onSave(
-            grouped
+          onSave({
+            distanceMeters: distance ? Number(distance) * 1000 : undefined,
+            durationSeconds: minutes ? Number(minutes) * 60 : undefined,
+            segments:
+              advanced && definition.mode === "distance-time"
+                ? segments
+                    .filter((segment) => segment.distance && segment.minutes)
+                    .map((segment) => ({
+                      distanceMeters: Number(segment.distance) * 1000,
+                      durationSeconds: Number(segment.minutes) * 60,
+                    }))
+                : undefined,
+            sets: grouped
               ? sets.map((set) => ({
                   weightKg: set.weight ? Number(set.weight) : undefined,
                   reps: set.reps ? Number(set.reps) : undefined,
                   durationSeconds: set.minutes
                     ? Number(set.minutes) * 60
                     : undefined,
+                  setType:
+                    advanced && definition.mode === "weight-reps"
+                      ? (set.setType as WorkoutSet["setType"])
+                      : undefined,
+                  side: advanced ? (set.side as WorkoutSet["side"]) : undefined,
+                  addedWeightKg: set.addedWeight
+                    ? Number(set.addedWeight)
+                    : undefined,
+                  assistanceWeightKg: set.assistanceWeight
+                    ? Number(set.assistanceWeight)
+                    : undefined,
                 }))
               : undefined,
-          )
+          })
         }
       >
-        保存本次训练
+        {saveLabel}
       </button>
     </>
   );
+}
+function formatWorkoutEntry(entry?: WorkoutSession["entries"][number]) {
+  if (!entry) return "暂无摘要";
+  if (entry.segments?.length) return `${entry.segments.length} 个分段`;
+  const sets = entry.sets ?? [];
+  if (!sets.length)
+    return entry.durationSeconds
+      ? `${entry.durationSeconds / 60} 分钟`
+      : "已记录";
+  const first = sets[0];
+  const labels = [
+    first.setType === "warmup"
+      ? "热身组"
+      : first.setType === "drop"
+        ? "递减组"
+        : first.setType === "working"
+          ? "正式组"
+          : undefined,
+    first.side === "left"
+      ? "左侧"
+      : first.side === "right"
+        ? "右侧"
+        : first.side === "both"
+          ? "双侧"
+          : undefined,
+    first.addedWeightGrams !== undefined
+      ? `额外 ${first.addedWeightGrams / 1000} kg`
+      : undefined,
+    first.assistanceWeightGrams !== undefined
+      ? `辅助 ${first.assistanceWeightGrams / 1000} kg`
+      : undefined,
+  ].filter(Boolean);
+  return `${sets.length} 组${labels.length ? ` · ${labels.join(" · ")}` : ""}`;
 }
 function downloadBackup(content: string) {
   const blob = new Blob([content], { type: "application/json" });

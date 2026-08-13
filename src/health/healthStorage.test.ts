@@ -26,6 +26,58 @@ function memoryStorage(initial: Record<string, string> = {}) {
 }
 
 describe("health storage", () => {
+  it("round-trips advanced workout fields without normalization loss", () => {
+    const state = emptyHealthState("2026-08-14T00:00:00Z");
+    state.exerciseDefinitions.push({
+      id: "exercise",
+      name: "辅助引体",
+      mode: "bodyweight-reps",
+      displayUnit: "次",
+      createdAt: "2026-08-14T00:00:00Z",
+    });
+    state.workoutSessions.push({
+      id: "draft",
+      startedAt: "2026-08-14T00:00:00Z",
+      state: "draft",
+      source: "copied",
+      entries: [
+        {
+          id: "entry",
+          exerciseDefinitionId: "exercise",
+          order: 0,
+          segments: [
+            {
+              id: "segment",
+              order: 0,
+              distanceMeters: 400,
+              durationSeconds: 90,
+            },
+          ],
+          sets: [
+            {
+              id: "set",
+              order: 0,
+              reps: 8,
+              setType: "working",
+              side: "left",
+              addedWeightGrams: 5000,
+              assistanceWeightGrams: 15000,
+            },
+          ],
+        },
+      ],
+      createdAt: "2026-08-14T00:00:00Z",
+      updatedAt: "2026-08-14T00:00:00Z",
+    });
+    const imported = importHealthState(exportHealthState(state));
+    expect(imported.workoutSessions[0].entries[0].segments).toHaveLength(1);
+    expect(imported.workoutSessions[0].entries[0].sets?.[0]).toMatchObject({
+      setType: "working",
+      side: "left",
+      addedWeightGrams: 5000,
+      assistanceWeightGrams: 15000,
+    });
+  });
   it("loads a safe empty state when nothing exists", () =>
     expect(
       createHealthStorage(memoryStorage(), () => "2026-08-14T00:00:00Z").load()

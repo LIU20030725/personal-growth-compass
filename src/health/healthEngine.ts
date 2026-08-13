@@ -102,7 +102,14 @@ export function validateActivity(
 export function validateWorkoutInput(input: {
   distanceMeters?: number;
   durationSeconds?: number;
-  sets?: Array<{ weightKg?: number; reps?: number; durationSeconds?: number }>;
+  segments?: Array<{ distanceMeters: number; durationSeconds: number }>;
+  sets?: Array<{
+    weightKg?: number;
+    reps?: number;
+    durationSeconds?: number;
+    addedWeightKg?: number;
+    assistanceWeightKg?: number;
+  }>;
 }) {
   if (
     input.distanceMeters !== undefined &&
@@ -130,7 +137,18 @@ export function validateWorkoutInput(input: {
       (!Number.isFinite(set.durationSeconds) || set.durationSeconds <= 0)
     )
       throw new Error("每组时长需大于 0");
+    for (const weight of [set.addedWeightKg, set.assistanceWeightKg])
+      if (weight !== undefined && (!Number.isFinite(weight) || weight < 0))
+        throw new Error("附加或辅助重量不能为负数");
   }
+  for (const segment of input.segments ?? [])
+    if (
+      !Number.isFinite(segment.distanceMeters) ||
+      segment.distanceMeters <= 0 ||
+      !Number.isFinite(segment.durationSeconds) ||
+      segment.durationSeconds <= 0
+    )
+      throw new Error("分段距离与用时需大于 0");
 }
 export function deriveDistanceSummary(
   distanceMeters: number,
