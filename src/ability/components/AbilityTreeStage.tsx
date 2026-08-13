@@ -201,6 +201,60 @@ export function applyCanvasDragPreference(
   return { ...preferences, positions: { ...preferences.positions, [nodeId]: snapped } };
 }
 
+export type CanvasPreferenceHistory = {
+  past: CanvasPreferences[];
+  present: CanvasPreferences;
+  future: CanvasPreferences[];
+};
+
+export function applyPhaseDragPreference(
+  preferences: CanvasPreferences,
+  phaseId: string,
+  from: CanvasPoint,
+  to: CanvasPoint,
+  memberNodeIds: string[]
+): CanvasPreferences {
+  const previous = snapCanvasPoint(from);
+  const next = snapCanvasPoint(to);
+  const delta = { x: next.x - previous.x, y: next.y - previous.y };
+  const memberIds = new Set(memberNodeIds);
+  return {
+    ...preferences,
+    phasePositions: { ...preferences.phasePositions, [phaseId]: next },
+    positions: Object.fromEntries(Object.entries(preferences.positions).map(([id, point]) => [
+      id,
+      memberIds.has(id) ? snapCanvasPoint({ x: point.x + delta.x, y: point.y + delta.y }) : point
+    ]))
+  };
+}
+
+export function resetCanvasLayoutPreferences(preferences: CanvasPreferences): CanvasPreferences {
+  return { ...preferences, positions: {}, phasePositions: {} };
+}
+
+export function createCanvasPreferenceHistory(preferences: CanvasPreferences): CanvasPreferenceHistory {
+  return { past: [], present: preferences, future: [] };
+}
+
+export function applyCanvasPreferenceChange(
+  history: CanvasPreferenceHistory,
+  next: CanvasPreferences
+): CanvasPreferenceHistory {
+  return { past: [...history.past.slice(-49), history.present], present: next, future: [] };
+}
+
+export function undoCanvasPreferenceChange(history: CanvasPreferenceHistory): CanvasPreferenceHistory {
+  const previous = history.past[history.past.length - 1];
+  if (!previous) return history;
+  return { past: history.past.slice(0, -1), present: previous, future: [history.present, ...history.future].slice(0, 50) };
+}
+
+export function redoCanvasPreferenceChange(history: CanvasPreferenceHistory): CanvasPreferenceHistory {
+  const next = history.future[0];
+  if (!next) return history;
+  return { past: [...history.past.slice(-49), history.present], present: next, future: history.future.slice(1) };
+}
+
 export function isCanvasPaneTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.classList.contains('react-flow__pane');
 }
@@ -216,7 +270,8 @@ function sameSelection(current: ReadonlySet<string>, ids: string[]): boolean {
 
 export function AbilityTreeStage(props: Props) {
   const browserStorage = props.storage ?? window.localStorage;
-  const [preferences, setPreferences] = useState<CanvasPreferences>(() => loadCanvasPreferences(browserStorage, props.tree.id));
+  const [preferenceHistory, setPreferenceHistory] = useState<CanvasPreferenceHistory>(() => createCanvasPreferenceHistory(loadCanvasPreferences(browserStorage, props.tree.id)));
+  const preferences = preferenceHistory.present;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(props.selectedNodeId ? [props.selectedNodeId] : []));
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
@@ -227,11 +282,12 @@ export function AbilityTreeStage(props: Props) {
     props.state.nodes.filter((node) => node.skillTreeId === props.tree.id && !node.archivedAt).length
   );
   const previousResetRequestRef = useRef(props.resetLayoutRequest ?? 0);
+  const phaseDragStartPositionRef = useRef<CanvasPoint | null>(null);
   const phaseDragPositionRef = useRef<CanvasPoint | null>(null);
 
   useEffect(() => {
     const next = loadCanvasPreferences(browserStorage, props.tree.id);
-    setPreferences(next);
+    setPreferenceHistory(createCanvasPreferenceHistory(next));
     const requestedNode = props.selectedNodeId
       ? props.state.nodes.find((node) => node.id === props.selectedNodeId && node.skillTreeId === props.tree.id && !node.archivedAt)
       : null;
@@ -314,12 +370,12 @@ export function AbilityTreeStage(props: Props) {
   }, [props.onSelectNode, props.selectedNodeId, visibleGraph.selectedNodeId]);
 
   const toggleCollapse = useCallback((nodeId: string) => {
-    setPreferences((current) => {
-      const ids = new Set(current.collapsedNodeIds);
+    setPreferenceHistory((history) => {
+      const ids = new Set(history.present.collapsedNodeIds);
       ids.has(nodeId) ? ids.delete(nodeId) : ids.add(nodeId);
-      const next = { ...current, collapsedNodeIds: [...ids] };
+      const next = { ...history.present, collapsedNodeIds: [...ids] };
       saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return next;
+      return applyCanvasPreferenceChange(history, next);
     });
   }, [browserStorage, props.tree.id]);
 
@@ -558,16 +614,47 @@ export function AbilityTreeStage(props: Props) {
     }
   }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
 
-  const persistPreferences = useCallback((patch: Partial<CanvasPreferences>) => {
-    setPreferences((current) => {
-      const next = { ...current, ...patch };
+  const persistPreferences = useCallback((next: CanvasPreferences) => {
+    setPreferenceHistory((history) => {
       saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return next;
+      return applyCanvasPreferenceChange(history, next);
     });
   }, [browserStorage, props.tree.id]);
 
+  const persistViewport = useCallback((viewport: CanvasPreferences['viewport']) => {
+    setPreferenceHistory((history) => {
+      const next = { ...history.present, viewport };
+      saveCanvasPreferences(browserStorage, props.tree.id, next);
+      return { ...history, present: next };
+    });
+  }, [browserStorage, props.tree.id]);
+
+  const undoAction = useCallback(() => {
+    if (preferenceHistory.past.length) {
+      const next = undoCanvasPreferenceChange(preferenceHistory);
+      saveCanvasPreferences(browserStorage, props.tree.id, next.present);
+      setPreferenceHistory(next);
+      setNotice('已撤销画布调整');
+      return;
+    }
+    props.onUndo();
+    setNotice('已撤销上一步操作');
+  }, [browserStorage, preferenceHistory, props.onUndo, props.tree.id]);
+
+  const redoAction = useCallback(() => {
+    if (preferenceHistory.future.length) {
+      const next = redoCanvasPreferenceChange(preferenceHistory);
+      saveCanvasPreferences(browserStorage, props.tree.id, next.present);
+      setPreferenceHistory(next);
+      setNotice('已重做画布调整');
+      return;
+    }
+    props.onRedo();
+    setNotice('已重做上一步操作');
+  }, [browserStorage, preferenceHistory, props.onRedo, props.tree.id]);
+
   const resetLayout = () => {
-    persistPreferences({ positions: {}, phasePositions: {} });
+    persistPreferences(resetCanvasLayoutPreferences(preferences));
     queueMicrotask(() => void instanceRef.current?.fitView({ padding: 0.2, maxZoom: 1.15, duration: 220 }));
   };
 
@@ -625,7 +712,10 @@ export function AbilityTreeStage(props: Props) {
           props.onSelectNode(ids.length === 1 ? ids[0] : null);
         }}
         onNodeDragStart={(_, node) => {
-          if (node.type === 'phase') phaseDragPositionRef.current = node.position;
+          if (node.type === 'phase') {
+            phaseDragStartPositionRef.current = node.position;
+            phaseDragPositionRef.current = node.position;
+          }
         }}
         onNodeDrag={(_, node) => {
           if (node.type === 'phase') {
@@ -646,8 +736,12 @@ export function AbilityTreeStage(props: Props) {
         }}
         onNodeDragStop={(_, node) => {
           if (node.type === 'phase') {
+            const phaseId = node.id.slice('phase:'.length);
+            const from = phaseDragStartPositionRef.current ?? node.position;
+            phaseDragStartPositionRef.current = null;
             phaseDragPositionRef.current = null;
-            persistPreferences(applyCanvasDragPreference(preferences, node.id, node.position));
+            const memberIds = props.state.nodes.filter((item) => item.phaseId === phaseId && !item.archivedAt).map((item) => item.id);
+            persistPreferences(applyPhaseDragPreference(preferences, phaseId, from, node.position, memberIds));
             return;
           }
           if (node.type !== 'skill') return;
@@ -665,7 +759,7 @@ export function AbilityTreeStage(props: Props) {
           }
         }}
         onMoveEnd={(_, viewport) => {
-          if (layout.nodes.length > 0) persistPreferences({ viewport });
+          if (layout.nodes.length > 0) persistViewport(viewport);
         }}
         defaultViewport={preferences.viewport}
         minZoom={0.2}
@@ -701,8 +795,8 @@ export function AbilityTreeStage(props: Props) {
           <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
           <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
-          <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button>
-          <button type="button" disabled={!props.canRedo} onClick={() => { props.onRedo(); setNotice('已重做上一步操作'); }}><Redo2 size={15} />重做</button>
+          <button type="button" disabled={!preferenceHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
+          <button type="button" disabled={!preferenceHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
         </Panel>
         {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>
