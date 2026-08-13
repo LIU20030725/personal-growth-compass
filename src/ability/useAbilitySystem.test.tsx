@@ -83,10 +83,16 @@ describe('useAbilitySystem', () => {
 
     act(() => result.current.undo());
     expect(result.current.state.nodes.every((node) => !node.archivedAt)).toBe(true);
+    expect(JSON.parse(localStorage.getItem(ABILITY_STORAGE_KEY) ?? '{}').nodes.every(
+      (node: { archivedAt: string | null }) => !node.archivedAt
+    )).toBe(true);
     expect(result.current.canRedo).toBe(true);
 
     act(() => result.current.redo());
     expect(result.current.state.nodes.every((node) => node.archivedAt)).toBe(true);
+    expect(JSON.parse(localStorage.getItem(ABILITY_STORAGE_KEY) ?? '{}').nodes.every(
+      (node: { archivedAt: string | null }) => node.archivedAt
+    )).toBe(true);
   });
 
   it('clears redo history after a new domain change', () => {
@@ -129,6 +135,10 @@ describe('useAbilitySystem', () => {
     act(() => result.current.redo());
     expect(result.current.state.trees[0].status).toBe('active');
     expect(result.current.canRedo).toBe(true);
+
+    shouldFail = false;
+    act(() => result.current.undo());
+    expect(result.current.state.trees).toEqual([]);
   });
 
   it('persists reusable node resources and unlinks without deleting the original', () => {

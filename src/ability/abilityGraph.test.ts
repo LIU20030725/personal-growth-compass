@@ -68,6 +68,7 @@ describe('ability graph', () => {
     state.nodes[0] = { ...state.nodes[0], progress: 'mastered' };
     state.nodes.push(node('auxiliary-target', 'tree-a', 'phase-a1', 'available'));
     state.nodes.push({ ...node('archived', 'tree-a', 'phase-a1', 'available'), archivedAt: stamp });
+    state.nodes.push(node('other-tree', 'tree-b', 'phase-b1', 'available'));
     state.dependencies.push({
       id: 'edge-auxiliary',
       skillTreeId: 'tree-a',
@@ -87,15 +88,19 @@ describe('ability graph', () => {
     state.dependencies = [];
     state.nodes = [
       { ...node('available-early-b', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-01T00:00:00.000Z' },
+      { ...node('available-newer', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-03T00:00:00.000Z' },
       { ...node('in-progress-later-phase', 'tree-a', 'phase-a2', 'in_progress'), createdAt: '2026-08-04T00:00:00.000Z' },
       { ...node('available-later-phase', 'tree-a', 'phase-a2', 'available'), createdAt: '2026-08-01T00:00:00.000Z' },
-      { ...node('available-early-a', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-01T00:00:00.000Z' }
+      { ...node('available-early-a', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-01T00:00:00.000Z' },
+      { ...node('available-older', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-02T00:00:00.000Z' }
     ];
 
     expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual([
       'in-progress-later-phase',
       'available-early-a',
       'available-early-b',
+      'available-older',
+      'available-newer',
       'available-later-phase'
     ]);
   });
