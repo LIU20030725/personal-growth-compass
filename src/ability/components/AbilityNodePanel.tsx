@@ -7,7 +7,6 @@ import { AbilityResourceSection } from './AbilityResourceSection';
 
 type Props = {
   node: SkillNode | null;
-  editMode: boolean;
   displayState: NodeDisplayState | null;
   prerequisiteWarning: boolean;
   criteria: MasteryCriterion[];
@@ -28,7 +27,6 @@ type Props = {
   onRequestOutcome: () => void;
   onToggleOutcomeVisibility: (outcomeId: string, visible: boolean) => void;
   onEdit: () => void;
-  onArchive: () => void;
 };
 
 export function AbilityNodePanel(props: Props) {
@@ -45,7 +43,7 @@ export function AbilityNodePanel(props: Props) {
 
   return <aside className="ability-node-panel" aria-label="技能节点详情">
     <header><div><small>Skill Detail</small><h2>{node.name}</h2></div><div className="ability-node-panel-heading-actions"><span className={`ability-state-badge state-${props.displayState}`}>{NODE_STATE_LABELS[props.displayState]}</span><button type="button" aria-label="关闭技能详情" onClick={props.onClose}><X size={16} /></button></div></header>
-    {props.editMode ? <div className="ability-node-admin"><button type="button" onClick={props.onEdit}>编辑技能节点</button><button type="button" onClick={props.onArchive}>归档技能节点</button></div> : null}
+    <div className="ability-node-admin"><button type="button" onClick={props.onEdit}>编辑技能节点</button></div>
     <p>{node.description || '还没有填写技能说明。'}</p>
     {props.prerequisiteWarning ? <div className="ability-warning"><AlertTriangle size={17} />前置条件发生变化，已有进度和记录仍被保留。</div> : null}
 

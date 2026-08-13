@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { LearningPhase, SkillNode, SkillOutcome, SkillRole } from '../types';
@@ -150,22 +150,18 @@ export function ParallelGroupDialog({ phases, nodes, onClose, onSave }: {
   </form></DialogFrame>;
 }
 
-export function OutcomeFormDialog({ nodes, defaultNodeId, onClose, onSave }: {
-  nodes: SkillNode[];
-  defaultNodeId: string | null;
+export function OutcomeFormDialog({ nodeId, onClose, onSave }: {
+  nodeId: string;
   onClose: () => void;
   onSave: (value: Pick<SkillOutcome, 'skillNodeId' | 'title' | 'description' | 'occurredOn' | 'showOnTree'>) => void;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [occurredOn, setOccurredOn] = useState(new Date().toISOString().slice(0, 10));
-  const [skillNodeId, setSkillNodeId] = useState(defaultNodeId ?? '');
   const [showOnTree, setShowOnTree] = useState(false);
-  const activeNodes = useMemo(() => nodes.filter((node) => !node.archivedAt), [nodes]);
-  return <DialogFrame title="记录技能成果" onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (title.trim() && occurredOn) onSave({ title: title.trim(), description: description.trim(), occurredOn, skillNodeId: skillNodeId || null, showOnTree }); }}>
+  return <DialogFrame title="记录技能成果" onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (title.trim() && occurredOn) onSave({ title: title.trim(), description: description.trim(), occurredOn, skillNodeId: nodeId, showOnTree }); }}>
     <Field label="成果名称"><input data-dialog-initial aria-label="成果名称" value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
     <Field label="完成日期"><input aria-label="完成日期" type="date" value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} /></Field>
-    <Field label="关联节点"><select aria-label="成果关联节点" value={skillNodeId} onChange={(event) => setSkillNodeId(event.target.value)}><option value="">只关联整棵技能树</option>{activeNodes.map((node) => <option value={node.id} key={node.id}>{node.name}</option>)}</select></Field>
     <Field label="简短说明"><textarea aria-label="成果说明" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
     <label className="ability-check"><input type="checkbox" checked={showOnTree} onChange={(event) => setShowOnTree(event.target.checked)} /> 作为重大成果展示在技能树上</label>
     <footer><button type="button" onClick={onClose}>取消</button><button className="ability-primary" type="submit" disabled={!title.trim() || !occurredOn}>保存成果</button></footer>

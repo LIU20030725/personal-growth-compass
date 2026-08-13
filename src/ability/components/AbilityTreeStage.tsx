@@ -29,6 +29,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Redo2,
   Sparkles,
   Trash2,
   Undo2
@@ -49,7 +50,6 @@ type SkillNodeData = Record<string, unknown> & {
   dropTarget: boolean;
   childCount: number;
   hiddenChildCount: number;
-  editMode: boolean;
   onAddChild: () => void;
   onToggleCollapse: () => void;
   onOpenDetails: () => void;
@@ -65,7 +65,6 @@ type PhaseNodeData = Record<string, unknown> & {
   estimatedDuration: string;
   progressLabel: string;
   empty: boolean;
-  editMode: boolean;
   onAddFirstNode: () => void;
   onEdit: () => void;
 };
@@ -77,8 +76,8 @@ type AlignedFlowEdge = Edge<AlignedEdgeData>;
 type Props = {
   state: AbilityState;
   tree: SkillTree;
-  editMode: boolean;
   selectedNodeId: string | null;
+  resetLayoutRequest?: number;
   stateFilter: TreeNodeFilter;
   storage?: StorageLike;
   onSelectNode: (nodeId: string | null) => void;
@@ -97,6 +96,8 @@ type Props = {
   onOpenDetails: (nodeId: string) => void;
   onUndo: () => void;
   canUndo: boolean;
+  onRedo: () => void;
+  canRedo: boolean;
 };
 
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
@@ -112,12 +113,12 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
 
   return <div
     className={`ability-flow-node state-${data.progress} ${data.selected ? 'selected' : ''} ${data.dropTarget ? 'drop-target' : ''}`}
-    onDoubleClick={(event) => { event.stopPropagation(); if (data.editMode) setEditing(true); }}
+    onDoubleClick={(event) => { event.stopPropagation(); setEditing(true); }}
   >
     <Handle className="ability-flow-handle" type="target" position={Position.Left} />
     {data.selected ? <div className="ability-node-floating-toolbar" aria-label={`${data.label} 节点工具栏`}>
       <button type="button" aria-label={`查看详情 ${data.label}`} onClick={(event) => { event.stopPropagation(); data.onOpenDetails(); }}><Info size={15} /></button>
-      {data.editMode ? <button type="button" aria-label={`删除分支 ${data.label}`} onClick={(event) => { event.stopPropagation(); data.onDelete(); }}><Trash2 size={15} /></button> : null}
+      <button type="button" aria-label={`删除分支 ${data.label}`} onClick={(event) => { event.stopPropagation(); data.onDelete(); }}><Trash2 size={15} /></button>
     </div> : null}
     <span className="ability-flow-status" aria-hidden="true">{data.progress === 'mastered' ? <Sparkles size={15} /> : null}</span>
     {editing ? <input
@@ -139,7 +140,7 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
       aria-label={`${data.hiddenChildCount ? '展开' : '折叠'} ${data.label} 分支`}
       onClick={(event) => { event.stopPropagation(); data.onToggleCollapse(); }}
     >{data.hiddenChildCount ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}{data.hiddenChildCount ? data.hiddenChildCount : ''}</button> : null}
-    {data.selected && data.editMode ? <button
+    {data.selected ? <button
       className="nodrag ability-add-child"
       type="button"
       aria-label={`为 ${data.label} 添加子节点`}
@@ -159,11 +160,13 @@ function ParallelGroupNode({ data }: NodeProps<Node<GroupNodeData>>) {
 
 function PhaseCanvasNode({ data }: NodeProps<Node<PhaseNodeData>>) {
   return <div className={`ability-canvas-phase ${data.empty ? 'is-empty' : ''}`} role="group" aria-label={`阶段 ${data.label}`}>
+    <Handle className="ability-phase-handle" type="target" position={Position.Left} />
     <header>
       <div><small>{data.progressLabel}{data.estimatedDuration ? ` · ${data.estimatedDuration}` : ''}</small><strong>{data.label}</strong>{data.description ? <p>{data.description}</p> : null}</div>
-      {data.editMode ? <button className="nodrag" type="button" aria-label={`编辑阶段 ${data.label}`} onClick={data.onEdit}><Pencil size={13} /></button> : null}
+      <button className="nodrag" type="button" aria-label={`编辑阶段 ${data.label}`} onClick={data.onEdit}><Pencil size={13} /></button>
     </header>
-    {data.empty ? <div className="ability-canvas-phase-empty"><span>这个阶段还没有技能节点</span>{data.editMode ? <button className="nodrag" type="button" aria-label={`在 ${data.label} 添加第一个节点`} onClick={data.onAddFirstNode}><Plus size={15} />添加第一个节点</button> : null}</div> : null}
+    {data.empty ? <div className="ability-canvas-phase-empty"><span>这个阶段还没有技能节点</span><button className="nodrag" type="button" aria-label={`在 ${data.label} 添加第一个节点`} onClick={data.onAddFirstNode}><Plus size={15} />添加第一个节点</button></div> : null}
+    <Handle className="ability-phase-handle" type="source" position={Position.Right} />
   </div>;
 }
 
@@ -182,6 +185,25 @@ function AlignedOrthogonalEdge({ id, sourceX, sourceY, targetX, targetY, markerE
 
 const edgeTypes = { aligned: AlignedOrthogonalEdge };
 
+export function applyCanvasDragPreference(
+  preferences: CanvasPreferences,
+  nodeId: string,
+  position: CanvasPoint
+): CanvasPreferences {
+  const snapped = snapCanvasPoint(position);
+  if (nodeId.startsWith('phase:')) {
+    return {
+      ...preferences,
+      phasePositions: { ...preferences.phasePositions, [nodeId.slice('phase:'.length)]: snapped }
+    };
+  }
+  return { ...preferences, positions: { ...preferences.positions, [nodeId]: snapped } };
+}
+
+export function isCanvasPaneTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.classList.contains('react-flow__pane');
+}
+
 function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return Boolean(target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="dialog"]'));
@@ -199,9 +221,12 @@ export function AbilityTreeStage(props: Props) {
   const [notice, setNotice] = useState('');
   const [copiedName, setCopiedName] = useState('');
   const instanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const previousSkillCountRef = useRef(
     props.state.nodes.filter((node) => node.skillTreeId === props.tree.id && !node.archivedAt).length
   );
+  const previousResetRequestRef = useRef(props.resetLayoutRequest ?? 0);
+  const phaseDragPositionRef = useRef<CanvasPoint | null>(null);
 
   useEffect(() => {
     const next = loadCanvasPreferences(browserStorage, props.tree.id);
@@ -220,6 +245,18 @@ export function AbilityTreeStage(props: Props) {
       }
     });
   }, [browserStorage, props.tree.id]);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const clearFromPane = (event: MouseEvent) => {
+      if (!isCanvasPaneTarget(event.target)) return;
+      setSelectedIds(new Set());
+      props.onSelectNode(null);
+    };
+    document.addEventListener('click', clearFromPane, true);
+    return () => document.removeEventListener('click', clearFromPane, true);
+  }, [props.onSelectNode]);
 
   useEffect(() => {
     const requestedNode = props.selectedNodeId
@@ -242,8 +279,9 @@ export function AbilityTreeStage(props: Props) {
   const collapsedNodeIds = useMemo(() => new Set(preferences.collapsedNodeIds), [preferences.collapsedNodeIds]);
   const layout = useMemo(() => layoutAbilityCanvas(layoutState, props.tree.id, {
     collapsedNodeIds,
-    manualPositions: preferences.positions
-  }), [layoutState, props.tree.id, collapsedNodeIds, preferences.positions]);
+    manualPositions: preferences.positions,
+    phasePositions: preferences.phasePositions
+  }), [layoutState, props.tree.id, collapsedNodeIds, preferences.phasePositions, preferences.positions]);
 
   useEffect(() => {
     const skillCount = layout.nodes.filter((node) => node.kind === 'skill').length;
@@ -304,7 +342,7 @@ export function AbilityTreeStage(props: Props) {
         position: { x: item.x, y: item.y },
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
-        draggable: props.editMode,
+        draggable: true,
         selected: selectedIds.has(item.id),
         data: {
           label: node.name,
@@ -313,7 +351,6 @@ export function AbilityTreeStage(props: Props) {
           dropTarget: dropTargetId === item.id,
           childCount: children.length,
           hiddenChildCount: item.hiddenChildCount,
-          editMode: props.editMode,
           onAddChild: () => {
             const childId = props.onAddChild(node.id);
             requestAnimationFrame(() => {
@@ -364,11 +401,10 @@ export function AbilityTreeStage(props: Props) {
           estimatedDuration: phase.estimatedDuration,
           progressLabel: `${progress.mastered}/${progress.required} 个必修节点`,
           empty: actualNodeCount === 0,
-          editMode: props.editMode,
           onAddFirstNode: () => props.onAddNode(phase.id),
           onEdit: () => props.onEditPhase(phase.id)
         },
-        draggable: false,
+        draggable: true,
         selectable: false,
         connectable: false,
         focusable: false,
@@ -383,7 +419,6 @@ export function AbilityTreeStage(props: Props) {
     layoutState,
     props.onAddChild,
     props.onAddNode,
-    props.editMode,
     props.onEditPhase,
     props.onOpenDetails,
     props.onRenameNode,
@@ -396,7 +431,8 @@ export function AbilityTreeStage(props: Props) {
     visibleGraph.outcomes
   ]);
 
-  const computedEdges = useMemo<Edge[]>(() => layout.edges.flatMap((item) => {
+  const computedEdges = useMemo<Edge[]>(() => {
+    const nodeEdges = layout.edges.flatMap((item) => {
     const related = selectedIds.has(item.fromId) || selectedIds.has(item.toId);
     const auxiliary = item.kind === 'auxiliary';
     const stroke = auxiliary
@@ -415,7 +451,19 @@ export function AbilityTreeStage(props: Props) {
         : { stroke, strokeWidth: related ? 2.6 : 2, opacity: selectedIds.size && !related ? 0.58 : 1 },
       zIndex: auxiliary ? 1 : 2
     }];
-  }), [layout.edges, selectedIds]);
+    });
+    const phaseEdges: Edge[] = layout.phaseEdges.map((item) => ({
+      id: item.id,
+      source: `phase:${item.fromPhaseId}`,
+      target: `phase:${item.toPhaseId}`,
+      type: 'default',
+      className: 'ability-edge-phase-order',
+      markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: '#b48a22' },
+      style: { stroke: '#b48a22', strokeWidth: 1.5 },
+      zIndex: -3
+    }));
+    return [...phaseEdges, ...nodeEdges];
+  }, [layout.edges, layout.phaseEdges, selectedIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(computedNodes);
   const edges = computedEdges;
@@ -457,7 +505,6 @@ export function AbilityTreeStage(props: Props) {
 
   const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isInteractiveTarget(event.target)) return;
-    if (!props.editMode) return;
     const command = event.ctrlKey || event.metaKey;
     const key = event.key.toLowerCase();
     if (command && key === 'z') {
@@ -495,7 +542,7 @@ export function AbilityTreeStage(props: Props) {
       event.preventDefault();
       addFromKeyboard(event.shiftKey ? 'sibling' : 'child');
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.editMode, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
+  }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
 
   const persistPreferences = useCallback((patch: Partial<CanvasPreferences>) => {
     setPreferences((current) => {
@@ -506,9 +553,16 @@ export function AbilityTreeStage(props: Props) {
   }, [browserStorage, props.tree.id]);
 
   const resetLayout = () => {
-    persistPreferences({ positions: {} });
+    persistPreferences({ positions: {}, phasePositions: {} });
     queueMicrotask(() => void instanceRef.current?.fitView({ padding: 0.2, maxZoom: 1.15, duration: 220 }));
   };
+
+  useEffect(() => {
+    const request = props.resetLayoutRequest ?? 0;
+    if (request === previousResetRequestRef.current) return;
+    previousResetRequestRef.current = request;
+    resetLayout();
+  }, [props.resetLayoutRequest]);
 
   const locateSelected = () => {
     const id = [...selectedIds][0];
@@ -517,8 +571,9 @@ export function AbilityTreeStage(props: Props) {
   };
 
   return <section className="ability-tree-stage" aria-label={`${props.tree.name}技能树舞台`}>
-    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>{props.editMode ? '编辑中：双击改名 · Ctrl + Enter 新建子技能' : '浏览中：选择节点后查看详情'}</span></div>
+    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>单击查看详情 · 双击改名 · Ctrl + Enter 新建子技能</span></div>
     <div
+      ref={shellRef}
       className="ability-flow-shell"
       role="group"
       aria-label={`${props.tree.name}交互画布`}
@@ -555,23 +610,43 @@ export function AbilityTreeStage(props: Props) {
           setSelectedIds((current) => sameSelection(current, ids) ? current : new Set(ids));
           props.onSelectNode(ids.length === 1 ? ids[0] : null);
         }}
+        onNodeDragStart={(_, node) => {
+          if (node.type === 'phase') phaseDragPositionRef.current = node.position;
+        }}
         onNodeDrag={(_, node) => {
-          if (!props.editMode || node.type !== 'skill') return;
-          const target = instanceRef.current?.getIntersectingNodes(node).find((item) => item.type === 'skill' && item.id !== node.id);
-          setDropTargetId(target?.id ?? null);
+          if (node.type === 'phase') {
+            const previous = phaseDragPositionRef.current ?? node.position;
+            const delta = { x: node.position.x - previous.x, y: node.position.y - previous.y };
+            phaseDragPositionRef.current = node.position;
+            const phaseId = node.id.slice('phase:'.length);
+            const memberIds = new Set(props.state.nodes.filter((item) => item.phaseId === phaseId && !item.archivedAt).map((item) => item.id));
+            setNodes((current) => current.map((item) => item.id !== node.id && memberIds.has(item.id)
+              ? { ...item, position: { x: item.position.x + delta.x, y: item.position.y + delta.y } }
+              : item));
+            return;
+          }
+          if (node.type === 'skill') {
+            const target = instanceRef.current?.getIntersectingNodes(node).find((item) => item.type === 'skill' && item.id !== node.id);
+            setDropTargetId(target?.id ?? null);
+          }
         }}
         onNodeDragStop={(_, node) => {
-          if (!props.editMode || node.type !== 'skill') return;
+          if (node.type === 'phase') {
+            phaseDragPositionRef.current = null;
+            persistPreferences(applyCanvasDragPreference(preferences, node.id, node.position));
+            return;
+          }
+          if (node.type !== 'skill') return;
           const targetId = dropTargetId;
           setDropTargetId(null);
           if (targetId) {
             try { props.onReparent(node.id, targetId); } catch { /* invalid cycle keeps the original parent */ }
             return;
           }
-          persistPreferences({ positions: { ...preferences.positions, [node.id]: snapCanvasPoint(node.position) } });
+          persistPreferences(applyCanvasDragPreference(preferences, node.id, node.position));
         }}
         onConnect={(connection: Connection) => {
-          if (props.editMode && connection.source && connection.target && connection.source !== connection.target) {
+          if (connection.source && connection.target && connection.source !== connection.target && !connection.source.startsWith('phase:') && !connection.target.startsWith('phase:')) {
             props.onConnectAuxiliary(connection.source, connection.target);
           }
         }}
@@ -589,8 +664,8 @@ export function AbilityTreeStage(props: Props) {
         selectionOnDrag
         multiSelectionKeyCode="Shift"
         deleteKeyCode={null}
-        nodesConnectable={props.editMode}
-        nodesDraggable={props.editMode}
+        nodesConnectable
+        nodesDraggable
         snapToGrid
         snapGrid={[CANVAS_GRID, CANVAS_GRID]}
         elementsSelectable
@@ -608,13 +683,14 @@ export function AbilityTreeStage(props: Props) {
           maskColor="rgba(249, 248, 244, .76)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
-          {props.editMode ? <><button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
+          <button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
           <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
-          <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button></> : null}
+          <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
-          {props.editMode ? <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button> : null}
+          <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button>
+          <button type="button" disabled={!props.canRedo} onClick={() => { props.onRedo(); setNotice('已重做上一步操作'); }}><Redo2 size={15} />重做</button>
         </Panel>
-        {props.editMode && selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
+        {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>
           <button type="button" onClick={() => {
             try { const id = props.onMerge([...selectedIds]); setSelectedIds(new Set([id])); props.onSelectNode(id); }
