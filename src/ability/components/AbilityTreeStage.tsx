@@ -77,6 +77,7 @@ type Props = {
   state: AbilityState;
   tree: SkillTree;
   selectedNodeId: string | null;
+  focusRequest?: { nodeId: string; sequence: number } | null;
   resetLayoutRequest?: number;
   stateFilter: TreeNodeFilter;
   storage?: StorageLike;
@@ -264,6 +265,19 @@ export function AbilityTreeStage(props: Props) {
       : null;
     setSelectedIds(new Set(requestedNode ? [requestedNode.id] : []));
   }, [props.selectedNodeId, props.state.nodes, props.tree.id]);
+
+  useEffect(() => {
+    if (!props.focusRequest) return;
+    setSelectedIds(new Set([props.focusRequest.nodeId]));
+    requestAnimationFrame(() => {
+      void instanceRef.current?.fitView({
+        nodes: [{ id: props.focusRequest?.nodeId ?? '' }],
+        padding: 1.6,
+        duration: 220,
+        maxZoom: 1.15
+      });
+    });
+  }, [props.focusRequest]);
 
   const visibleGraph = useMemo(
     () => buildAbilityVisibleGraph(props.state, props.tree.id, props.stateFilter, props.selectedNodeId),

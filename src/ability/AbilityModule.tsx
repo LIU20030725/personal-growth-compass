@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Ellipsis, Pencil, Plus, Route, Sparkles } from 'lucide-react';
-import { getCurrentPhase, getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
+import { getCurrentPhase, getNextActionCandidates, getNextActionEmptyReason, getNodeDisplayState, getPhaseProgress, getPrimaryParent, getTreeProgress, hasPrerequisiteWarning, selectDefaultTree } from './abilityGraph';
 import { NODE_STATE_LABELS, SKILL_ROLE_LABELS } from './abilityConfig';
 import { buildAbilityVisibleGraph } from './abilityView';
 import { useAbilitySystem } from './useAbilitySystem';
@@ -33,6 +33,9 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [form, setForm] = useState<FormName>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [resetLayoutRequest, setResetLayoutRequest] = useState(0);
+  const [focusRequest, setFocusRequest] = useState<{ nodeId: string; sequence: number } | null>(null);
+  const [nextCursor, setNextCursor] = useState(0);
+  const [nextStatus, setNextStatus] = useState('');
   const [nodePhaseId, setNodePhaseId] = useState<string | undefined>(undefined);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
@@ -60,6 +63,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const nodes = ability.state.nodes.filter((node) => node.skillTreeId === currentTreeId);
   const selectedNode = nodes.find((node) => node.id === selectedNodeId) ?? null;
   const focusedTrees = ability.state.trees.filter((tree) => tree.status === 'active' && tree.focusedRank !== null).sort((a, b) => (a.focusedRank as number) - (b.focusedRank as number));
+  const nextCandidates = useMemo(
+    () => currentTreeId ? getNextActionCandidates(ability.state, currentTreeId) : [],
+    [ability.state, currentTreeId]
+  );
+  const nextEmptyReason = currentTreeId ? getNextActionEmptyReason(ability.state, currentTreeId) : 'empty_tree';
 
   useEffect(() => {
     if (currentTree) return;
@@ -95,6 +103,9 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     setMoreOpen(false);
     setNodePhaseId(undefined);
     setEditingPhaseId(null);
+    setNextCursor(0);
+    setNextStatus('');
+    setFocusRequest(null);
     onTreeChange?.(treeId, 'push');
   };
 
@@ -122,9 +133,25 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   }, [selectedNodeId, visibleGraph?.selectedNodeId]);
   const filterOptions: Array<{ value: TreeNodeFilter; label: string }> = [
     { value: 'all', label: '全部' },
-    { value: 'next', label: '下一步' },
     { value: 'mastered', label: '已掌握' }
   ];
+  const runNextAction = () => {
+    if (!nextCandidates.length) {
+      const message = nextEmptyReason === 'empty_tree'
+        ? '这棵技能树还没有节点，请先添加一个技能。'
+        : nextEmptyReason === 'all_mastered'
+          ? '所有技能节点都已掌握，可以添加新的成长方向。'
+          : '还有技能被前置条件阻塞，请先检查依赖关系。';
+      setNextStatus(message);
+      return;
+    }
+    const node = nextCandidates[nextCursor % nextCandidates.length];
+    setNextCursor((value) => (value + 1) % nextCandidates.length);
+    setSelectedNodeId(node.id);
+    setDetailOpen(true);
+    setFocusRequest((current) => ({ nodeId: node.id, sequence: (current?.sequence ?? 0) + 1 }));
+    setNextStatus(`已定位：${node.name}`);
+  };
 
   return <section className="ability-module" aria-label="能力属性模块">
     <header className="ability-hero">
@@ -154,7 +181,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
         </div>
       </section>
 
-      <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div>
+      <div className="ability-tree-toolbar-row">
+        <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div>
+        <button className="ability-next-action" type="button" onClick={runNextAction}>下一步 · {nextCandidates.length}</button>
+      </div>
+      <div className="ability-next-status" role="status" aria-live="polite">{nextStatus}</div>
 
       <div className="ability-stage-view-switch" aria-label="技能路线视图">
         <button type="button" aria-pressed={viewMode === 'linear'} onClick={() => setViewMode(viewMode === 'canvas' ? 'linear' : 'canvas')}>{viewMode === 'canvas' ? '切换到线性路线' : '切换到技能树画布'}</button>
@@ -165,6 +196,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           state={ability.state}
           tree={currentTree}
           selectedNodeId={selectedNodeId}
+          focusRequest={focusRequest}
           resetLayoutRequest={resetLayoutRequest}
           stateFilter={filter}
           storage={abilityStorage}

@@ -78,6 +78,55 @@ describe('AbilityModule', () => {
     await waitFor(() => expect(container.querySelectorAll('.react-flow__edge.ability-edge-phase-order')).toHaveLength(2));
   });
 
+  it('focuses and cycles through next action candidates in a stable order', async () => {
+    const ability = seededState();
+    ability.dependencies = [];
+    saveAbilityState(localStorage, ability);
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    const toolbar = screen.getByLabelText('技能树显示筛选');
+    expect(within(toolbar).getAllByRole('button').map((button) => button.textContent)).toEqual(['全部', '已掌握']);
+    const next = screen.getByRole('button', { name: '下一步 · 2' });
+
+    fireEvent.click(next);
+    expect(within(screen.getByLabelText('技能节点详情')).getByRole('heading', { name: 'React 状态管理' })).toBeInTheDocument();
+    fireEvent.click(next);
+    expect(within(screen.getByLabelText('技能节点详情')).getByRole('heading', { name: '部署网站' })).toBeInTheDocument();
+    fireEvent.click(next);
+    expect(within(screen.getByLabelText('技能节点详情')).getByRole('heading', { name: 'React 状态管理' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('已定位：React 状态管理');
+  });
+
+  it.each([
+    ['empty_tree', '这棵技能树还没有节点'],
+    ['all_mastered', '所有技能节点都已掌握'],
+    ['prerequisites_blocked', '还有技能被前置条件阻塞']
+  ] as const)('explains the %s next action empty state', async (reason, message) => {
+    const ability = seededState();
+    ability.nodes = reason === 'empty_tree'
+      ? []
+      : ability.nodes.map((node) => node.skillTreeId !== 'frontend'
+        ? node
+        : { ...node, progress: reason === 'all_mastered' ? 'mastered' as const : 'available' as const });
+    if (reason === 'empty_tree') {
+      ability.dependencies = [];
+      ability.masteryCriteria = [];
+      ability.outcomes = [];
+    }
+    ability.dependencies = reason === 'prerequisites_blocked'
+      ? [{ id: 'archived-block', skillTreeId: 'frontend', prerequisiteNodeId: 'react', dependentNodeId: 'deploy', kind: 'primary' }]
+      : [];
+    if (reason === 'prerequisites_blocked') {
+      ability.nodes = ability.nodes.filter((node) => node.id === 'deploy' || node.skillTreeId !== 'frontend');
+      ability.nodes.push({ id: 'react', skillTreeId: 'frontend', phaseId: 'practice', name: 'React 状态管理', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: stamp, createdAt: stamp, updatedAt: stamp });
+    }
+    saveAbilityState(localStorage, ability);
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '下一步 · 0' }));
+    expect(screen.getByRole('status')).toHaveTextContent(message);
+  });
+
   it('records an outcome only for the currently open node', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
@@ -305,7 +354,7 @@ describe('AbilityModule', () => {
     expect(screen.getByRole('button', { name: '更多技能树操作' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '设置并行组' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '专注当前阶段' })).not.toBeInTheDocument();
-    expect(within(container.querySelector('.ability-tree-toolbar') as HTMLElement).getAllByRole('button').map((button) => button.textContent)).toEqual(['全部', '下一步', '已掌握']);
+    expect(within(container.querySelector('.ability-tree-toolbar') as HTMLElement).getAllByRole('button').map((button) => button.textContent)).toEqual(['全部', '已掌握']);
   });
 
   it('keeps empty stages visible in the linear route', async () => {
