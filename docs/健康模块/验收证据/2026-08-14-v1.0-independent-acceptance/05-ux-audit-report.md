@@ -19,11 +19,11 @@ findings-cosmetic: 1
 
 ## Findings Overview
 
-| ID | Sev | 屏幕 | Check | 发现 | 启发式 |
-|---|---:|---|---|---|---|
-| F-01 | 2 | 身体/餐食历史 | OVERLOAD | 长历史会增加滚动成本 | Nielsen #8、B&S Workload |
-| F-02 | 2 | 数据与隐私 | TRUST-GAP | 单文件 JSON bundle 的格式细节未在页面说明 | Nielsen #10、Content #7 |
-| F-03 | 1 | 全模块 | PATTERN-DRIFT | 英文眉题与中文界面混用 | Nielsen #4、Content #5 |
+| ID   | Sev | 屏幕          | Check         | 发现                                      | 启发式                   |
+| ---- | --: | ------------- | ------------- | ----------------------------------------- | ------------------------ |
+| F-01 |   2 | 身体/餐食历史 | OVERLOAD      | 长历史会增加滚动成本                      | Nielsen #8、B&S Workload |
+| F-02 |   2 | 数据与隐私    | TRUST-GAP     | 单文件 JSON bundle 的格式细节未在页面说明 | Nielsen #10、Content #7  |
+| F-03 |   1 | 全模块        | PATTERN-DRIFT | 英文眉题与中文界面混用                    | Nielsen #4、Content #5   |
 
 ## What Works
 
@@ -41,3 +41,5 @@ findings-cosmetic: 1
 ## 截图
 
 原始截图在 `screenshots/`；标注降级产物见 `annotated.html`。技能包未提供 `scripts/annotate.py`，因此按技能规则使用 HTML 叠加标注。
+
+独立验收最终归档为 9 个关键场景 × 3 个视口，共 27 张 `*-final.png`；像素尺寸分别为 1440×900、1024×768、390×844。其他图片仅保留为修复过程对照，不作为最终截图矩阵。

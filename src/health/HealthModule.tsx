@@ -287,7 +287,7 @@ export function HealthModule() {
                   <button onClick={() => health.softDelete("body", r.id)}>
                     移到垃圾箱
                   </button>
-                  <time>{r.measuredAt.slice(0, 10)}</time>
+                  <time>{formatLocalDate(r.measuredAt)}</time>
                 </article>
               ))
             ) : (
@@ -395,7 +395,7 @@ export function HealthModule() {
                       ))}
                     </div>
                   )}
-                  <time>{m.eatenAt.slice(0, 16).replace("T", " ")}</time>
+                  <time>{formatLocalDateTime(m.eatenAt)}</time>
                   <button
                     onClick={() => {
                       health.softDelete("meal", m.id);
@@ -698,6 +698,19 @@ export function HealthModule() {
                   <button onClick={() => setSelectedExercise(x.id)}>
                     记录
                   </button>
+                  <button
+                    onClick={() => {
+                      if (
+                        window.confirm("归档项目后历史训练仍会保留，确定继续？")
+                      ) {
+                        health.archiveExercise(x.id);
+                        if (selectedExercise === x.id) setSelectedExercise("");
+                        setStatus("训练项目已归档，历史记录仍保留");
+                      }
+                    }}
+                  >
+                    归档
+                  </button>
                 </article>
               ))
             ) : (
@@ -706,9 +719,9 @@ export function HealthModule() {
             {selectedExercise && (
               <WorkoutRecorder
                 key={selectedExercise}
-                definition={
-                  health.exercises.find((x) => x.id === selectedExercise)!
-                }
+                definition={health.exercises.find(
+                  (x) => x.id === selectedExercise,
+                )!}
                 distance={workoutDistance}
                 minutes={workoutMinutes}
                 restTimer={restTimer}
@@ -787,10 +800,13 @@ export function HealthModule() {
             <h2>垃圾箱</h2>
             {health.deleted.body.map((x) => (
               <article className="health-row" key={x.id}>
-                <strong>身体记录 {x.measuredAt.slice(0, 10)}</strong>
+                <strong>身体记录 {formatLocalDate(x.measuredAt)}</strong>
                 <button onClick={() => health.restore("body", x.id)}>
                   恢复
                 </button>
+                <PermanentDeleteButton
+                  onDelete={() => health.permanentlyDelete("body", x.id)}
+                />
               </article>
             ))}
             {health.deleted.meals.map((x) => (
@@ -799,21 +815,39 @@ export function HealthModule() {
                 <button onClick={() => health.restore("meal", x.id)}>
                   恢复
                 </button>
-                <button
-                  onClick={async () => {
-                    if (window.confirm("永久删除后无法恢复，确定继续？")) {
-                      await health.permanentlyDeleteMeal(x.id);
-                      setStatus("餐食及关联照片已永久删除");
-                    }
-                  }}
-                >
-                  永久删除
-                </button>
+                <PermanentDeleteButton
+                  onDelete={() => health.permanentlyDelete("meal", x.id)}
+                />
               </article>
             ))}
-            {!health.deleted.body.length && !health.deleted.meals.length && (
-              <Empty text="垃圾箱为空。删除的记录会先保留在这里。" />
-            )}
+            {health.deleted.daily.map((x) => (
+              <article className="health-row" key={x.id}>
+                <strong>日常记录 {formatLocalDate(x.occurredAt)}</strong>
+                <button onClick={() => health.restore("daily", x.id)}>
+                  恢复
+                </button>
+                <PermanentDeleteButton
+                  onDelete={() => health.permanentlyDelete("daily", x.id)}
+                />
+              </article>
+            ))}
+            {health.deleted.workouts.map((x) => (
+              <article className="health-row" key={x.id}>
+                <strong>训练记录 {formatLocalDate(x.startedAt)}</strong>
+                <button onClick={() => health.restore("workout", x.id)}>
+                  恢复
+                </button>
+                <PermanentDeleteButton
+                  onDelete={() => health.permanentlyDelete("workout", x.id)}
+                />
+              </article>
+            ))}
+            {!health.deleted.body.length &&
+              !health.deleted.meals.length &&
+              !health.deleted.daily.length &&
+              !health.deleted.workouts.length && (
+                <Empty text="垃圾箱为空。删除的记录会先保留在这里。" />
+              )}
           </div>
         </div>
       )}
@@ -825,6 +859,38 @@ export function HealthModule() {
 }
 function Empty({ text }: { text: string }) {
   return <div className="health-empty">{text}</div>;
+}
+function formatLocalDate(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+function formatLocalDateTime(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+function PermanentDeleteButton({
+  onDelete,
+}: {
+  onDelete: () => Promise<boolean>;
+}) {
+  return (
+    <button
+      onClick={async () => {
+        if (window.confirm("永久删除后无法恢复，确定继续？")) await onDelete();
+      }}
+    >
+      永久删除
+    </button>
+  );
 }
 function MealPhoto({
   id,

@@ -596,23 +596,58 @@ export function useHealthSystem(options: Options = {}) {
       return undefined;
     }
   };
-  const permanentlyDeleteMeal = async (id: string) => {
-    const meal = stateRef.current.mealRecords.find(
-      (x) => x.id === id && x.status === "deleted",
-    );
-    if (!meal) {
-      setError("只能永久删除垃圾箱中的餐食");
+  const permanentlyDelete = async (
+    kind: "body" | "meal" | "daily" | "workout",
+    id: string,
+  ) => {
+    const current = stateRef.current;
+    const exists =
+      kind === "body"
+        ? current.bodyRecords.some((x) => x.id === id && x.status === "deleted")
+        : kind === "meal"
+          ? current.mealRecords.some(
+              (x) => x.id === id && x.status === "deleted",
+            )
+          : kind === "daily"
+            ? current.dailyRecords.some(
+                (x) => x.id === id && x.status === "deleted",
+              )
+            : current.workoutSessions.some(
+                (x) => x.id === id && x.state === "deleted",
+              );
+    if (!exists) {
+      setError("只能永久删除垃圾箱中的记录");
       return false;
     }
     try {
-      for (const mediaId of meal.mediaIds) await mediaStore.remove(mediaId);
+      const mediaIds =
+        kind === "meal"
+          ? (current.mealRecords.find((x) => x.id === id)?.mediaIds ?? [])
+          : [];
+      for (const mediaId of mediaIds) await mediaStore.remove(mediaId);
       const ok = mutate((s) => ({
         ...s,
-        mealRecords: s.mealRecords.filter((x) => x.id !== id),
+        bodyRecords:
+          kind === "body"
+            ? s.bodyRecords.filter((x) => x.id !== id)
+            : s.bodyRecords,
+        mealRecords:
+          kind === "meal"
+            ? s.mealRecords.filter((x) => x.id !== id)
+            : s.mealRecords,
+        dailyRecords:
+          kind === "daily"
+            ? s.dailyRecords.filter((x) => x.id !== id)
+            : s.dailyRecords,
+        workoutSessions:
+          kind === "workout"
+            ? s.workoutSessions.filter((x) => x.id !== id)
+            : s.workoutSessions,
       }));
-      await mediaStore.removeOrphans(
-        new Set(stateRef.current.mealRecords.flatMap((x) => x.mediaIds)),
-      );
+      if (kind === "meal")
+        await mediaStore.removeOrphans(
+          new Set(stateRef.current.mealRecords.flatMap((x) => x.mediaIds)),
+        );
       return ok;
     } catch (e) {
       setError(e instanceof Error ? e.message : "永久删除失败");
@@ -681,7 +716,7 @@ export function useHealthSystem(options: Options = {}) {
       daily: state.dailyRecords.filter((r) => r.status === "deleted"),
       workouts: state.workoutSessions.filter((r) => r.state === "deleted"),
     },
-    exercises: state.exerciseDefinitions,
+    exercises: state.exerciseDefinitions.filter((x) => !x.archivedAt),
     revisions: state.revisions,
     preferences: state.preferences,
     todayWaterMl: state.dailyRecords
@@ -716,7 +751,7 @@ export function useHealthSystem(options: Options = {}) {
     importData,
     importBundle,
     previewBundle,
-    permanentlyDeleteMeal,
+    permanentlyDelete,
     getMedia: (id: string) => mediaStore.get(id),
     softDelete: (kind: "body" | "meal" | "daily" | "workout", id: string) =>
       changeStatus(kind, id, "deleted"),

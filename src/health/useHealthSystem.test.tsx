@@ -146,6 +146,54 @@ describe("useHealthSystem", () => {
     expect(result.current.workouts[0].entries[0].sets).toHaveLength(2);
   });
 
+  it("archives projects without deleting history and permanently deletes every trash kind", async () => {
+    const { result } = renderHook(() =>
+      useHealthSystem({
+        storage: createHealthStorage(memory()),
+        now: () => "2026-08-14T08:00:00Z",
+        idFactory: (() => {
+          let i = 0;
+          return () => `id-${++i}`;
+        })(),
+      }),
+    );
+    let exerciseId = "";
+    act(() => {
+      exerciseId = result.current.addExercise({
+        name: "步行",
+        mode: "duration",
+        displayUnit: "分钟",
+      });
+      result.current.addBodyRecord({ weightKg: 70 });
+      result.current.addWater(350);
+    });
+    act(() =>
+      result.current.saveQuickWorkout({
+        exerciseDefinitionId: exerciseId,
+        durationSeconds: 1200,
+      }),
+    );
+    const bodyId = result.current.bodyRecords[0].id;
+    const dailyId = result.current.daily[0].id;
+    const workoutId = result.current.workouts[0].id;
+    act(() => {
+      result.current.archiveExercise(exerciseId);
+      result.current.softDelete("body", bodyId);
+      result.current.softDelete("daily", dailyId);
+      result.current.softDelete("workout", workoutId);
+    });
+    expect(result.current.exercises).toHaveLength(0);
+    expect(result.current.state.workoutSessions).toHaveLength(1);
+    await act(async () => {
+      await result.current.permanentlyDelete("body", bodyId);
+      await result.current.permanentlyDelete("daily", dailyId);
+      await result.current.permanentlyDelete("workout", workoutId);
+    });
+    expect(result.current.deleted.body).toHaveLength(0);
+    expect(result.current.deleted.daily).toHaveLength(0);
+    expect(result.current.deleted.workouts).toHaveLength(0);
+  });
+
   it("records optional activity and energy and can disable an unneeded metric", () => {
     const { result } = renderHook(() =>
       useHealthSystem({
