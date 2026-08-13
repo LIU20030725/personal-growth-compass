@@ -35,26 +35,25 @@ export function resolveAbilityCanvasCommand(
   if (event.key === 'Tab') return null;
   const tagName = target.tagName?.toLowerCase();
   if (target.contentEditable || target.insideMenu || target.insideDialog || (tagName && ['input', 'textarea', 'select', 'button', 'a'].includes(tagName))) return null;
+  if (selection.selectedNodeIds.length !== 1) return null;
   const command = event.ctrlKey || event.metaKey;
   const key = event.key.toLowerCase();
   if (command && key === 'z') return event.shiftKey ? 'redo' : 'undo';
   if (command && key === 'y') return 'redo';
-  if (command && key === 'c' && selection.selectedNodeIds.length === 1) return 'copy';
-  if (command && key === 'v' && selection.selectedNodeIds.length === 1) return 'paste-child';
-  if (command && event.key === 'Enter' && selection.selectedNodeIds.length === 1) return event.shiftKey ? 'add-sibling' : 'add-child';
-  if ((event.key === 'Enter' || event.key === 'F2') && selection.selectedNodeIds.length === 1) return 'rename';
-  if (selection.selectedNodeIds.length === 1) {
-    if (event.key === 'Delete' || event.key === 'Backspace') return 'delete-branch';
-    const navigation: Partial<Record<string, AbilityCanvasCommand>> = {
-      ArrowLeft: 'select-parent',
-      ArrowRight: 'select-first-child',
-      ArrowUp: 'select-previous-sibling',
-      ArrowDown: 'select-next-sibling',
-      Home: 'select-first-sibling',
-      End: 'select-last-sibling'
-    };
-    if (navigation[event.key]) return navigation[event.key] ?? null;
-  }
+  if (command && key === 'c') return 'copy';
+  if (command && key === 'v') return 'paste-child';
+  if (command && event.key === 'Enter') return event.shiftKey ? 'add-sibling' : 'add-child';
+  if (event.key === 'Enter' || event.key === 'F2') return 'rename';
+  if (event.key === 'Delete' || event.key === 'Backspace') return 'delete-branch';
+  const navigation: Partial<Record<string, AbilityCanvasCommand>> = {
+    ArrowLeft: 'select-parent',
+    ArrowRight: 'select-first-child',
+    ArrowUp: 'select-previous-sibling',
+    ArrowDown: 'select-next-sibling',
+    Home: 'select-first-sibling',
+    End: 'select-last-sibling'
+  };
+  if (navigation[event.key]) return navigation[event.key] ?? null;
   if (event.key === 'Escape') return 'clear-selection';
   if (event.key === '?') return 'show-shortcuts';
   return null;

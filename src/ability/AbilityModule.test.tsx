@@ -438,6 +438,8 @@ describe('AbilityModule', () => {
     fireEvent.keyDown(canvas, { key: 'Delete' });
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'react').archivedAt).not.toBeNull();
 
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    canvas.focus();
     fireEvent.keyDown(canvas, { key: 'z', ctrlKey: true });
     await waitFor(() => expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'react').archivedAt).toBeNull());
   });
@@ -472,6 +474,21 @@ describe('AbilityModule', () => {
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'html').archivedAt).toBeNull();
   });
 
+  it('does not intercept history, Escape, or ? when the focused canvas has no selection', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    const canvas = await screen.findByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    const before = localStorage.getItem('dice-life.ability.v1');
+
+    expect(fireEvent.keyDown(canvas, { key: 'z', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(canvas, { key: 'y', ctrlKey: true })).toBe(true);
+    expect(fireEvent.keyDown(canvas, { key: 'Escape' })).toBe(true);
+    expect(fireEvent.keyDown(canvas, { key: '?' })).toBe(true);
+    expect(localStorage.getItem('dice-life.ability.v1')).toBe(before);
+    expect(screen.queryByRole('dialog', { name: '画布快捷键' })).not.toBeInTheDocument();
+  });
+
   it('opens an accessible shortcut guide, traps focus, and restores the canvas trigger', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
@@ -496,6 +513,7 @@ describe('AbilityModule', () => {
   it('opens the shortcut guide with ? and restores canvas focus after Escape', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
     const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
     canvas.focus();
     fireEvent.keyDown(canvas, { key: '?' });

@@ -73,14 +73,20 @@ describe('resolveAbilityCanvasCommand', () => {
     expect(resolveAbilityCanvasCommand(event, { tagName: 'div', insideDialog: true }, selection)).toBeNull();
   });
 
-  it('only maps selection-specific commands when exactly one skill is selected', () => {
+  it('does not map any canvas command without exactly one selected skill', () => {
     const target = { tagName: 'div' };
     const enter = { key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false };
     expect(resolveAbilityCanvasCommand(enter, target, { selectedNodeIds: [] })).toBeNull();
     expect(resolveAbilityCanvasCommand(enter, target, { selectedNodeIds: ['one', 'two'] })).toBeNull();
-    expect(resolveAbilityCanvasCommand({ ...enter, key: '?' }, target, { selectedNodeIds: [] })).toBe('show-shortcuts');
-    expect(resolveAbilityCanvasCommand({ ...enter, key: 'z', ctrlKey: true }, target, { selectedNodeIds: [] })).toBe('undo');
-    expect(resolveAbilityCanvasCommand({ ...enter, key: 'Escape' }, target, { selectedNodeIds: [] })).toBe('clear-selection');
+    for (const event of [
+      { ...enter, key: '?' },
+      { ...enter, key: 'z', ctrlKey: true },
+      { ...enter, key: 'y', ctrlKey: true },
+      { ...enter, key: 'Escape' }
+    ]) {
+      expect(resolveAbilityCanvasCommand(event, target, { selectedNodeIds: [] })).toBeNull();
+      expect(resolveAbilityCanvasCommand(event, target, { selectedNodeIds: ['one', 'two'] })).toBeNull();
+    }
   });
 });
 
