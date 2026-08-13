@@ -14,18 +14,18 @@ describe('EmotionIcon v1.3 atlas', () => {
     expect(moodPresets.filter((mood) => mood.group === 'high-pressure')).toHaveLength(5);
   });
 
-  it('renders scalable vector anatomy without a system emoji glyph', () => {
+  it('renders the original reference pixels without a system emoji glyph', () => {
     const { container } = render(<><EmotionIcon moodId="excited" /><span>after</span></>);
     const face = container.querySelector('.emotion-face');
     expect(face).toHaveAttribute('data-mood-group', 'uplifted');
     expect(face).toHaveAttribute('aria-hidden', 'true');
     expect(face).toHaveTextContent('');
-    expect(face?.querySelector('svg[data-reference-face="excited"]')).toBeInTheDocument();
-    expect(face?.querySelector('[data-decoration="excited"]')).toBeInTheDocument();
+    expect(face?.querySelector('svg[data-reference-face="excited"] image')).toBeInTheDocument();
+    expect(face?.querySelector('path, circle, ellipse, rect, line, polygon')).not.toBeInTheDocument();
     expect(screen.getByText('after')).toBeInTheDocument();
   });
 
-  it('renders the reference atlas as one dedicated SVG face per mood', () => {
+  it('crops one untouched region from the supplied atlas for every mood', () => {
     const { container } = render(<>{moodPresets.map((mood) => <EmotionIcon key={mood.id} moodId={mood.id} />)}</>);
     expect(container.querySelectorAll('svg[data-reference-face]')).toHaveLength(18);
     for (const mood of moodPresets) {
@@ -33,20 +33,12 @@ describe('EmotionIcon v1.3 atlas', () => {
     }
   });
 
-  it('matches the reference decorations instead of reusing generic marks', () => {
-    const decorated = ['excited', 'grateful', 'relaxed', 'clear', 'tired', 'lonely', 'sad', 'anxious', 'stressed', 'angry', 'confused', 'overwhelmed'];
-    const { container } = render(<>{decorated.map((moodId) => <EmotionIcon key={moodId} moodId={moodId} />)}</>);
-    for (const moodId of decorated) {
-      expect(container.querySelector(`[data-reference-face="${moodId}"] [data-decoration="${moodId}"]`)).toBeInTheDocument();
-    }
-  });
-
-  it('keeps line-art eyes, brows and mouths unfilled like the reference', () => {
-    const { container } = render(<><EmotionIcon moodId="happy" /><EmotionIcon moodId="stressed" /><EmotionIcon moodId="focused" /></>);
-    expect(container.querySelector('[data-reference-face="happy"] .emotion-face__eye path')).toHaveAttribute('fill', 'none');
-    expect(container.querySelector('[data-reference-face="stressed"] .emotion-face__eye path')).toHaveAttribute('fill', 'none');
-    expect(container.querySelector('[data-reference-face="focused"] .emotion-face__brow path')).toHaveAttribute('fill', 'none');
-    expect(container.querySelector('[data-reference-face="focused"] .emotion-face__mouth')).toHaveAttribute('fill', 'none');
+  it('uses the supplied reference atlas directly and never reconstructs the artwork', () => {
+    const { container } = render(<>{moodPresets.map((mood) => <EmotionIcon key={mood.id} moodId={mood.id} />)}</>);
+    const images = container.querySelectorAll('svg[data-reference-face] image');
+    expect(images).toHaveLength(18);
+    expect(new Set(Array.from(images, (image) => image.getAttribute('href'))).size).toBe(1);
+    expect(container.querySelector('path, circle, ellipse, rect, line, polygon')).not.toBeInTheDocument();
   });
 
   it('falls back to calm while retaining the requested size', () => {

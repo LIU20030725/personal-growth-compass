@@ -205,3 +205,8 @@
 .emotion-face--svg .decoration--breath { fill: #fff; stroke: #8bc8ed; stroke-width: 1.5; }
 .emotion-face--svg .decoration--steam { fill: #fff; stroke: #87918d; stroke-width: 1.5; }
 .emotion-face--svg.is-selected { box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--emotion-brand); }
+
+/* v1.3.2 exact reference artwork: display untouched pixels from the supplied atlas. */
+.emotion-face--reference { border-radius: 0; background: transparent; box-shadow: none; transform: none; overflow: visible; }
+.emotion-face--reference svg { display: block; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+.emotion-face--reference.is-selected { border-radius: 50%; box-shadow: 0 0 0 4px #fff, 0 0 0 7px var(--emotion-brand); }
