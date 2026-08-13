@@ -199,6 +199,7 @@
 .ability-dialog header h2 { font-family: "Bebas Neue", sans-serif; font-size: 30px; font-weight: 400; }
 .ability-dialog header button { min-width: 36px; padding: 5px; background: var(--surface); }
 .ability-dialog form { display: grid; gap: 14px; padding: 18px; }
+.ability-shortcuts-dialog { display: grid; gap: 18px; padding: 18px; }.ability-shortcuts-dialog dl { display: grid; gap: 8px; margin: 0; }.ability-shortcuts-dialog dl > div { display: grid; grid-template-columns: minmax(180px, .8fr) 1fr; gap: 14px; padding-bottom: 8px; border-bottom: 1px solid #ddd8ca; }.ability-shortcuts-dialog dt { font-weight: 900; }.ability-shortcuts-dialog dd { margin: 0; color: var(--muted); }.ability-shortcuts-dialog > button { justify-self: end; }
 .ability-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ability-field { display: grid; gap: 6px; }.ability-field > span, .ability-dialog legend { font-size: 12px; font-weight: 800; }
 .ability-field input, .ability-field textarea, .ability-field select { width: 100%; min-height: 42px; padding: 8px 10px; }.ability-field textarea { min-height: 80px; resize: vertical; }

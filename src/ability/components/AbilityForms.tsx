@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { LearningPhase, SkillNode, SkillOutcome, SkillRole } from '../types';
 
-function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const dialogRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const returnFocusRef = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null);

@@ -7,7 +7,6 @@ import {
   applyPhaseDragPreference,
   consumeAbilityFocusRequest,
   consumeFocusRequest,
-  getAbilityHistoryShortcut,
   isCanvasPaneTarget,
   resetCanvasLayoutPreferences
 } from './AbilityTreeStage';
@@ -159,10 +158,4 @@ describe('AbilityTreeStage canvas drag preferences', () => {
     expect(requestFit).not.toHaveBeenCalled();
   });
 
-  it('recognizes canvas undo and redo keyboard events', () => {
-    expect(getAbilityHistoryShortcut({ key: 'z', ctrlKey: true, metaKey: false, shiftKey: false })).toBe('undo');
-    expect(getAbilityHistoryShortcut({ key: 'Z', ctrlKey: false, metaKey: true, shiftKey: true })).toBe('redo');
-    expect(getAbilityHistoryShortcut({ key: 'y', ctrlKey: true, metaKey: false, shiftKey: false })).toBe('redo');
-    expect(getAbilityHistoryShortcut({ key: 'z', ctrlKey: false, metaKey: false, shiftKey: false })).toBeNull();
-  });
 });

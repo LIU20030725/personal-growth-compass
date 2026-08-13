@@ -24,6 +24,7 @@ import {
   ChevronRight,
   GitMerge,
   Info,
+  Keyboard,
   LocateFixed,
   Medal,
   Pencil,
@@ -41,7 +42,9 @@ import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
 import { buildAbilityVisibleGraph } from '../abilityView';
 import type { CanvasPreferences } from '../abilityCanvasStorage';
 import { runAbilityHistoryAction, type CanvasPreferenceHistory } from '../abilityCanvasHistory';
+import { getKeyboardNavigationTarget, resolveAbilityCanvasCommand, type AbilityCanvasCommand, type AbilityKeyboardTarget } from '../abilityKeyboard';
 import type { AbilityState, NodeProgress, SkillTree, TreeNodeFilter } from '../types';
+import { DialogFrame } from './AbilityForms';
 
 type SkillNodeData = Record<string, unknown> & {
   label: string;
@@ -55,6 +58,7 @@ type SkillNodeData = Record<string, unknown> & {
   onOpenDetails: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
+  renameRequest: number;
 };
 
 type OutcomeNodeData = Record<string, unknown> & { label: string; onOpen: () => void };
@@ -92,7 +96,7 @@ type Props = {
   onAddPhase: () => void;
   onAddNode: (phaseId?: string) => void;
   onEditPhase: (phaseId: string) => void;
-  onAddChild: (nodeId: string) => string;
+  onAddChild: (nodeId: string, name?: string) => string;
   onAddSibling: (nodeId: string) => string;
   onAddParent: (nodeId: string) => string;
   onRenameNode: (nodeId: string, name: string) => void;
@@ -127,17 +131,13 @@ export function consumeAbilityFocusRequest(
   return freshRequest.sequence;
 }
 
-export function getAbilityHistoryShortcut(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'shiftKey'>): 'undo' | 'redo' | null {
-  if (!event.ctrlKey && !event.metaKey) return null;
-  const key = event.key.toLowerCase();
-  if (key === 'y' || (key === 'z' && event.shiftKey)) return 'redo';
-  return key === 'z' ? 'undo' : null;
-}
-
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label);
   useEffect(() => setDraft(data.label), [data.label]);
+  useEffect(() => {
+    if (data.renameRequest > 0) setEditing(true);
+  }, [data.renameRequest]);
   const save = () => {
     const name = draft.trim();
     if (name && name !== data.label) data.onRename(name);
@@ -263,9 +263,14 @@ export function isCanvasPaneTarget(target: EventTarget | null): boolean {
   return target instanceof Element && target.classList.contains('react-flow__pane');
 }
 
-function isInteractiveTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="dialog"]'));
+function getKeyboardTarget(target: EventTarget | null): AbilityKeyboardTarget {
+  if (!(target instanceof HTMLElement)) return {};
+  return {
+    tagName: target.tagName,
+    contentEditable: target.isContentEditable || Boolean(target.closest('[contenteditable]:not([contenteditable="false"])')),
+    insideMenu: Boolean(target.closest('[role="menu"]')),
+    insideDialog: Boolean(target.closest('[role="dialog"]'))
+  };
 }
 
 function sameSelection(current: ReadonlySet<string>, ids: string[]): boolean {
@@ -278,6 +283,9 @@ export function AbilityTreeStage(props: Props) {
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [copiedName, setCopiedName] = useState('');
+  const copiedNameRef = useRef('');
+  const [renameRequest, setRenameRequest] = useState({ nodeId: '', sequence: 0 });
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const instanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const previousSkillCountRef = useRef(
@@ -437,7 +445,8 @@ export function AbilityTreeStage(props: Props) {
           onToggleCollapse: () => toggleCollapse(node.id),
           onOpenDetails: () => props.onOpenDetails(node.id),
           onDelete: () => deleteBranch(node.id),
-          onRename: (name) => props.onRenameNode(node.id, name)
+          onRename: (name) => props.onRenameNode(node.id, name),
+          renameRequest: renameRequest.nodeId === node.id ? renameRequest.sequence : 0
         },
         zIndex: 5
       }];
@@ -497,6 +506,7 @@ export function AbilityTreeStage(props: Props) {
     props.onSelectNode,
     props.onSelectOutcome,
     props.state,
+    renameRequest,
     selectedIds,
     toggleCollapse,
     visibleGraph.nodes,
@@ -586,44 +596,50 @@ export function AbilityTreeStage(props: Props) {
   }, [props.canvasHistory, props.canRedo, props.onRedo, props.onRedoCanvas]);
 
   const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (isInteractiveTarget(event.target)) return;
-    const command = event.ctrlKey || event.metaKey;
-    const key = event.key.toLowerCase();
-    const historyShortcut = getAbilityHistoryShortcut(event);
-    if (historyShortcut) {
-      event.preventDefault();
-      historyShortcut === 'undo' ? undoAction() : redoAction();
+    if (document.activeElement !== shellRef.current) return;
+    const command = resolveAbilityCanvasCommand(event, getKeyboardTarget(event.target), { selectedNodeIds: [...selectedIds] });
+    if (!command || (command === 'paste-child' && !copiedNameRef.current && !copiedName)) return;
+    const selectedId = selectedIds.size === 1 ? [...selectedIds][0] : null;
+    event.preventDefault();
+    if (command === 'undo') return undoAction();
+    if (command === 'redo') return redoAction();
+    if (command === 'add-child' || command === 'add-sibling') return addFromKeyboard(command === 'add-child' ? 'child' : 'sibling');
+    if (command === 'rename' && selectedId) {
+      setRenameRequest((request) => ({ nodeId: selectedId, sequence: request.sequence + 1 }));
       return;
     }
-    if (command && key === 'c') {
-      const id = [...selectedIds][0];
-      const node = props.state.nodes.find((item) => item.id === id);
+    if (command === 'copy' && selectedId) {
+      const node = props.state.nodes.find((item) => item.id === selectedId);
       if (node) {
-        event.preventDefault();
+        copiedNameRef.current = node.name;
         setCopiedName(node.name);
       }
       return;
     }
-    if (command && key === 'v' && copiedName) {
-      const parentId = [...selectedIds][0];
-      if (parentId) {
-        event.preventDefault();
-        const id = props.onAddChild(parentId);
-        props.onRenameNode(id, `${copiedName} 副本`);
-      }
+    if (command === 'paste-child' && selectedId) {
+      const id = props.onAddChild(selectedId, `${copiedNameRef.current || copiedName} 副本`);
+      setSelectedIds(new Set([id]));
+      props.onSelectNode(id);
       return;
     }
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      if (!selectedIds.size) return;
-      event.preventDefault();
-      [...selectedIds].forEach(deleteBranch);
+    if (command === 'delete-branch' && selectedId) return deleteBranch(selectedId);
+    if (command === 'clear-selection') {
+      setSelectedIds(new Set());
+      props.onSelectNode(null);
       return;
     }
-    if (command && event.key === 'Enter') {
-      event.preventDefault();
-      addFromKeyboard(event.shiftKey ? 'sibling' : 'child');
+    if (command === 'show-shortcuts') {
+      setShortcutsOpen(true);
+      return;
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props.onAddChild, props.onRenameNode, props.state.nodes, redoAction, selectedIds, undoAction]);
+    if (selectedId && command.startsWith('select-')) {
+      const nextId = getKeyboardNavigationTarget(props.state, selectedId, command as Extract<AbilityCanvasCommand, `select-${string}`>);
+      if (!nextId) return;
+      setSelectedIds(new Set([nextId]));
+      props.onSelectNode(nextId);
+      void instanceRef.current?.fitView({ nodes: [{ id: nextId }], padding: 1.6, duration: 180, maxZoom: 1.15 });
+    }
+  }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, selectedIds, undoAction]);
 
   const persistPreferences = useCallback((next: CanvasPreferences) => {
     props.onCommitPreferences(next);
@@ -772,6 +788,7 @@ export function AbilityTreeStage(props: Props) {
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
           <button type="button" disabled={!props.canvasHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
           <button type="button" disabled={!props.canvasHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
+          <button type="button" aria-label="键盘快捷键" onClick={() => setShortcutsOpen(true)}><Keyboard size={15} />快捷键</button>
         </Panel>
         {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>
@@ -782,6 +799,22 @@ export function AbilityTreeStage(props: Props) {
         </Panel> : null}
       </ReactFlow>
     </div>
+    {shortcutsOpen ? <DialogFrame title="画布快捷键" onClose={() => setShortcutsOpen(false)}>
+      <div className="ability-shortcuts-dialog">
+        <dl>
+          <div><dt>Enter / F2</dt><dd>编辑名称</dd></div>
+          <div><dt>Ctrl / ⌘ + Enter</dt><dd>添加子节点</dd></div>
+          <div><dt>Ctrl / ⌘ + Shift + Enter</dt><dd>添加同级节点</dd></div>
+          <div><dt>Delete / Backspace</dt><dd>删除分支</dd></div>
+          <div><dt>Ctrl / ⌘ + Z / Y</dt><dd>撤销 / 重做</dd></div>
+          <div><dt>Ctrl / ⌘ + C / V</dt><dd>复制 / 粘贴为子节点</dd></div>
+          <div><dt>方向键 / Home / End</dt><dd>在父子和同级节点间导航</dd></div>
+          <div><dt>Esc</dt><dd>清除选择并关闭详情</dd></div>
+          <div><dt>?</dt><dd>打开本说明</dd></div>
+        </dl>
+        <button type="button" data-dialog-initial onClick={() => setShortcutsOpen(false)}>知道了</button>
+      </div>
+    </DialogFrame> : null}
     {notice ? <div className="ability-undo-toast" role="status"><span>{notice}</span>{props.canUndo ? <button type="button" onClick={() => { props.onUndo(); setNotice(''); }}>撤销</button> : null}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}>×</button></div> : null}
   </section>;
 }

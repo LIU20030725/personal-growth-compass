@@ -277,7 +277,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           onAddPhase={() => setForm('phase')}
           onAddNode={(phaseId) => { setNodePhaseId(phaseId); setForm('node'); }}
           onEditPhase={(phaseId) => { setEditingPhaseId(phaseId); setForm('edit-phase'); }}
-          onAddChild={(nodeId) => ability.addChildNode(nodeId)}
+          onAddChild={(nodeId, name) => ability.addChildNode(nodeId, name)}
           onAddSibling={(nodeId) => {
             const node = ability.state.nodes.find((item) => item.id === nodeId);
             const parent = getPrimaryParent(ability.state, nodeId);

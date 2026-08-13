@@ -1,0 +1,105 @@
+import { describe, expect, it } from 'vitest';
+import { getKeyboardNavigationTarget, resolveAbilityCanvasCommand } from './abilityKeyboard';
+import type { AbilityState, SkillNode } from './types';
+
+function navigationState(): AbilityState {
+  const node = (id: string, createdAt: string, archivedAt: string | null = null): SkillNode => ({
+    id, skillTreeId: 'tree', phaseId: 'phase', name: id, description: '', progress: 'available',
+    requiredForPhase: true, masteryNote: '', archivedAt, createdAt, updatedAt: createdAt
+  });
+  return {
+    schemaVersion: 2,
+    trees: [], phases: [], parallelGroups: [], masteryCriteria: [], taskLinks: [], outcomes: [], resources: [], resourceLinks: [], lastVisitedTreeId: 'tree',
+    nodes: [node('parent', '2026-01-01'), node('beta', '2026-01-02'), node('alpha', '2026-01-02'), node('last', '2026-01-03'), node('aux', '2026-01-04')],
+    dependencies: [
+      { id: 'p-beta', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'beta', kind: 'primary' },
+      { id: 'p-alpha', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'alpha', kind: 'primary' },
+      { id: 'p-last', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'last', kind: 'primary' },
+      { id: 'p-aux', skillTreeId: 'tree', prerequisiteNodeId: 'parent', dependentNodeId: 'aux', kind: 'auxiliary' }
+    ]
+  };
+}
+
+describe('resolveAbilityCanvasCommand', () => {
+  it('maps Ctrl+Enter to add child for one selected skill', () => {
+    expect(resolveAbilityCanvasCommand(
+      { key: 'Enter', ctrlKey: true, metaKey: false, shiftKey: false },
+      { tagName: 'div' },
+      { selectedNodeIds: ['skill'] }
+    )).toBe('add-child');
+  });
+
+  it('maps Enter and F2 to rename for one selected skill', () => {
+    const selection = { selectedNodeIds: ['skill'] };
+    const target = { tagName: 'div' };
+    expect(resolveAbilityCanvasCommand({ key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false }, target, selection)).toBe('rename');
+    expect(resolveAbilityCanvasCommand({ key: 'F2', ctrlKey: false, metaKey: false, shiftKey: false }, target, selection)).toBe('rename');
+  });
+
+  it('maps the remaining single-selection commands on Windows and macOS', () => {
+    const target = { tagName: 'div' };
+    const selection = { selectedNodeIds: ['skill'] };
+    const resolve = (key: string, modifiers: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean }> = {}) =>
+      resolveAbilityCanvasCommand({ key, ctrlKey: false, metaKey: false, shiftKey: false, ...modifiers }, target, selection);
+
+    expect(resolve('Enter', { metaKey: true, shiftKey: true })).toBe('add-sibling');
+    expect(resolve('Delete')).toBe('delete-branch');
+    expect(resolve('Backspace')).toBe('delete-branch');
+    expect(resolve('z', { ctrlKey: true })).toBe('undo');
+    expect(resolve('Z', { metaKey: true, shiftKey: true })).toBe('redo');
+    expect(resolve('y', { ctrlKey: true })).toBe('redo');
+    expect(resolve('c', { metaKey: true })).toBe('copy');
+    expect(resolve('v', { ctrlKey: true })).toBe('paste-child');
+    expect(resolve('ArrowLeft')).toBe('select-parent');
+    expect(resolve('ArrowRight')).toBe('select-first-child');
+    expect(resolve('ArrowUp')).toBe('select-previous-sibling');
+    expect(resolve('ArrowDown')).toBe('select-next-sibling');
+    expect(resolve('Home')).toBe('select-first-sibling');
+    expect(resolve('End')).toBe('select-last-sibling');
+    expect(resolve('Escape')).toBe('clear-selection');
+    expect(resolve('?')).toBe('show-shortcuts');
+  });
+
+  it('never maps Tab and excludes interactive, menu, dialog, and contenteditable targets', () => {
+    const selection = { selectedNodeIds: ['skill'] };
+    const event = { key: 'Delete', ctrlKey: false, metaKey: false, shiftKey: false };
+    expect(resolveAbilityCanvasCommand({ ...event, key: 'Tab' }, { tagName: 'div' }, selection)).toBeNull();
+    expect(resolveAbilityCanvasCommand({ ...event, key: 'Tab', shiftKey: true }, { tagName: 'div' }, selection)).toBeNull();
+    for (const tagName of ['input', 'textarea', 'select', 'button', 'a']) {
+      expect(resolveAbilityCanvasCommand(event, { tagName }, selection)).toBeNull();
+    }
+    expect(resolveAbilityCanvasCommand(event, { tagName: 'div', contentEditable: true }, selection)).toBeNull();
+    expect(resolveAbilityCanvasCommand(event, { tagName: 'div', insideMenu: true }, selection)).toBeNull();
+    expect(resolveAbilityCanvasCommand(event, { tagName: 'div', insideDialog: true }, selection)).toBeNull();
+  });
+
+  it('only maps selection-specific commands when exactly one skill is selected', () => {
+    const target = { tagName: 'div' };
+    const enter = { key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false };
+    expect(resolveAbilityCanvasCommand(enter, target, { selectedNodeIds: [] })).toBeNull();
+    expect(resolveAbilityCanvasCommand(enter, target, { selectedNodeIds: ['one', 'two'] })).toBeNull();
+    expect(resolveAbilityCanvasCommand({ ...enter, key: '?' }, target, { selectedNodeIds: [] })).toBe('show-shortcuts');
+    expect(resolveAbilityCanvasCommand({ ...enter, key: 'z', ctrlKey: true }, target, { selectedNodeIds: [] })).toBe('undo');
+    expect(resolveAbilityCanvasCommand({ ...enter, key: 'Escape' }, target, { selectedNodeIds: [] })).toBe('clear-selection');
+  });
+});
+
+describe('getKeyboardNavigationTarget', () => {
+  it('navigates primary parent and first child using stable createdAt/id order', () => {
+    const state = navigationState();
+    expect(getKeyboardNavigationTarget(state, 'alpha', 'select-parent')).toBe('parent');
+    expect(getKeyboardNavigationTarget(state, 'parent', 'select-first-child')).toBe('alpha');
+    expect(getKeyboardNavigationTarget(state, 'aux', 'select-parent')).toBeNull();
+  });
+
+  it('navigates adjacent, first, and last primary siblings without wrapping', () => {
+    const state = navigationState();
+    expect(getKeyboardNavigationTarget(state, 'beta', 'select-previous-sibling')).toBe('alpha');
+    expect(getKeyboardNavigationTarget(state, 'beta', 'select-next-sibling')).toBe('last');
+    expect(getKeyboardNavigationTarget(state, 'beta', 'select-first-sibling')).toBe('alpha');
+    expect(getKeyboardNavigationTarget(state, 'alpha', 'select-last-sibling')).toBe('last');
+    expect(getKeyboardNavigationTarget(state, 'alpha', 'select-previous-sibling')).toBeNull();
+    expect(getKeyboardNavigationTarget(state, 'last', 'select-next-sibling')).toBeNull();
+    expect(getKeyboardNavigationTarget(state, 'parent', 'select-next-sibling')).toBeNull();
+  });
+});

@@ -395,6 +395,115 @@ describe('AbilityModule', () => {
     expect(children).toHaveLength(2);
   });
 
+  it('starts inline renaming from F2 while the selected canvas is focused', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    fireEvent.keyDown(canvas, { key: 'F2' });
+
+    expect(await screen.findByRole('textbox', { name: '编辑节点名称' })).toHaveValue('HTML 基础');
+  });
+
+  it('starts inline renaming from Enter while the selected canvas is focused', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    fireEvent.keyDown(canvas, { key: 'Enter' });
+
+    expect(await screen.findByRole('textbox', { name: '编辑节点名称' })).toHaveValue('HTML 基础');
+  });
+
+  it('navigates to a primary child, opens details, and keeps the canvas focused', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+
+    expect(await screen.findByRole('heading', { name: 'React 状态管理' })).toBeInTheDocument();
+    expect(canvas).toHaveFocus();
+  });
+
+  it('deletes the selected branch and restores it with canvas-first Ctrl+Z', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    fireEvent.keyDown(canvas, { key: 'Delete' });
+    expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'react').archivedAt).not.toBeNull();
+
+    fireEvent.keyDown(canvas, { key: 'z', ctrlKey: true });
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'react').archivedAt).toBeNull());
+  });
+
+  it('copies a selected node and pastes a renamed child', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    fireEvent.keyDown(canvas, { key: 'c', ctrlKey: true });
+    fireEvent.keyDown(canvas, { key: 'v', ctrlKey: true });
+
+    const saved = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}');
+    const copy = saved.nodes.find((node: { name: string }) => node.name === 'HTML 基础 副本');
+    expect(copy).toBeDefined();
+    expect(saved.dependencies).toContainEqual(expect.objectContaining({ prerequisiteNodeId: 'html', dependentNodeId: copy.id, kind: 'primary' }));
+  });
+
+  it('does not prevent Tab or trigger shortcuts from a focused canvas button', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    expect(fireEvent.keyDown(canvas, { key: 'Tab' })).toBe(true);
+    expect(fireEvent.keyDown(canvas, { key: 'Tab', shiftKey: true })).toBe(true);
+
+    const addPhase = within(canvas).getByRole('button', { name: '添加下一阶段' });
+    addPhase.focus();
+    expect(fireEvent.keyDown(addPhase, { key: 'Delete' })).toBe(true);
+    expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'html').archivedAt).toBeNull();
+  });
+
+  it('opens an accessible shortcut guide, traps focus, and restores the canvas trigger', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    const trigger = within(canvas).getByRole('button', { name: '键盘快捷键' });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole('dialog', { name: '画布快捷键' });
+    const close = within(dialog).getByRole('button', { name: '知道了' });
+    await waitFor(() => expect(close).toHaveFocus());
+    expect(within(dialog).getByText('Ctrl / ⌘ + Enter')).toBeInTheDocument();
+    fireEvent.keyDown(dialog, { key: 'Tab' });
+    expect(within(dialog).getByRole('button', { name: '关闭画布快捷键' })).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Tab', shiftKey: true });
+    expect(close).toHaveFocus();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: '画布快捷键' })).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('opens the shortcut guide with ? and restores canvas focus after Escape', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    canvas.focus();
+    fireEvent.keyDown(canvas, { key: '?' });
+    const dialog = screen.getByRole('dialog', { name: '画布快捷键' });
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    await waitFor(() => expect(canvas).toHaveFocus());
+  });
+
   it('traps focus in every ability dialog, closes on Escape, and restores the trigger', async () => {
     const { container } = render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
     const trigger = screen.getByRole('button', { name: '创建第一棵技能树' });
