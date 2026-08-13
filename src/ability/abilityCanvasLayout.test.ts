@@ -19,6 +19,36 @@ function stateWithEmptySecondPhase(): AbilityState {
   };
 }
 
+function stateWithTwoPopulatedPhases(): AbilityState {
+  const base = stateWithEmptySecondPhase();
+  return {
+    ...base,
+    nodes: base.nodes.map((item) => item.id === 'analysis' ? { ...item, phaseId: 'phase-2' } : item),
+    outcomes: [{
+      id: 'outcome-analysis',
+      skillTreeId: 'tree',
+      skillNodeId: 'analysis',
+      title: 'Analysis result',
+      description: '',
+      occurredOn: '2026-08-14',
+      showOnTree: true,
+      createdAt: stamp,
+      updatedAt: stamp
+    }]
+  };
+}
+
+function stateWithThreePhasesOutOfStorageOrder(): AbilityState {
+  const base = stateWithEmptySecondPhase();
+  return {
+    ...base,
+    phases: [
+      { id: 'phase-3', skillTreeId: 'tree', name: 'Third', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 2 },
+      ...base.phases
+    ]
+  };
+}
+
 function state(): AbilityState {
   return {
     schemaVersion: 2,
@@ -67,6 +97,89 @@ function branchX(edge: AbilityCanvasEdge): number | undefined {
 }
 
 describe('ability canvas layout', () => {
+  it('connects phases in order from each right center to the next left center', () => {
+    const layout = layoutAbilityCanvas(stateWithEmptySecondPhase(), 'tree');
+    const first = layout.phases[0];
+    const second = layout.phases[1];
+
+    expect(layout.phaseEdges).toEqual([{
+      id: 'phase-order-phase-phase-2',
+      fromPhaseId: 'phase',
+      toPhaseId: 'phase-2',
+      from: { x: first.x + first.width, y: first.y + first.height / 2 },
+      to: { x: second.x, y: second.y + second.height / 2 }
+    }]);
+  });
+
+  it('emits one stable order edge for every adjacent pair across multiple phases', () => {
+    const layout = layoutAbilityCanvas(stateWithThreePhasesOutOfStorageOrder(), 'tree');
+
+    expect(layout.phases.map((item) => item.id)).toEqual(['phase', 'phase-2', 'phase-3']);
+    expect(layout.phaseEdges.map((edge) => [edge.fromPhaseId, edge.toPhaseId])).toEqual([
+      ['phase', 'phase-2'],
+      ['phase-2', 'phase-3']
+    ]);
+    expect(layout.phaseEdges.every((edge, index) => (
+      edge.from.x === layout.phases[index].x + layout.phases[index].width
+      && edge.from.y === layout.phases[index].y + layout.phases[index].height / 2
+      && edge.to.x === layout.phases[index + 1].x
+      && edge.to.y === layout.phases[index + 1].y + layout.phases[index + 1].height / 2
+    ))).toBe(true);
+  });
+
+  it('moves a phase, its skill nodes, and outcomes together from an absolute snapped top-left', () => {
+    const canvasState = stateWithTwoPopulatedPhases();
+    const automatic = layoutAbilityCanvas(canvasState, 'tree');
+    const moved = layoutAbilityCanvas(canvasState, 'tree', {
+      manualPhasePositions: { 'phase-2': { x: 997, y: 413 } }
+    });
+    const autoPhase = automatic.phases.find((item) => item.id === 'phase-2')!;
+    const movedPhase = moved.phases.find((item) => item.id === 'phase-2')!;
+    const autoSkill = automatic.nodes.find((item) => item.id === 'analysis')!;
+    const movedSkill = moved.nodes.find((item) => item.id === 'analysis')!;
+    const autoOutcome = automatic.nodes.find((item) => item.id === 'outcome-analysis')!;
+    const movedOutcome = moved.nodes.find((item) => item.id === 'outcome-analysis')!;
+    const delta = { x: movedPhase.x - autoPhase.x, y: movedPhase.y - autoPhase.y };
+
+    expect(movedPhase).toMatchObject({ x: 992, y: 416 });
+    expect({ x: movedSkill.x - autoSkill.x, y: movedSkill.y - autoSkill.y }).toEqual(delta);
+    expect({ x: movedOutcome.x - autoOutcome.x, y: movedOutcome.y - autoOutcome.y }).toEqual(delta);
+    expect({ x: movedOutcome.x - movedSkill.x, y: movedOutcome.y - movedSkill.y }).toEqual(
+      { x: autoOutcome.x - autoSkill.x, y: autoOutcome.y - autoSkill.y }
+    );
+  });
+
+  it('restores automatic phase and member alignment when phase positions are cleared', () => {
+    const canvasState = stateWithTwoPopulatedPhases();
+    const automatic = layoutAbilityCanvas(canvasState, 'tree');
+    const moved = layoutAbilityCanvas(canvasState, 'tree', {
+      phasePositions: { 'phase-2': { x: 1024, y: 448 } }
+    });
+    const reset = layoutAbilityCanvas(canvasState, 'tree', { phasePositions: {} });
+
+    expect(moved.phases).not.toEqual(automatic.phases);
+    expect(reset.phases).toEqual(automatic.phases);
+    expect(reset.nodes).toEqual(automatic.nodes);
+    expect(reset.phaseEdges).toEqual(automatic.phaseEdges);
+  });
+
+  it('ignores non-finite manual points and keeps all layout geometry finite and grid-aligned', () => {
+    const layout = layoutAbilityCanvas(stateWithTwoPopulatedPhases(), 'tree', {
+      manualPositions: { root: { x: Number.NaN, y: Number.POSITIVE_INFINITY } },
+      manualPhasePositions: { 'phase-2': { x: Number.NEGATIVE_INFINITY, y: Number.NaN } }
+    });
+    const coordinates = [
+      ...layout.phases.flatMap((item) => [item.x, item.y, item.width, item.height]),
+      ...layout.nodes.flatMap((item) => [item.x, item.y]),
+      ...layout.groups.flatMap((item) => [item.x, item.y, item.width, item.height]),
+      ...layout.edges.map((item) => item.branchX),
+      ...layout.phaseEdges.flatMap((item) => [item.from.x, item.from.y, item.to.x, item.to.y])
+    ];
+
+    expect(coordinates.every(Number.isFinite)).toBe(true);
+    expect(coordinates.every((value) => value % 16 === 0)).toBe(true);
+  });
+
   it('keeps an empty second stage visible as a first-class canvas column', () => {
     const layout = layoutAbilityCanvas(stateWithEmptySecondPhase(), 'tree');
 

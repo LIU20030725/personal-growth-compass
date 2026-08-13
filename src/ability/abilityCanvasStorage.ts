@@ -5,6 +5,7 @@ const CANVAS_STORAGE_KEY = 'dice-life.ability-canvas.v1';
 
 export type CanvasPreferences = {
   positions: Record<string, CanvasPoint>;
+  phasePositions: Record<string, CanvasPoint>;
   collapsedNodeIds: string[];
   viewport: { x: number; y: number; zoom: number };
 };
@@ -13,6 +14,7 @@ type CanvasStore = { trees: Record<string, CanvasPreferences> };
 
 const defaults = (): CanvasPreferences => ({
   positions: {},
+  phasePositions: {},
   collapsedNodeIds: [],
   viewport: { x: 0, y: 0, zoom: 1 }
 });
@@ -30,17 +32,25 @@ function finiteNumber(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+function sanitizePositions(value: unknown): Record<string, CanvasPoint> {
+  if (!value || typeof value !== 'object') return {};
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, CanvasPoint] => {
+    const point = entry[1];
+    return !!point
+      && typeof point === 'object'
+      && Number.isFinite((point as CanvasPoint).x)
+      && Number.isFinite((point as CanvasPoint).y);
+  }));
+}
+
 function sanitizePreferences(value: unknown): CanvasPreferences {
   if (!value || typeof value !== 'object') return defaults();
   const saved = value as Partial<CanvasPreferences>;
-  const positions = Object.fromEntries(Object.entries(saved.positions ?? {}).filter((entry): entry is [string, CanvasPoint] => {
-    const point = entry[1];
-    return !!point && typeof point === 'object' && Number.isFinite(point.x) && Number.isFinite(point.y);
-  }));
   const viewport = saved.viewport;
   const viewportIsFinite = !!viewport && Number.isFinite(viewport.x) && Number.isFinite(viewport.y) && Number.isFinite(viewport.zoom) && viewport.zoom > 0;
   return {
-    positions,
+    positions: sanitizePositions(saved.positions),
+    phasePositions: sanitizePositions(saved.phasePositions),
     collapsedNodeIds: Array.isArray(saved.collapsedNodeIds)
       ? saved.collapsedNodeIds.filter((id): id is string => typeof id === 'string')
       : [],

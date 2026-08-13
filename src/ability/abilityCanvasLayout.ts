@@ -6,6 +6,10 @@ export type CanvasPoint = { x: number; y: number };
 export type AbilityCanvasLayoutOptions = {
   collapsedNodeIds?: ReadonlySet<string>;
   manualPositions?: Record<string, CanvasPoint>;
+  /** Absolute top-left positions for phase containers. */
+  manualPhasePositions?: Record<string, CanvasPoint>;
+  /** Alias matching the persisted CanvasPreferences field. */
+  phasePositions?: Record<string, CanvasPoint>;
 };
 
 export type AbilityCanvasNode = CanvasPoint & {
@@ -20,6 +24,14 @@ export type AbilityCanvasEdge = {
   toId: string;
   kind: 'primary' | 'auxiliary';
   branchX: number;
+};
+
+export type AbilityCanvasPhaseEdge = {
+  id: string;
+  fromPhaseId: string;
+  toPhaseId: string;
+  from: CanvasPoint;
+  to: CanvasPoint;
 };
 
 export type AbilityCanvasGroup = CanvasPoint & {
@@ -42,6 +54,7 @@ export type AbilityCanvasPhase = CanvasPoint & {
 
 export type AbilityCanvasLayout = {
   phases: AbilityCanvasPhase[];
+  phaseEdges: AbilityCanvasPhaseEdge[];
   nodes: AbilityCanvasNode[];
   edges: AbilityCanvasEdge[];
   groups: AbilityCanvasGroup[];
@@ -65,6 +78,10 @@ const PHASE_MIN_HEIGHT = 320;
 
 function snapCoordinate(value: number): number {
   return Math.round(value / CANVAS_GRID) * CANVAS_GRID;
+}
+
+function isFiniteCanvasPoint(point: CanvasPoint): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 export function snapCanvasPoint(point: CanvasPoint): CanvasPoint {
@@ -156,13 +173,13 @@ export function layoutAbilityCanvas(
   }
 
   for (const [id, point] of Object.entries(options.manualPositions ?? {})) {
-    if (positions.has(id)) positions.set(id, snapCanvasPoint(point));
+    if (positions.has(id) && isFiniteCanvasPoint(point)) positions.set(id, snapCanvasPoint(point));
   }
 
   const skillPoints = [...positions.values()];
   const phaseY = snapCoordinate((skillPoints.length ? Math.min(...skillPoints.map((point) => point.y)) : 0) - PHASE_HEADER_SPACE);
   const phaseBottom = snapCoordinate((skillPoints.length ? Math.max(...skillPoints.map((point) => point.y)) + NODE_HEIGHT : 160) + PHASE_BOTTOM_SPACE);
-  const phaseHeight = Math.max(PHASE_MIN_HEIGHT, phaseBottom - phaseY);
+  const phaseHeight = Math.ceil(Math.max(PHASE_MIN_HEIGHT, phaseBottom - phaseY) / (CANVAS_GRID * 2)) * CANVAS_GRID * 2;
   let phaseX = -PHASE_PADDING_X;
   const phases: AbilityCanvasPhase[] = orderedPhases.map((phase) => {
     const width = phaseWidths.get(phase.id) ?? PHASE_MIN_WIDTH;
@@ -180,6 +197,31 @@ export function layoutAbilityCanvas(
     phaseX = snapCoordinate(phaseX + width + PHASE_GAP);
     return item;
   });
+  const manualPhasePositions = options.manualPhasePositions ?? options.phasePositions ?? {};
+  phases.forEach((phase) => {
+    const requestedPosition = manualPhasePositions[phase.id];
+    if (!requestedPosition || !isFiniteCanvasPoint(requestedPosition)) return;
+    const nextPosition = snapCanvasPoint(requestedPosition);
+    const delta = { x: nextPosition.x - phase.x, y: nextPosition.y - phase.y };
+    phase.x = nextPosition.x;
+    phase.y = nextPosition.y;
+    visibleNodes.filter((node) => node.phaseId === phase.id).forEach((node) => {
+      const point = positions.get(node.id);
+      if (!point) return;
+      point.x += delta.x;
+      point.y += delta.y;
+    });
+  });
+  const phaseEdges: AbilityCanvasPhaseEdge[] = phases.slice(0, -1).map((phase, index) => {
+    const nextPhase = phases[index + 1];
+    return {
+      id: `phase-order-${phase.id}-${nextPhase.id}`,
+      fromPhaseId: phase.id,
+      toPhaseId: nextPhase.id,
+      from: { x: phase.x + phase.width, y: phase.y + phase.height / 2 },
+      to: { x: nextPhase.x, y: nextPhase.y + nextPhase.height / 2 }
+    };
+  });
 
   const nodes: AbilityCanvasNode[] = visibleNodes.map((node) => ({
     id: node.id,
@@ -193,7 +235,12 @@ export function layoutAbilityCanvas(
   for (const outcome of state.outcomes.filter((item) => item.skillTreeId === treeId && item.showOnTree)) {
     const parent = outcome.skillNodeId ? positions.get(outcome.skillNodeId) : undefined;
     if (!parent || (outcome.skillNodeId && !visibleIds.has(outcome.skillNodeId))) continue;
-    nodes.push({ id: outcome.id, kind: 'outcome', x: parent.x + 38, y: parent.y + 92, hiddenChildCount: 0 });
+    nodes.push({
+      id: outcome.id,
+      kind: 'outcome',
+      ...snapCanvasPoint({ x: parent.x + 38, y: parent.y + 92 }),
+      hiddenChildCount: 0
+    });
   }
 
   const continuationById = new Map(
@@ -241,5 +288,5 @@ export function layoutAbilityCanvas(
     if (children.length > 1) addGroup(`auto-${parent.id}`, '可并行', children);
   });
 
-  return { phases, nodes, edges, groups };
+  return { phases, phaseEdges, nodes, edges, groups };
 }
