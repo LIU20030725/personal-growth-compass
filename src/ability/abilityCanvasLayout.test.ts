@@ -23,7 +23,7 @@ function stateWithTwoPopulatedPhases(): AbilityState {
   const base = stateWithEmptySecondPhase();
   return {
     ...base,
-    nodes: base.nodes.map((item) => item.id === 'analysis' ? { ...item, phaseId: 'phase-2' } : item),
+    nodes: base.nodes.map((item) => ['growth', 'analysis'].includes(item.id) ? { ...item, phaseId: 'phase-2' } : item),
     outcomes: [{
       id: 'outcome-analysis',
       skillTreeId: 'tree',
@@ -147,6 +147,27 @@ describe('ability canvas layout', () => {
     expect({ x: movedOutcome.x - movedSkill.x, y: movedOutcome.y - movedSkill.y }).toEqual(
       { x: autoOutcome.x - autoSkill.x, y: autoOutcome.y - autoSkill.y }
     );
+  });
+
+  it('keeps manual node positions absolute while moving other phase members and their outcomes', () => {
+    const canvasState = stateWithTwoPopulatedPhases();
+    const manualPositions = { analysis: { x: 1201, y: 305 } };
+    const automatic = layoutAbilityCanvas(canvasState, 'tree', { manualPositions });
+    const moved = layoutAbilityCanvas(canvasState, 'tree', {
+      manualPositions,
+      phasePositions: { 'phase-2': { x: 992, y: 416 } }
+    });
+    const autoPhase = automatic.phases.find((item) => item.id === 'phase-2')!;
+    const movedPhase = moved.phases.find((item) => item.id === 'phase-2')!;
+    const autoGrowth = automatic.nodes.find((item) => item.id === 'growth')!;
+    const movedGrowth = moved.nodes.find((item) => item.id === 'growth')!;
+    const movedAnalysis = moved.nodes.find((item) => item.id === 'analysis')!;
+    const movedOutcome = moved.nodes.find((item) => item.id === 'outcome-analysis')!;
+    const phaseDelta = { x: movedPhase.x - autoPhase.x, y: movedPhase.y - autoPhase.y };
+
+    expect(movedAnalysis).toMatchObject({ x: 1200, y: 304 });
+    expect({ x: movedGrowth.x - autoGrowth.x, y: movedGrowth.y - autoGrowth.y }).toEqual(phaseDelta);
+    expect({ x: movedOutcome.x - movedAnalysis.x, y: movedOutcome.y - movedAnalysis.y }).toEqual({ x: 32, y: 96 });
   });
 
   it('restores automatic phase and member alignment when phase positions are cleared', () => {

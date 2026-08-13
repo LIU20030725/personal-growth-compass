@@ -172,8 +172,11 @@ export function layoutAbilityCanvas(
     continuation.y = snapCoordinate(memberPositions.reduce((sum, point) => sum + point.y, 0) / memberPositions.length);
   }
 
+  const manuallyPositionedNodeIds = new Set<string>();
   for (const [id, point] of Object.entries(options.manualPositions ?? {})) {
-    if (positions.has(id) && isFiniteCanvasPoint(point)) positions.set(id, snapCanvasPoint(point));
+    if (!positions.has(id) || !isFiniteCanvasPoint(point)) continue;
+    positions.set(id, snapCanvasPoint(point));
+    manuallyPositionedNodeIds.add(id);
   }
 
   const skillPoints = [...positions.values()];
@@ -206,6 +209,7 @@ export function layoutAbilityCanvas(
     phase.x = nextPosition.x;
     phase.y = nextPosition.y;
     visibleNodes.filter((node) => node.phaseId === phase.id).forEach((node) => {
+      if (manuallyPositionedNodeIds.has(node.id)) return;
       const point = positions.get(node.id);
       if (!point) return;
       point.x += delta.x;
