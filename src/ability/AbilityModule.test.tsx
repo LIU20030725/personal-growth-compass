@@ -287,6 +287,60 @@ describe('AbilityModule', () => {
     }));
   });
 
+  it('keeps canvas history unchanged when storage fails and retries after recovery', async () => {
+    saveAbilityState(localStorage, seededState());
+    saveCanvasPreferences(localStorage, 'frontend', {
+      positions: { html: { x: 320, y: 160 } },
+      phasePositions: { base: { x: 64, y: 32 } },
+      collapsedNodeIds: [],
+      viewport: { x: 0, y: 0, zoom: 1 }
+    });
+    let failCanvasWrites = true;
+    const storage = {
+      getItem: (key: string) => localStorage.getItem(key),
+      removeItem: (key: string) => localStorage.removeItem(key),
+      setItem: (key: string, value: string) => {
+        if (failCanvasWrites && key === 'dice-life.ability-canvas.v1') throw new Error('quota');
+        localStorage.setItem(key, value);
+      }
+    };
+    render(<AbilityModule abilityStorage={storage} taskStorage={storage} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '更多技能树操作' }));
+    expect(() => fireEvent.click(screen.getByRole('menuitem', { name: '重新自动布局' }))).not.toThrow();
+    expect(loadCanvasPreferences(localStorage, 'frontend')).toMatchObject({
+      positions: { html: { x: 320, y: 160 } },
+      phasePositions: { base: { x: 64, y: 32 } }
+    });
+    expect(screen.getByRole('alert')).toHaveTextContent('画布布局保存失败，调整未应用');
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: '关闭' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    failCanvasWrites = false;
+    fireEvent.click(screen.getByRole('button', { name: '更多技能树操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '重新自动布局' }));
+    expect(loadCanvasPreferences(localStorage, 'frontend')).toMatchObject({ positions: {}, phasePositions: {} });
+
+    failCanvasWrites = true;
+    fireEvent.click(screen.getByRole('button', { name: '撤销' }));
+    expect(loadCanvasPreferences(localStorage, 'frontend')).toMatchObject({ positions: {}, phasePositions: {} });
+    expect(screen.getByRole('alert')).toHaveTextContent('画布布局保存失败，调整未应用');
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: '关闭' }));
+
+    failCanvasWrites = false;
+    fireEvent.click(screen.getByRole('button', { name: '撤销' }));
+    await waitFor(() => expect(loadCanvasPreferences(localStorage, 'frontend').positions.html).toEqual({ x: 320, y: 160 }));
+
+    failCanvasWrites = true;
+    fireEvent.click(screen.getByRole('button', { name: '重做' }));
+    expect(loadCanvasPreferences(localStorage, 'frontend').positions.html).toEqual({ x: 320, y: 160 });
+    expect(screen.getByRole('alert')).toHaveTextContent('画布布局保存失败，调整未应用');
+    failCanvasWrites = false;
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: '关闭' }));
+    fireEvent.click(screen.getByRole('button', { name: '重做' }));
+    await waitFor(() => expect(loadCanvasPreferences(localStorage, 'frontend').positions).toEqual({}));
+  });
+
   it('opens a node from a cross-tree library search without losing selection or details', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} initialTreeId="writing" />);

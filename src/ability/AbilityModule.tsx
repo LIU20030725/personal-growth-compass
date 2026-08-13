@@ -51,6 +51,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
   const [canvasHistories, setCanvasHistories] = useState<Record<string, CanvasPreferenceHistory>>({});
+  const canvasHistoriesRef = useRef<Record<string, CanvasPreferenceHistory>>({});
+  const [canvasPersistenceError, setCanvasPersistenceError] = useState('');
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
   const focusSequenceRef = useRef(0);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
@@ -77,12 +79,20 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     : null;
 
   const updateCanvasHistory = (treeId: string, update: (history: CanvasPreferenceHistory) => CanvasPreferenceHistory) => {
-    setCanvasHistories((histories) => {
-      const history = histories[treeId] ?? createCanvasPreferenceHistory(loadCanvasPreferences(canvasStorage, treeId));
-      const next = update(history);
+    const histories = canvasHistoriesRef.current;
+    const history = histories[treeId] ?? createCanvasPreferenceHistory(loadCanvasPreferences(canvasStorage, treeId));
+    const next = update(history);
+    try {
       saveCanvasPreferences(canvasStorage, treeId, next.present);
-      return { ...histories, [treeId]: next };
-    });
+    } catch {
+      setCanvasPersistenceError('画布布局保存失败，调整未应用');
+      return false;
+    }
+    const updated = { ...histories, [treeId]: next };
+    canvasHistoriesRef.current = updated;
+    setCanvasHistories(updated);
+    setCanvasPersistenceError('');
+    return true;
   };
   const commitCanvasPreferences = (next: CanvasPreferences) => {
     if (currentTreeId) updateCanvasHistory(currentTreeId, (history) => applyCanvasPreferenceChange(history, next));
@@ -210,6 +220,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     </header>
 
     {ability.persistenceError ? <div className="ability-error-banner" role="alert"><span>{ability.persistenceError}</span><button type="button" onClick={ability.clearPersistenceError}>关闭</button></div> : null}
+    {canvasPersistenceError ? <div className="ability-error-banner" role="alert"><span>{canvasPersistenceError}</span><button type="button" onClick={() => setCanvasPersistenceError('')}>关闭</button></div> : null}
     {routeNotice ? <div className="ability-route-notice" role="status">{routeNotice}</div> : null}
 
     <SkillLibrary state={ability.state} currentTreeId={currentTreeId} onOpenTree={openTree} onCreateTree={() => setForm('tree')} onArchiveTree={ability.archiveTree} onRestoreTree={ability.restoreTree} onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))} onReorderFocused={ability.reorderFocusedTrees} />
