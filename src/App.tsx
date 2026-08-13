@@ -36,6 +36,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { TaskBoard } from './tasks/TaskBoard';
 import { EmotionModule } from './emotion/EmotionModule';
+import { HealthModule } from './health/HealthModule';
 
 const period = '2026-06';
 const currentYear = '2026';
@@ -1043,6 +1044,8 @@ export default function App() {
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
         <TaskBoard />
+      ) : activeView === 'body' ? (
+        <HealthModule />
       ) : activeView === 'emotion' ? (
         <EmotionModule />
       ) : (
