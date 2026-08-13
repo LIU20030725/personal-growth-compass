@@ -1,0 +1,117 @@
+﻿[
+    {
+        "path":  "docs/superpowers/specs/2026-07-30-dice-life-task-adventure-design.md",
+        "length":  23602,
+        "sha256":  "EC150EC0146D24B67452FF586708AAAB3FC9709842A83647C52862F034FB25A0"
+    },
+    {
+        "path":  "docs/superpowers/specs/2026-08-01-dice-life-task-module-v2-design.md",
+        "length":  8535,
+        "sha256":  "DA70EE06A4439A4F240E1B06BE252AF9A226535A40F59A4E1A2A073F0EB7B7CC"
+    },
+    {
+        "path":  ".stitch/DESIGN.md",
+        "length":  6701,
+        "sha256":  "FC3F3BACC9B41BC7D2778250DEAB49904F34FEC05D2D4FB8B5A042A77DA867CF"
+    },
+    {
+        "path":  ".stitch/metadata.json",
+        "length":  1463,
+        "sha256":  "95264D23E5BA47898C158568D6404EEFD01682C1E371721291A1DD80FC186B85"
+    },
+    {
+        "path":  ".stitch/runtime/snapshot.ts",
+        "length":  49994,
+        "sha256":  "E6492BBC131DFD780B3B06116B72CC824DBAC9F2B3C059AFDB49D3EFD6135A83"
+    },
+    {
+        "path":  ".stitch/screens/01-finance-dashboard.html",
+        "length":  64757,
+        "sha256":  "01AABCE77D25CE771FE3587A92E08C66C398A0CD69BA9C5DC555944ADBB335F6"
+    },
+    {
+        "path":  ".stitch/screens/02-character-status.html",
+        "length":  58435,
+        "sha256":  "96A11EBEA4336176DDF17D90CE6DB8D297A5A2E97ECD79CE793609D69546FCF3"
+    },
+    {
+        "path":  ".stitch/screens/03-ability.html",
+        "length":  53353,
+        "sha256":  "6C16112BFC15CA76FE96A79206F06A82D8564ADA19DCBBDA07D417B7D16502D8"
+    },
+    {
+        "path":  ".stitch/screens/04-health.html",
+        "length":  53343,
+        "sha256":  "3CB58C5D748DC18680019693108A8EA44B8AE04672C02B7F76046044F8802F69"
+    },
+    {
+        "path":  ".stitch/screens/05-emotion.html",
+        "length":  53337,
+        "sha256":  "9D17671ABF732B3B0A76036C0F19CF6CA57EB8C3DC4098B22A5648607B1C8A7E"
+    },
+    {
+        "path":  ".stitch/screens/06-quests.html",
+        "length":  53343,
+        "sha256":  "C93DE5055B7741447E186D7F04FBF01C13B38FBC35B3995C84835DDB23B5A959"
+    },
+    {
+        "path":  ".stitch/screens/07-achievements.html",
+        "length":  53330,
+        "sha256":  "77E11BD89422D6A0CC70C12F569B40C484078328C9364FF475A884FF7B23C955"
+    },
+    {
+        "path":  ".stitch/screens/08-adventure-journal.html",
+        "length":  53367,
+        "sha256":  "FC0F573193DA5D018CFE6F542234418668625EB4E1CEC8148950369DC166EBFE"
+    },
+    {
+        "path":  "docs/2026-08-01-能力模块竞品调研与产品启示.md",
+        "length":  23936,
+        "sha256":  "E2AC265CB63D91C0695260D269653A8231B37576417C0EBF5A451CED3C58D581"
+    },
+    {
+        "path":  "docs/2026-08-02-情绪模块竞品调研与产品启示.md",
+        "length":  27321,
+        "sha256":  "05089689285EC6AD3F22F200061330EE7F6A2A74953661C4B674B9F7455543AD"
+    },
+    {
+        "path":  "docs/PRD-Dice-Life-v2.0.md",
+        "length":  18789,
+        "sha256":  "5D219C2C400E3CFF6669C9FF94F0BC79F9DD579CDDC8B12F4FAB70C4AC8322ED"
+    },
+    {
+        "path":  "docs/健康模块/01-PRD-Dice-Life-健康状况模块-v1.0.md",
+        "length":  40800,
+        "sha256":  "FAAEA1409C0D09122029D71EBF6B21C1585A4AD1D76DED124729F824F165A9B2"
+    },
+    {
+        "path":  "docs/健康模块/02-健康状况模块-strategy-red-team-v1.0.md",
+        "length":  7805,
+        "sha256":  "560AB19019827F51146AC5EAE2C0D54A4CF0A027423CD76328AB6B08F4440889"
+    },
+    {
+        "path":  "docs/情绪模块/验收证据/2026-08-13-v1.3/reference-face-crop-analysis.txt",
+        "length":  2648,
+        "sha256":  "8BC820CBB538AD6EEDB710880257ADD489594187D21FA87ACD7929FA0178703A"
+    },
+    {
+        "path":  "docs/情绪模块/验收证据/2026-08-13-v1.3/visual-compare-v1.3.1.json",
+        "length":  3203,
+        "sha256":  "30BC2293068142A502A111CCEC90E563B924A1569D99CC948FC46FD490CF1879"
+    },
+    {
+        "path":  "docs/情绪表情素材候选初筛.md",
+        "length":  6931,
+        "sha256":  "1F4D73538BC60E4CA5821AB77FC3F1A4DB2C117083C3619088ADB8B7B4D615B6"
+    },
+    {
+        "path":  "ui/task-board-reference/index.html",
+        "length":  45683,
+        "sha256":  "7351E2653DD8DC439BD27D94EA19D45D9B8EC1B3F92DBC15730EC31A1EA4B33E"
+    },
+    {
+        "path":  "一键打开最新HTML.bat",
+        "length":  2994,
+        "sha256":  "563E97098035D488192AEA523EDA2F3D9794C1F03B6EE80FF41A304406DFC308"
+    }
+]

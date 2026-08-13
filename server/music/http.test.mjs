@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createMusicHttpHandler } from './http.mjs';
+import serverlessHandler from '../../api/music/resolve.mjs';
 
 describe('music resolver HTTP contract', () => {
   it('returns the normalized success envelope', async () => {
@@ -42,4 +43,17 @@ describe('music resolver HTTP contract', () => {
     now = 2000;
     expect((await request('a')).status).toBe(200);
   });
+});
+
+describe('serverless music resolver entry', () => {
+  it('forwards the shared JSON contract without trusting x-forwarded-for', async () => {
+    const headers = {};
+    let status = 0;
+    let body;
+    const response = { setHeader(name, value) { headers[name] = value; }, status(value) { status = value; return this; }, json(value) { body = value; } };
+    await serverlessHandler({ method: 'POST', headers: { 'content-type': 'text/plain', 'x-forwarded-for': 'attacker-controlled' }, socket: { remoteAddress: '127.0.0.1' }, body: { url: 'https://music.163.com/song?id=1495784933' } }, response);
+    expect(status).toBe(415);
+    expect(body).toMatchObject({ ok: false, error: { code: 'INVALID_REQUEST' } });
+    expect(headers).toMatchObject({ 'content-type': 'application/json; charset=utf-8', 'x-content-type-options': 'nosniff' });
+  }, 10_000);
 });

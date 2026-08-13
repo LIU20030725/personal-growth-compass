@@ -16,7 +16,7 @@ describe('bounded upstream requests', () => {
   });
 
   it('applies the total timeout while the response body is streaming', async () => {
-    const stream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{')); setTimeout(() => controller.enqueue(new TextEncoder().encode('}')), 50); } });
+    const stream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode('{')); } });
     const response = new Response(stream, { status: 200, headers: { 'content-type': 'application/json' } });
     const { readBoundedJson } = await import('./security.mjs');
     await expect(readBoundedJson(response, 512 * 1024, { timeoutMs: 5 })).rejects.toMatchObject({ code: 'UPSTREAM_TIMEOUT' });

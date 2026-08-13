@@ -7,7 +7,7 @@ import type { EmotionMusicReference } from '../types';
 const providerLabels = { netease: '网易云音乐', qq: 'QQ 音乐', other: '音乐网页' } as const;
 type PickerResult = ParsedMusicShare & { coverUrl: string };
 
-export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, resolveMetadata = resolveMusicMetadata }: {
+export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, resolveMetadata = (sourceUrl, signal) => resolveMusicMetadata(sourceUrl, { signal }) }: {
   initialText?: string;
   onConfirm: (music: EmotionMusicReference) => void;
   onCancel: () => void;
@@ -17,6 +17,7 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
   const [result, setResult] = useState<PickerResult | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [coverFailed, setCoverFailed] = useState(false);
   const requestId = useRef(0);
   const activeRequest = useRef<AbortController | null>(null);
 
@@ -36,7 +37,7 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
     try {
       const remote = await resolveMetadata(parsed.sourceUrl, controller.signal);
       if (currentRequest !== requestId.current) return;
-      setResult({ ...remote, confidence: 'identified' });
+      setCoverFailed(false); setResult({ ...remote, confidence: 'identified' });
     } catch (reason) {
       if (currentRequest !== requestId.current) return;
       setResult({ ...parsed, coverUrl: '' });
@@ -54,7 +55,7 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
 
   function changeInput(value: string) {
     requestId.current += 1; activeRequest.current?.abort(); activeRequest.current = null;
-    setInput(value); setError(''); setResult(null); setLoading(false);
+    setInput(value); setError(''); setResult(null); setCoverFailed(false); setLoading(false);
   }
 
   return <section className="emotion-music-picker" aria-labelledby="emotion-music-picker-title" onKeyDown={(event) => {
@@ -73,7 +74,9 @@ export function EmotionMusicPicker({ initialText = '', onConfirm, onCancel, reso
     <div className="emotion-music-picker__status" aria-live="polite">{loading ? '正在从音乐平台读取公开歌曲信息' : ''}</div>
     {error && <p className="emotion-music-picker__error" role="alert">{error}</p>}
     {result && <article className="emotion-music-picker__preview">
-      {result.coverUrl ? <img src={result.coverUrl} alt={`${result.title} 封面`} referrerPolicy="no-referrer" /> : <span aria-hidden="true"><Music2 /></span>}
+      {result.coverUrl && !coverFailed
+        ? <img src={result.coverUrl} alt={`${result.title} 封面`} referrerPolicy="no-referrer" onError={() => setCoverFailed(true)} />
+        : <span data-testid="music-picker-cover-placeholder" aria-hidden="true"><Music2 /></span>}
       <div><strong>{result.title}</strong><span>{result.artist ? `${result.artist} · ` : ''}{providerLabels[result.provider]}</span>
         {result.confidence === 'link-only' && !error && <p>分享链接已确认，但没有读取到歌曲资料。</p>}</div>
       <a href={result.sourceUrl} target="_blank" rel="noopener noreferrer" aria-label="预览音乐网页"><ExternalLink /></a>

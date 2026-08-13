@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { EmotionMusicPicker } from './EmotionMusicPicker';
+import type { ResolvedMusicMetadata } from '../emotionMusicResolverClient';
 
 describe('EmotionMusicPicker', () => {
   it('uses the offline share text immediately without calling the service', async () => {
@@ -66,7 +67,7 @@ describe('EmotionMusicPicker', () => {
     const signals: AbortSignal[] = [];
     const resolveMetadata = vi.fn((_url: string, signal?: AbortSignal) => {
       if (signal) signals.push(signal);
-      return new Promise(() => undefined);
+      return new Promise<ResolvedMusicMetadata>(() => undefined);
     });
     const view = render(<EmotionMusicPicker onConfirm={vi.fn()} onCancel={vi.fn()} resolveMetadata={resolveMetadata} />);
     const input = screen.getByLabelText('音乐分享链接');
@@ -77,5 +78,16 @@ describe('EmotionMusicPicker', () => {
     fireEvent.click(screen.getByRole('button', { name: '识别音乐' }));
     view.unmount();
     expect(signals[1]?.aborted).toBe(true);
+  });
+
+  it('renders a stable placeholder when a recognized cover fails to load', async () => {
+    const resolveMetadata = vi.fn().mockResolvedValue({ provider: 'netease', title: '歌曲', artist: '歌手', coverUrl: 'https://p1.music.126.net/cover.jpg', sourceUrl: 'https://music.163.com/song?id=1' });
+    render(<EmotionMusicPicker onConfirm={vi.fn()} onCancel={vi.fn()} resolveMetadata={resolveMetadata} />);
+    fireEvent.change(screen.getByLabelText('音乐分享链接'), { target: { value: 'https://music.163.com/song?id=1' } });
+    fireEvent.click(screen.getByRole('button', { name: '识别音乐' }));
+    const cover = await screen.findByRole('img', { name: '歌曲 封面' });
+    fireEvent.error(cover);
+    expect(screen.queryByRole('img', { name: '歌曲 封面' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('music-picker-cover-placeholder')).toBeInTheDocument();
   });
 });
