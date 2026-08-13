@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EmotionModule } from './EmotionModule';
 
 describe('EmotionModule', () => {
   beforeEach(() => window.localStorage.clear());
+  afterEach(() => vi.useRealTimers());
 
   it('以日记为首页并可切换内容库与心情日历', () => {
     render(<EmotionModule />);
@@ -17,6 +18,7 @@ describe('EmotionModule', () => {
   it('完成情绪、活动和文字记录后同步进入日记与内容库', async () => {
     render(<EmotionModule />);
     fireEvent.click(screen.getByRole('button', { name: '记录感受' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     const dialog = screen.getByRole('dialog', { name: '记录此刻感受' });
     fireEvent.click(within(dialog).getByRole('radio', { name: '平静' }));
     fireEvent.click(within(dialog).getByRole('checkbox', { name: '阅读' }));
@@ -31,10 +33,12 @@ describe('EmotionModule', () => {
   it('日历日期可进入当天全部记录', async () => {
     render(<EmotionModule />);
     fireEvent.click(screen.getByRole('button', { name: '记录感受' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     fireEvent.click(screen.getByRole('radio', { name: '开心' }));
     fireEvent.click(screen.getByRole('button', { name: '保存这一刻' }));
+    await screen.findByRole('heading', { name: '现在的我，开心' });
     fireEvent.click(screen.getByRole('button', { name: '心情日历' }));
-    fireEvent.click(screen.getByRole('button', { name: /查看.*的 1 条记录/ }));
+    fireEvent.click(screen.getByRole('button', { name: /1 条记录/ }));
     expect(await screen.findByRole('heading', { name: /的记录/ })).toBeInTheDocument();
   });
 
@@ -43,8 +47,27 @@ describe('EmotionModule', () => {
     const trigger = screen.getByRole('button', { name: '记录感受' });
     trigger.focus();
     fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     expect(screen.getByRole('button', { name: '关闭记录' })).toHaveFocus();
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(await screen.findByRole('button', { name: '记录感受' })).toHaveFocus();
+  });
+
+  it('offers an upward creation menu and saves an important day', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-08-12T12:00:00+08:00'));
+    render(<EmotionModule />);
+    const trigger = screen.getByRole('button', { name: '记录感受' });
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('dialog', { name: '选择要添加的内容' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '添加重要日' }));
+    const dialog = screen.getByRole('dialog', { name: '添加重要日' });
+    fireEvent.change(within(dialog).getByLabelText('重要日名称'), { target: { value: '出发旅行' } });
+    fireEvent.change(within(dialog).getByLabelText('日期'), { target: { value: '2026-08-13' } });
+    fireEvent.change(within(dialog).getByLabelText('提前提醒'), { target: { value: '30' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: '保存重要日' }));
+
+    expect(await screen.findByRole('complementary', { name: '临近的重要日' })).toHaveTextContent('出发旅行');
   });
 });

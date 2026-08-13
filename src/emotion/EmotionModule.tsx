@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BookOpenText, CalendarDays, Images, Plus } from 'lucide-react';
-import { getEntriesByLocalDate } from './emotionEngine';
+import { getEntriesByLocalDate, getImportantDaysForDate } from './emotionEngine';
 import { useEmotionSystem } from './useEmotionSystem';
 import type { EmotionDraft } from './types';
 import { EmotionComposer } from './components/EmotionComposer';
@@ -9,7 +9,10 @@ import { EmotionCalendarView } from './views/EmotionCalendarView';
 import { EmotionDayView } from './views/EmotionDayView';
 import { EmotionJournalView } from './views/EmotionJournalView';
 import { EmotionLibraryView } from './views/EmotionLibraryView';
+import { EmotionCreateMenu } from './components/EmotionCreateMenu';
+import { EmotionImportantDayComposer } from './components/EmotionImportantDayComposer';
 import './emotionModule.css';
+import './emotionEnhancements.css';
 
 type MainRoute = { name: 'journal' } | { name: 'library' } | { name: 'calendar'; month: string };
 type EmotionRoute = MainRoute |
@@ -31,6 +34,8 @@ export function EmotionModule() {
   const system = useEmotionSystem();
   const [route, setRoute] = useState<EmotionRoute>({ name: 'journal' });
   const [composer, setComposer] = useState<{ mode: 'create' } | { mode: 'edit'; entryId: string } | null>(null);
+  const [createMenu, setCreateMenu] = useState(false);
+  const [importantComposer, setImportantComposer] = useState(false);
   const composerTriggerRef = useRef<HTMLElement | null>(null);
   const moduleRef = useRef<HTMLElement | null>(null);
 
@@ -77,15 +82,26 @@ export function EmotionModule() {
     window.setTimeout(() => composerTriggerRef.current?.focus(), 0);
   }
 
+  function openCreateMenu() {
+    composerTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setCreateMenu(true);
+  }
+
+  function closeAuxiliary() {
+    setCreateMenu(false);
+    setImportantComposer(false);
+    window.setTimeout(() => composerTriggerRef.current?.focus(), 0);
+  }
+
   let content;
   if (route.name === 'journal') {
-    content = <EmotionJournalView entries={system.entries} latestToday={system.latestTodayEntry} onOpen={openDetail} onFavorite={system.toggleEntryFavorite} />;
+    content = <EmotionJournalView entries={system.entries} latestToday={system.latestTodayEntry} upcomingImportantDays={system.upcomingImportantDays} onOpen={openDetail} onFavorite={system.toggleEntryFavorite} />;
   } else if (route.name === 'library') {
     content = <EmotionLibraryView items={system.libraryItems} onOpen={openDetail} />;
   } else if (route.name === 'calendar') {
-    content = <EmotionCalendarView entries={system.entries} month={route.month} onMonth={(month) => setRoute({ name: 'calendar', month })} onOpenDay={(dateKey) => setRoute({ name: 'day', dateKey, returnTo: route })} />;
+    content = <EmotionCalendarView entries={system.entries} importantDays={system.importantDays} month={route.month} onMonth={(month) => setRoute({ name: 'calendar', month })} onOpenDay={(dateKey) => setRoute({ name: 'day', dateKey, returnTo: route })} onOpenEntry={(entryId) => openDetail(entryId, route)} />;
   } else if (route.name === 'day') {
-    content = <EmotionDayView dateKey={route.dateKey} entries={getEntriesByLocalDate(system.entries, route.dateKey)} onBack={() => setRoute(route.returnTo)} onOpen={(id) => openDetail(id, route)} />;
+    content = <EmotionDayView dateKey={route.dateKey} entries={getEntriesByLocalDate(system.entries, route.dateKey)} importantDays={getImportantDaysForDate(system.importantDays, route.dateKey)} onBack={() => setRoute(route.returnTo)} onOpen={(id) => openDetail(id, route)} />;
   } else {
     const entry = system.entries.find((item) => item.id === route.entryId);
     content = entry ? <EmotionEntryDetail
@@ -106,7 +122,8 @@ export function EmotionModule() {
     moodId: editingEntry.moodId,
     activityIds: editingEntry.activityIds,
     note: editingEntry.note,
-    attachments: editingEntry.attachments
+    attachments: editingEntry.attachments,
+    music: editingEntry.music ?? []
   } : undefined;
 
   return <section ref={moduleRef} className="emotion-module" aria-label="情绪记录">
@@ -118,7 +135,7 @@ export function EmotionModule() {
         <button type="button" aria-current={activeTab === 'library' ? 'page' : undefined} onClick={() => switchTab('library')}><Images /><span>内容库</span></button>
         <button type="button" aria-current={activeTab === 'calendar' ? 'page' : undefined} onClick={() => switchTab('calendar')}><CalendarDays /><span>心情日历</span></button>
       </nav>
-      <button className="emotion-fab" type="button" aria-label="记录感受" onClick={() => openComposer({ mode: 'create' })}><Plus /><span>记录感受</span></button>
+      <button className="emotion-fab" type="button" aria-label="记录感受" onClick={openCreateMenu}><Plus /><span>记录感受</span></button>
     </div>
     {composer && <EmotionComposer
       initial={initialDraft}
@@ -128,5 +145,7 @@ export function EmotionModule() {
         ? system.updateEntry(composer.entryId, draft, attachments)
         : system.createEntry(draft, attachments)}
     />}
+    {createMenu && <EmotionCreateMenu onClose={closeAuxiliary} onRecord={() => { setCreateMenu(false); setComposer({ mode: 'create' }); }} onImportantDay={() => { setCreateMenu(false); setImportantComposer(true); }} />}
+    {importantComposer && <EmotionImportantDayComposer onClose={closeAuxiliary} onSave={system.createImportantDay} />}
   </section>;
 }

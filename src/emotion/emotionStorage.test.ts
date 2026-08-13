@@ -24,12 +24,23 @@ const sample: EmotionEntry = {
 };
 
 describe('emotion storage', () => {
-  it('空存储返回 v1 空状态并可完整读写', () => {
+  it('migrates v1 records to v2 without losing the original moment', () => {
+    const raw = memoryStorage();
+    raw.setItem(EMOTION_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, entries: [sample] }));
+
+    expect(createEmotionStorage(raw).load()).toEqual({
+      schemaVersion: 2,
+      entries: [{ ...sample, music: [] }],
+      importantDays: []
+    });
+  });
+
+  it('空存储返回 v2 空状态并可完整读写', () => {
     const raw = memoryStorage();
     const storage = createEmotionStorage(raw);
-    expect(storage.load()).toEqual({ schemaVersion: 1, entries: [] });
-    storage.save({ schemaVersion: 1, entries: [sample] });
-    expect(storage.load().entries).toEqual([sample]);
+    expect(storage.load()).toEqual({ schemaVersion: 2, entries: [], importantDays: [] });
+    storage.save({ schemaVersion: 2, entries: [{ ...sample, music: [] }], importantDays: [] });
+    expect(storage.load().entries).toEqual([{ ...sample, music: [] }]);
   });
 
   it('损坏数据会备份并回退为空状态', () => {
@@ -37,15 +48,14 @@ describe('emotion storage', () => {
     raw.setItem(EMOTION_STORAGE_KEY, '{broken');
     const storage = createEmotionStorage(raw, () => 1234);
 
-    expect(storage.load()).toEqual({ schemaVersion: 1, entries: [] });
+    expect(storage.load()).toEqual({ schemaVersion: 2, entries: [], importantDays: [] });
     expect(raw.keys()).toContain('dice-life.emotion.corrupt.1234');
     expect(raw.getItem(EMOTION_STORAGE_KEY)).toBeNull();
   });
 
   it('拒绝保存不合法状态', () => {
     const storage = createEmotionStorage(memoryStorage());
-    expect(() => storage.save({ schemaVersion: 1, entries: [{ ...sample, moodId: '' }] }))
+    expect(() => storage.save({ schemaVersion: 2, entries: [{ ...sample, moodId: '', music: [] }], importantDays: [] }))
       .toThrow('情绪数据不合法');
   });
 });
-

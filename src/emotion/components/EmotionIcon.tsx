@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react';
 import { moodById } from '../emotionConfig';
+import { artworkByMoodId } from './EmotionFaceArtwork';
 
 interface EmotionIconProps {
   moodId: string;
@@ -7,19 +7,17 @@ interface EmotionIconProps {
   selected?: boolean;
 }
 
-export function EmotionIcon({ moodId, size = 'medium', selected = false }: EmotionIconProps) {
+export function EmotionIcon({ moodId, size = 'medium' }: EmotionIconProps) {
   const mood = moodById.get(moodId) ?? moodById.get('calm')!;
+  const Artwork = artworkByMoodId[mood.id] ?? artworkByMoodId.calm;
+
   return (
     <span
-      className={`emotion-face emotion-face--${size} emotion-face--${mood.face}${selected ? ' is-selected' : ''}`}
-      style={{ '--face-color': mood.color } as CSSProperties}
+      className={`emotion-face emotion-face--vector emotion-face--${size} emotion-face--${mood.id}`}
+      data-mood-group={mood.group}
       aria-hidden="true"
     >
-      <span className="emotion-face__eye emotion-face__eye--left" />
-      <span className="emotion-face__eye emotion-face__eye--right" />
-      <span className="emotion-face__mouth" />
-      {mood.face === 'spark' && <span className="emotion-face__spark">✦</span>}
+      <Artwork id={`emotion-${mood.id}`} />
     </span>
   );
 }
-

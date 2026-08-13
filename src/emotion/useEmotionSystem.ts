@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { deriveLibraryItems, getLatestTodayEntry, sortEntriesNewestFirst, validateDraft } from './emotionEngine';
+import { deriveLibraryItems, getLatestTodayEntry, getUpcomingImportantDays, sortEntriesNewestFirst, validateDraft } from './emotionEngine';
 import { createIndexedDbEmotionMediaStore, type EmotionMediaStore } from './emotionMediaStore';
 import { getBrowserEmotionStorage, type EmotionStorage } from './emotionStorage';
-import type { EmotionAttachment, EmotionAttachmentInput, EmotionDraft, EmotionEntry, EmotionStateV1 } from './types';
+import type { EmotionAttachment, EmotionAttachmentInput, EmotionDraft, EmotionEntry, EmotionImportantDay, EmotionStateV2 } from './types';
+import { isValidDateKey } from './emotionSafety';
 
 interface UseEmotionSystemOptions {
   storage?: EmotionStorage;
@@ -23,10 +24,10 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
   const mediaStore = useMemo(() => options.mediaStore ?? createIndexedDbEmotionMediaStore(), [options.mediaStore]);
   const now = options.now ?? (() => new Date().toISOString());
   const idFactory = options.idFactory ?? createId;
-  const [state, setState] = useState<EmotionStateV1>(() => storage.load());
+  const [state, setState] = useState<EmotionStateV2>(() => storage.load());
   const [error, setError] = useState('');
 
-  const commit = useCallback((next: EmotionStateV1) => {
+  const commit = useCallback((next: EmotionStateV2) => {
     storage.save(next);
     setState(next);
   }, [storage]);
@@ -63,12 +64,13 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
       const timestamp = now();
       const created: EmotionEntry = {
         ...checked.normalized,
+        music: checked.normalized.music ?? [],
         id: entryId,
         createdAt: timestamp,
         updatedAt: timestamp,
         isFavorite: false
       };
-      commit({ schemaVersion: 1, entries: [created, ...state.entries] });
+      commit({ ...state, entries: [created, ...state.entries] });
       return created.id;
     } catch (caught) {
       if (writtenIds.length) {
@@ -77,7 +79,7 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
       setError(errorMessage('保存失败', caught));
       return null;
     }
-  }, [commit, idFactory, mediaStore, now, state.entries]);
+  }, [commit, idFactory, mediaStore, now, state]);
 
   const updateEntry = useCallback(async (
     entryId: string,
@@ -104,8 +106,8 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
         await mediaStore.put(item.metadata.id, item.blob);
         writtenIds.push(item.metadata.id);
       }
-      const nextEntry: EmotionEntry = { ...existing, ...checked.normalized, updatedAt: now() };
-      commit({ schemaVersion: 1, entries: state.entries.map((item) => item.id === entryId ? nextEntry : item) });
+      const nextEntry: EmotionEntry = { ...existing, ...checked.normalized, music: checked.normalized.music ?? [], updatedAt: now() };
+      commit({ ...state, entries: state.entries.map((item) => item.id === entryId ? nextEntry : item) });
       const retained = new Set(nextEntry.attachments.map((item) => item.id));
       removedIds = existing.attachments.filter((item) => !retained.has(item.id)).map((item) => item.id);
     } catch (caught) {
@@ -120,14 +122,14 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
       catch (caught) { setError(errorMessage('旧媒体清理失败', caught)); }
     }
     return true;
-  }, [commit, idFactory, mediaStore, now, state.entries]);
+  }, [commit, idFactory, mediaStore, now, state]);
 
   const removeEntry = useCallback(async (entryId: string) => {
     const entry = state.entries.find((item) => item.id === entryId);
     if (!entry) return false;
     setError('');
     try {
-      commit({ schemaVersion: 1, entries: state.entries.filter((item) => item.id !== entryId) });
+      commit({ ...state, entries: state.entries.filter((item) => item.id !== entryId) });
     } catch (caught) {
       setError(errorMessage('删除失败', caught));
       return false;
@@ -138,14 +140,14 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
       setError(errorMessage('媒体清理失败，可稍后重试', caught));
     }
     return true;
-  }, [commit, mediaStore, state.entries]);
+  }, [commit, mediaStore, state]);
 
   const toggleEntryFavorite = useCallback((entryId: string) => {
     const entries = state.entries.map((entry) => entry.id === entryId
       ? { ...entry, isFavorite: !entry.isFavorite, updatedAt: now() }
       : entry);
-    try { commit({ schemaVersion: 1, entries }); } catch (caught) { setError(errorMessage('收藏失败', caught)); }
-  }, [commit, now, state.entries]);
+    try { commit({ ...state, entries }); } catch (caught) { setError(errorMessage('收藏失败', caught)); }
+  }, [commit, now, state]);
 
   const toggleAttachmentFavorite = useCallback((entryId: string, attachmentId: string) => {
     const entries = state.entries.map((entry) => entry.id === entryId ? {
@@ -153,22 +155,62 @@ export function useEmotionSystem(options: UseEmotionSystemOptions = {}) {
       attachments: entry.attachments.map((item) => item.id === attachmentId ? { ...item, isFavorite: !item.isFavorite } : item),
       updatedAt: now()
     } : entry);
-    try { commit({ schemaVersion: 1, entries }); } catch (caught) { setError(errorMessage('收藏失败', caught)); }
-  }, [commit, now, state.entries]);
+    try { commit({ ...state, entries }); } catch (caught) { setError(errorMessage('收藏失败', caught)); }
+  }, [commit, now, state]);
+
+  const createImportantDay = useCallback((draft: Pick<EmotionImportantDay, 'title' | 'dateKey' | 'note' | 'remindDaysBefore' | 'repeat'>) => {
+    setError('');
+    const title = draft.title.trim();
+    if (!title || !isValidDateKey(draft.dateKey)) {
+      setError('请填写有效的重要日名称和日期');
+      return false;
+    }
+    const timestamp = now();
+    const created: EmotionImportantDay = {
+      ...draft,
+      title,
+      note: draft.note.trim(),
+      id: idFactory(),
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+    try {
+      commit({ ...state, importantDays: [...state.importantDays, created] });
+      return true;
+    } catch (caught) {
+      setError(errorMessage('重要日保存失败', caught));
+      return false;
+    }
+  }, [commit, idFactory, now, state]);
+
+  const removeImportantDay = useCallback((importantDayId: string) => {
+    try {
+      commit({ ...state, importantDays: state.importantDays.filter((item) => item.id !== importantDayId) });
+      return true;
+    } catch (caught) {
+      setError(errorMessage('重要日删除失败', caught));
+      return false;
+    }
+  }, [commit, state]);
 
   const entries = useMemo(() => sortEntriesNewestFirst(state.entries), [state.entries]);
   const latestTodayEntry = useMemo(() => getLatestTodayEntry(entries), [entries]);
   const libraryItems = useMemo(() => deriveLibraryItems(entries), [entries]);
+  const upcomingImportantDays = useMemo(() => getUpcomingImportantDays(state.importantDays, new Date(now())), [now, state.importantDays]);
 
   return {
     entries,
     latestTodayEntry,
     libraryItems,
+    importantDays: state.importantDays,
+    upcomingImportantDays,
     createEntry,
     updateEntry,
     removeEntry,
     toggleEntryFavorite,
     toggleAttachmentFavorite,
+    createImportantDay,
+    removeImportantDay,
     getAttachmentBlob: mediaStore.get.bind(mediaStore),
     error,
     clearError: () => setError('')

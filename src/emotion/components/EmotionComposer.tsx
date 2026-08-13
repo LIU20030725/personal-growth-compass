@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Mic, Square, Trash2, Video, X } from 'lucide-react';
+import { Camera, Mic, Music2, Square, Trash2, Video, X } from 'lucide-react';
 import { activityGroups, activityPresets, moodGroups, moodPresets } from '../emotionConfig';
 import { canBrowserPlay, MEDIA_LIMITS, probeMediaDuration, validateMediaCandidate } from '../emotionMediaValidation';
 import type { EmotionAttachment, EmotionAttachmentInput, EmotionDraft } from '../types';
 import { EmotionIcon } from './EmotionIcon';
+import { EmotionAudioPlayer } from './EmotionAudioPlayer';
+import { EmotionActivityIcon } from './EmotionActivityIcon';
+import { EmotionMusicPicker } from './EmotionMusicPicker';
 
 interface EmotionComposerProps {
   initial?: EmotionDraft;
@@ -18,7 +21,7 @@ interface AttachmentPreviewProps {
   onRemove: () => void;
 }
 
-const emptyDraft: EmotionDraft = { moodId: '', activityIds: [], note: '', attachments: [] };
+const emptyDraft: EmotionDraft = { moodId: '', activityIds: [], note: '', attachments: [], music: [] };
 const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
 function AttachmentPreview({ attachment, getBlob, onRemove }: AttachmentPreviewProps) {
@@ -46,7 +49,7 @@ function AttachmentPreview({ attachment, getBlob, onRemove }: AttachmentPreviewP
     <div className="emotion-attachment-preview__media">
       {attachment.kind === 'image' && url && <img src={url} alt={attachment.fileName} />}
       {attachment.kind === 'video' && url && <video src={url} controls preload="metadata" aria-label={attachment.fileName} />}
-      {attachment.kind === 'audio' && url && <audio src={url} controls aria-label={attachment.fileName} />}
+      {attachment.kind === 'audio' && url && <EmotionAudioPlayer src={url} label={attachment.fileName} durationMs={attachment.durationMs} />}
       {!url && <span>{label}</span>}
     </div>
     <div><strong>{attachment.fileName}</strong><span>{label}</span></div>
@@ -61,8 +64,10 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   const [message, setMessage] = useState('');
   const [recording, setRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [musicPickerOpen, setMusicPickerOpen] = useState(false);
   const dialogRef = useRef<HTMLElement | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const musicButtonRef = useRef<HTMLButtonElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -70,7 +75,20 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
   const recordingIntervalRef = useRef<number | null>(null);
   const recordingLimitRef = useRef<number | null>(null);
   const mountedRef = useRef(true);
-  const dirty = Boolean(draft.moodId || draft.activityIds.length || draft.note || pending.length || draft.attachments.length !== initial.attachments.length);
+  const dirty = Boolean(
+    draft.moodId !== initial.moodId ||
+    JSON.stringify(draft.activityIds) !== JSON.stringify(initial.activityIds) ||
+    draft.note !== initial.note || pending.length ||
+    JSON.stringify(draft.attachments) !== JSON.stringify(initial.attachments) ||
+    JSON.stringify(draft.music ?? []) !== JSON.stringify(initial.music ?? [])
+  );
+
+  const music = draft.music?.[0];
+
+  const closeMusicPicker = useCallback(() => {
+    setMusicPickerOpen(false);
+    window.requestAnimationFrame(() => musicButtonRef.current?.focus());
+  }, []);
 
   const counts = useMemo(() => ({
     images: pending.filter((item) => item.kind === 'image').length + draft.attachments.filter((item) => item.kind === 'image').length,
@@ -261,7 +279,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
                   key={mood.id} className={`emotion-mood-choice${draft.moodId === mood.id ? ' is-selected' : ''}`}
                   type="button" role="radio" aria-checked={draft.moodId === mood.id} aria-label={mood.label}
                   onClick={() => setDraft((value) => ({ ...value, moodId: mood.id }))}
-                ><EmotionIcon moodId={mood.id} size="medium" selected={draft.moodId === mood.id} /><span>{mood.label}</span></button>)}
+                ><EmotionIcon moodId={mood.id} size="medium" /><span>{mood.label}</span></button>)}
               </div>
             </div>)}
           </section>
@@ -275,7 +293,7 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
                 return <button type="button" role="checkbox" aria-checked={selected} aria-label={activity.label}
                   className={`emotion-activity-chip${selected ? ' is-selected' : ''}`} key={activity.id}
                   onClick={() => setDraft((value) => ({ ...value, activityIds: selected ? value.activityIds.filter((id) => id !== activity.id) : [...value.activityIds, activity.id] }))}
-                >{activity.label}</button>;
+                ><EmotionActivityIcon activityId={activity.id} /><span>{activity.label}</span></button>;
               })}</div>
             </div>)}
           </section>
@@ -292,6 +310,9 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
               <button className={`emotion-attachment-button${recording ? ' is-recording' : ''}`} type="button" aria-label={recording ? '结束录音' : '语音'} onClick={recording ? () => stopRecording(false) : startRecording} disabled={!recording && counts.audio >= 1}>
                 {recording ? <Square /> : <Mic />}{recording ? `结束录音 ${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')}` : '语音'}
               </button>
+              <button ref={musicButtonRef} className={`emotion-attachment-button${music ? ' is-added' : ''}`} type="button" aria-label="音乐" onClick={() => setMusicPickerOpen(true)}>
+                <Music2 />音乐
+              </button>
             </div>
             {allAttachments > 0 && <div className="emotion-pending-list">已添加 {allAttachments} 项内容 · 图片 {counts.images} · 视频 {counts.videos} · 语音 {counts.audio}</div>}
             {allAttachments > 0 && <div className="emotion-attachment-preview-list" aria-label="已添加附件">
@@ -300,6 +321,16 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
               {pending.map((attachment, index) => <AttachmentPreview key={`${attachment.fileName}-${index}`} attachment={attachment}
                 onRemove={() => setPending((items) => items.filter((_, itemIndex) => itemIndex !== index))} />)}
             </div>}
+            {musicPickerOpen && <EmotionMusicPicker
+              initialText={music?.sourceUrl}
+              onCancel={closeMusicPicker}
+              onConfirm={(nextMusic) => { setDraft((current) => ({ ...current, music: [nextMusic] })); setMusicPickerOpen(false); }}
+            />}
+            {music && !musicPickerOpen && <article className="emotion-music-selection">
+              <span aria-hidden="true"><Music2 /></span><div><strong>{music.title}</strong><span>{music.artist || (music.provider === 'netease' ? '网易云音乐' : music.provider === 'qq' ? 'QQ 音乐' : '音乐网页')}</span></div>
+              <button type="button" onClick={() => setMusicPickerOpen(true)}>更换</button>
+              <button type="button" aria-label={`移除音乐 ${music.title}`} onClick={() => setDraft((current) => ({ ...current, music: [] }))}><Trash2 /></button>
+            </article>}
           </section>
           {message && <p className="emotion-form-message" aria-live="polite">{message}</p>}
         </div>

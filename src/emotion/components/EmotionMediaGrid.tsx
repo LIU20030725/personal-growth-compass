@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FileAudio, Film, Heart } from 'lucide-react';
 import type { EmotionAttachment } from '../types';
+import { EmotionAudioPlayer } from './EmotionAudioPlayer';
 
 function EmotionMediaPreview({ attachment, getBlob }: { attachment: EmotionAttachment; getBlob: (id: string) => Promise<Blob | null> }) {
   const [url, setUrl] = useState('');
@@ -15,7 +16,7 @@ function EmotionMediaPreview({ attachment, getBlob }: { attachment: EmotionAttac
   if (!url) return <div className="emotion-media-placeholder">{attachment.kind === 'audio' ? <FileAudio /> : <Film />}</div>;
   if (attachment.kind === 'image') return <img src={url} alt={attachment.fileName || '情绪记录图片'} />;
   if (attachment.kind === 'video') return <video src={url} controls preload="metadata" />;
-  return <audio src={url} controls />;
+  return <EmotionAudioPlayer src={url} label={attachment.fileName || '语音记录'} durationMs={attachment.durationMs} />;
 }
 
 export function EmotionMediaGrid({ attachments, getBlob, onFavorite }: {
