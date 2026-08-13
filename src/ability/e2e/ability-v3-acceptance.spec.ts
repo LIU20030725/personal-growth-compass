@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const STORAGE_KEY = 'dice-life.ability.v1';
-const EVIDENCE = 'src/ability/docs/evidence/2026-08-12-v3-independent-acceptance/screenshots';
+const EVIDENCE = 'src/ability/docs/evidence/2026-08-14-v4-implementation-smoke/screenshots';
 const stamp = '2026-08-12T00:00:00.000Z';
 
 type BrowserProblem = { kind: 'console' | 'pageerror'; text: string };
@@ -98,7 +98,6 @@ test('A：全新数据完成结构、成长、证据、资源与视图闭环且�
   await page.getByRole('button', { name: '创建第一棵技能树' }).click();
   await page.getByRole('textbox', { name: '技能树名称' }).fill('独立产品设计');
   await page.getByRole('button', { name: '保存技能树' }).click();
-  await page.getByRole('button', { name: '编辑技能树' }).click();
   await page.getByRole('button', { name: '添加下一阶段' }).click();
   await page.getByRole('textbox', { name: '阶段名称' }).fill('需求与原型');
   await page.getByRole('button', { name: '保存阶段' }).click();
@@ -111,12 +110,11 @@ test('A：全新数据完成结构、成长、证据、资源与视图闭环且�
   const addChild = page.getByRole('button', { name: '为 定义核心问题 添加子节点' });
   await addChild.click();
   await addChild.click();
-  await expect(page.getByRole('group', { name: '新技能 可开始', exact: true })).toHaveCount(2);
-  await page.getByRole('button', { name: '完成编辑' }).click();
-  await expect(page.getByRole('button', { name: '添加下一阶段' })).toHaveCount(0);
+  await addChild.click();
+  await expect(page.getByRole('group', { name: '新技能 可开始', exact: true })).toHaveCount(3);
+  await expect(page.getByRole('button', { name: '添加下一阶段' })).toBeVisible();
 
   await root.click();
-  await page.getByRole('button', { name: '查看详情 定义核心问题' }).click();
   const detail = page.getByRole('complementary', { name: '技能节点详情' });
   await detail.getByRole('button', { name: '开始学习' }).click();
   await expect(detail.getByRole('button', { name: '确认已掌握' })).toBeDisabled();
@@ -124,6 +122,13 @@ test('A：全新数据完成结构、成长、证据、资源与视图闭环且�
   await detail.getByRole('button', { name: '添加掌握标准' }).click();
   await detail.getByRole('checkbox', { name: '输出一页问题定义' }).check();
   await detail.getByRole('button', { name: '确认已掌握' }).click();
+
+  await detail.getByRole('button', { name: '记录成果' }).click();
+  await page.getByRole('textbox', { name: '成果名称' }).fill('问题定义评审通过');
+  await page.getByRole('button', { name: '保存成果' }).click();
+  const outcomeState = await page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? '{}'), STORAGE_KEY);
+  expect(outcomeState.outcomes).toHaveLength(1);
+  expect(outcomeState.outcomes[0].skillNodeId).toBe(outcomeState.nodes.find((node: { name: string }) => node.name === '定义核心问题').id);
 
   await detail.getByRole('button', { name: '收藏资源' }).click();
   await detail.getByRole('textbox', { name: '资源链接' }).fill('https://example.com/product?utm_source=test');
@@ -133,7 +138,6 @@ test('A：全新数据完成结构、成长、证据、资源与视图闭环且�
 
   const child = page.getByRole('group', { name: '新技能 可开始', exact: true }).first();
   await child.click();
-  await page.getByRole('button', { name: '查看详情 新技能' }).click();
   await detail.getByRole('button', { name: '收藏资源' }).click();
   await detail.getByRole('textbox', { name: '资源链接' }).fill('https://EXAMPLE.com/product');
   await detail.getByRole('textbox', { name: '资源标题' }).fill('重复链接');
@@ -192,7 +196,6 @@ test('B：V1 复杂历史树无损迁移并保留旧任务与掌握说明但不�
   expect(migrated.resourceLinks).toEqual([]);
 
   await page.getByRole('group', { name: 'JavaScript 已掌握', exact: true }).click();
-  await page.getByRole('button', { name: '查看详情 JavaScript' }).click();
   const detail = page.getByRole('complementary', { name: '技能节点详情' });
   await expect(detail.getByText('关联任务')).toHaveCount(0);
   await expect(detail.getByLabel('掌握判断依据')).toHaveCount(0);
@@ -213,12 +216,10 @@ test('重新生成桌面、窄屏、资源、线性、移动详情与 40 节点�
   threeBranch.masteryCriteria = [];
   threeBranch.outcomes = [];
   await seed(page, threeBranch);
-  await page.getByRole('button', { name: '编辑技能树' }).click();
   await page.getByRole('button', { name: 'Fit View' }).click();
   await page.getByRole('group', { name: '自媒体创作系统交互画布' }).screenshot({ path: `${EVIDENCE}/00-1440-three-branch.png`, animations: 'disabled' });
 
   await seed(page, visualState());
-  await page.getByRole('button', { name: '编辑技能树' }).click();
   await page.getByRole('button', { name: 'Fit View' }).click();
   await page.screenshot({ path: `${EVIDENCE}/01-1440-five-branch-multilevel.png`, animations: 'disabled' });
 
@@ -227,7 +228,6 @@ test('重新生成桌面、窄屏、资源、线性、移动详情与 40 节点�
   await page.screenshot({ path: `${EVIDENCE}/02-1024-stage-columns-empty-stage.png`, animations: 'disabled' });
 
   await page.getByRole('group', { name: '内容策划 成长中', exact: true }).click();
-  await page.getByRole('button', { name: '查看详情 内容策划' }).click();
   await page.getByRole('complementary', { name: '技能节点详情' }).getByRole('button', { name: '查看全部' }).click();
   await page.screenshot({ path: `${EVIDENCE}/03-1024-resource-expanded.png`, animations: 'disabled' });
 
@@ -254,7 +254,7 @@ test('重新生成桌面、窄屏、资源、线性、移动详情与 40 节点�
   expect(problems).toEqual([]);
 });
 
-test('@a11y V3 画布、编辑、线性、资源和移动详情 serious/critical 为零', async ({ page }, testInfo) => {
+test('@a11y V4 画布、线性、资源和移动详情 serious/critical 为零', async ({ page }, testInfo) => {
   await seed(page, visualState());
   const scans: Array<{ name: string; violations: Awaited<ReturnType<AxeBuilder['analyze']>>['violations'] }> = [];
   const scan = async (name: string) => {
@@ -263,8 +263,7 @@ test('@a11y V3 画布、编辑、线性、资源和移动详情 serious/critical
   };
 
   await scan('canvas-browse');
-  await page.getByRole('button', { name: '编辑技能树' }).click();
-  await scan('canvas-edit');
+  await scan('canvas-direct-manipulation');
   await page.getByRole('button', { name: '切换到线性路线' }).click();
   await scan('linear');
   await page.getByRole('button', { name: /内容策划 成长中/ }).click();
