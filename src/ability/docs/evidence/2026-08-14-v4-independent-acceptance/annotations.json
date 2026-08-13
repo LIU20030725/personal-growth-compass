@@ -1,0 +1,22 @@
+{
+  "screens": [
+    {
+      "file": "screenshots/01-1440-parallel-candidates.png",
+      "annotations": [
+        { "id": "F-01", "severity": 2, "x": 0.50, "y": 0.32, "width": 0.45, "height": 0.08, "label": "画布工具条同时呈现 7 个操作，首次使用时扫描成本偏高" }
+      ]
+    },
+    {
+      "file": "screenshots/05-390-mobile-detail.png",
+      "annotations": [
+        { "id": "F-02", "severity": 2, "x": 0.00, "y": 0.00, "width": 1.00, "height": 0.19, "label": "底部详情打开后仍露出被遮挡的背景操作区，视觉层级略有干扰" }
+      ]
+    },
+    {
+      "file": "screenshots/00-1440-empty.png",
+      "annotations": [
+        { "id": "P-01", "severity": 0, "x": 0.21, "y": 0.61, "width": 0.74, "height": 0.34, "label": "空态清楚说明下一步并给出单一主操作" }
+      ]
+    }
+  ]
+}
