@@ -5,6 +5,7 @@ import { createInitialAbilityState } from '../abilityStorage';
 import {
   applyCanvasDragPreference,
   applyPhaseDragPreference,
+  commitCanvasDragPreference,
   consumeAbilityFocusRequest,
   consumeFocusRequest,
   getRenderedSkillNodeIds,
@@ -109,6 +110,16 @@ describe('AbilityTreeStage canvas drag preferences', () => {
 
   it('persists an absolute snapped skill position without changing phase positions', () => {
     expect(applyCanvasDragPreference(preferences, 'skill', { x: 113, y: 79 })).toEqual({
+      ...preferences,
+      positions: { skill: { x: 112, y: 80 } }
+    });
+  });
+
+  it('reports a failed canvas position commit so the rendered node can be restored', () => {
+    const commit = vi.fn(() => false);
+
+    expect(commitCanvasDragPreference(preferences, 'skill', { x: 113, y: 79 }, commit)).toBe(false);
+    expect(commit).toHaveBeenCalledWith({
       ...preferences,
       positions: { skill: { x: 112, y: 80 } }
     });

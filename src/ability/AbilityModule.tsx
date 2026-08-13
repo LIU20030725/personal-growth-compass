@@ -220,7 +220,11 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   };
   const closeDetails = () => {
     const linearNode = selectedNodeId ? linearNodeRefs.current.get(selectedNodeId) : null;
-    (linearNode ?? document.querySelector<HTMLElement>('.ability-flow-shell'))?.focus();
+    const canvasNode = selectedNodeId
+      ? [...document.querySelectorAll<HTMLElement>('.react-flow__node[data-id]')]
+        .find((element) => element.dataset.id === selectedNodeId)
+      : null;
+    (linearNode ?? canvasNode ?? document.querySelector<HTMLElement>('.ability-flow-shell'))?.focus();
     setDetailOpen(false);
   };
 

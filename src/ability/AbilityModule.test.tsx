@@ -61,6 +61,17 @@ describe('AbilityModule', () => {
     expect(screen.queryByLabelText('技能节点详情')).not.toBeInTheDocument();
   });
 
+  it('returns focus to the canvas node that opened details', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    const openingNode = await screen.findByRole('group', { name: /React 状态管理/ });
+    fireEvent.click(openingNode);
+    fireEvent.click(within(screen.getByLabelText('技能节点详情')).getByRole('button', { name: '关闭技能详情' }));
+
+    await waitFor(() => expect(openingNode).toHaveFocus());
+  });
+
   it('uses direct manipulation actions without a page edit mode', async () => {
     const ability = seededState();
     ability.phases.push({ id: 'empty-phase', skillTreeId: 'frontend', name: '发布复盘', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 2 });

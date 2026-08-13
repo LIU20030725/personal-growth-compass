@@ -86,7 +86,7 @@ type Props = {
   stateFilter: TreeNodeFilter;
   preferences: CanvasPreferences;
   canvasHistory: CanvasPreferenceHistory;
-  onCommitPreferences: (preferences: CanvasPreferences) => void;
+  onCommitPreferences: (preferences: CanvasPreferences) => boolean;
   onUpdateViewport: (viewport: CanvasPreferences['viewport']) => void;
   onUndoCanvas: () => boolean;
   onRedoCanvas: () => boolean;
@@ -236,6 +236,15 @@ export function applyCanvasDragPreference(
     };
   }
   return { ...preferences, positions: { ...preferences.positions, [nodeId]: snapped } };
+}
+
+export function commitCanvasDragPreference(
+  preferences: CanvasPreferences,
+  nodeId: string,
+  position: CanvasPoint,
+  commit: (preferences: CanvasPreferences) => boolean
+): boolean {
+  return commit(applyCanvasDragPreference(preferences, nodeId, position));
 }
 
 export function applyPhaseDragPreference(
@@ -656,8 +665,8 @@ export function AbilityTreeStage(props: Props) {
     }
   }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, renderedSkillNodeIds, selectedIds, undoAction]);
 
-  const persistPreferences = useCallback((next: CanvasPreferences) => {
-    props.onCommitPreferences(next);
+  const persistPreferences = useCallback((next: CanvasPreferences): boolean => {
+    return props.onCommitPreferences(next);
   }, [props.onCommitPreferences]);
 
   const persistViewport = useCallback((viewport: CanvasPreferences['viewport']) => {
@@ -748,7 +757,9 @@ export function AbilityTreeStage(props: Props) {
             phaseDragStartPositionRef.current = null;
             phaseDragPositionRef.current = null;
             const memberIds = props.state.nodes.filter((item) => item.phaseId === phaseId && !item.archivedAt).map((item) => item.id);
-            persistPreferences(applyPhaseDragPreference(preferences, phaseId, from, node.position, memberIds));
+            if (!persistPreferences(applyPhaseDragPreference(preferences, phaseId, from, node.position, memberIds))) {
+              setNodes(computedNodes);
+            }
             return;
           }
           if (node.type !== 'skill') return;
@@ -758,7 +769,9 @@ export function AbilityTreeStage(props: Props) {
             try { props.onReparent(node.id, targetId); } catch { /* invalid cycle keeps the original parent */ }
             return;
           }
-          persistPreferences(applyCanvasDragPreference(preferences, node.id, node.position));
+          if (!commitCanvasDragPreference(preferences, node.id, node.position, persistPreferences)) {
+            setNodes(computedNodes);
+          }
         }}
         onConnect={(connection: Connection) => {
           if (connection.source && connection.target && connection.source !== connection.target && !connection.source.startsWith('phase:') && !connection.target.startsWith('phase:')) {
