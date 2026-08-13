@@ -10,7 +10,9 @@ export function EmotionMusicCard({ music }: { music: EmotionMusicReference }) {
   const playable = isSafeHttpUrl(music.playbackUrl);
   const source = isSafeHttpUrl(music.sourceUrl);
   return <article className="emotion-music-card">
-    <span className="emotion-music-card__cover" aria-hidden="true"><Music2 /></span>
+    {music.coverUrl
+      ? <img className="emotion-music-card__cover" src={music.coverUrl} alt={`${music.title} 封面`} referrerPolicy="no-referrer" />
+      : <span className="emotion-music-card__cover" aria-hidden="true"><Music2 /></span>}
     <div className="emotion-music-card__copy">
       <strong>{music.title}</strong>
       <span>{music.artist ? `${music.artist} · ` : ''}{provider}</span>

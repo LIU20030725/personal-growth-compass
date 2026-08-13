@@ -13,6 +13,11 @@ const base = {
 };
 
 describe('EmotionMusicCard', () => {
+  it('renders a recognized cover without changing the navigation behavior', () => {
+    render(<EmotionMusicCard music={{ ...base, coverUrl: 'https://p1.music.126.net/cover.jpg' }} />);
+    expect(screen.getByRole('img', { name: `${base.title} 封面` })).toHaveAttribute('src', 'https://p1.music.126.net/cover.jpg');
+  });
+
   it('opens the original platform in a safe new tab when no browser-playable URL exists', () => {
     render(<EmotionMusicCard music={base} />);
 

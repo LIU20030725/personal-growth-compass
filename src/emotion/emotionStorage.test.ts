@@ -24,6 +24,14 @@ const sample: EmotionEntry = {
 };
 
 describe('emotion storage', () => {
+  it('round-trips optional recognized music cover metadata', () => {
+    const raw = memoryStorage();
+    const storage = createEmotionStorage(raw);
+    const music = [{ id: 'song', provider: 'netease' as const, title: 'EVERYTHING', artist: 'BIBI', coverUrl: 'https://p1.music.126.net/cover.jpg', sourceUrl: 'https://music.163.com/song?id=1', playbackUrl: '', isFavorite: true }];
+    storage.save({ schemaVersion: 2, entries: [{ ...sample, music }], importantDays: [] });
+    expect(storage.load().entries[0].music).toEqual(music);
+  });
+
   it('migrates v1 records to v2 without losing the original moment', () => {
     const raw = memoryStorage();
     raw.setItem(EMOTION_STORAGE_KEY, JSON.stringify({ schemaVersion: 1, entries: [sample] }));
