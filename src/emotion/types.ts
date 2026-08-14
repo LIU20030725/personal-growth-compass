@@ -31,6 +31,7 @@ export interface EmotionMusicReference {
   provider: EmotionMusicProvider;
   title: string;
   artist: string;
+  coverUrl?: string;
   sourceUrl: string;
   playbackUrl: string;
   isFavorite: boolean;

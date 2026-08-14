@@ -18,6 +18,7 @@ function isMusic(value: unknown): value is EmotionMusicReference {
   return typeof item.id === 'string' &&
     (item.provider === 'netease' || item.provider === 'qq' || item.provider === 'other') &&
     typeof item.title === 'string' && typeof item.artist === 'string' &&
+    (item.coverUrl === undefined || typeof item.coverUrl === 'string') &&
     typeof item.sourceUrl === 'string' && typeof item.playbackUrl === 'string' &&
     typeof item.isFavorite === 'boolean';
 }

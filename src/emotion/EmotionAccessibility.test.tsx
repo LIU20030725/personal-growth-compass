@@ -2,7 +2,9 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EmotionModule } from './EmotionModule';
+import { EmotionMusicPicker } from './components/EmotionMusicPicker';
 import { EMOTION_STORAGE_KEY } from './emotionStorage';
+import type { ResolvedMusicMetadata } from './emotionMusicResolverClient';
 
 async function expectNoBlockingAxe(container: HTMLElement) {
   const results = await axe.run(container, {
@@ -17,6 +19,19 @@ async function expectNoBlockingAxe(container: HTMLElement) {
 
 describe('EmotionModule accessibility gate', () => {
   beforeEach(() => window.localStorage.clear());
+
+  it('music picker empty, loading, success and failure states have no blocking axe issues', async () => {
+    let resolveRequest!: (value: { provider: 'netease'; title: string; artist: string; coverUrl: string; sourceUrl: string }) => void;
+    const pending = new Promise<ResolvedMusicMetadata>((resolve) => { resolveRequest = resolve; });
+    const { container } = render(<EmotionMusicPicker onConfirm={() => undefined} onCancel={() => undefined} resolveMetadata={() => pending} />);
+    await expectNoBlockingAxe(container);
+    fireEvent.change(screen.getByLabelText('音乐分享链接'), { target: { value: 'https://music.163.com/song?id=1' } });
+    fireEvent.click(screen.getByRole('button', { name: '识别音乐' }));
+    await expectNoBlockingAxe(container);
+    resolveRequest({ provider: 'netease', title: '歌曲', artist: '歌手', coverUrl: '', sourceUrl: 'https://music.163.com/song?id=1' });
+    await screen.findByText('歌曲');
+    await expectNoBlockingAxe(container);
+  });
 
   it('没有 serious 或 critical 级别的 axe 问题', async () => {
     const { container } = render(<main id="main-content"><EmotionModule /></main>);
