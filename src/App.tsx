@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { AdventureJournalPage } from './adventure-journal/pages/AdventureJournalPage';
 import { TaskBoard } from './tasks/TaskBoard';
 import { EmotionModule } from './emotion/EmotionModule';
+import { HealthModule } from './health/HealthModule';
 import { parseAbilityPath, pushAbilityTree, replaceAbilityTree } from './ability/abilityRoute';
 
 const AbilityModule = lazy(() => import('./ability/AbilityModule').then((module) => ({ default: module.AbilityModule })));
@@ -907,7 +908,7 @@ export default function App() {
         </div>
       </header>
 
-      <aside className="app-sidebar" aria-label="角色与模块导航" data-shell-surface="calm">
+      <aside className={`app-sidebar${activeView === 'body' ? ' health-sidebar' : ''}`} aria-label="角色与模块导航" data-shell-surface="calm">
         <button
           className={`character-card ${activeView === 'character' ? 'active' : ''}`}
           type="button"
@@ -947,7 +948,7 @@ export default function App() {
         </div>
       </aside>
 
-      <main className={`app-shell${activeView === 'emotion' ? ' emotion-shell' : ''}`} id="main-content" tabIndex={-1}>
+      <main className={`app-shell${activeView === 'emotion' ? ' emotion-shell' : ''}${activeView === 'body' ? ' health-shell' : ''}`} id="main-content" tabIndex={-1}>
       {activeView === 'finance' ? (
       <>
       <section className="hero-panel wealth-hero">
@@ -1067,6 +1068,8 @@ export default function App() {
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
         <TaskBoard />
+      ) : activeView === 'body' ? (
+        <HealthModule />
       ) : activeView === 'emotion' ? (
         <EmotionModule />
       ) : activeView === 'journal' ? (

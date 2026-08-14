@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Health acceptance frame</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: white; }
+  iframe { display: block; border: 0; }
+</style>
+<iframe title="健康模块验收画布"></iframe>
+<script>
+  const params = new URLSearchParams(location.search);
+  const frame = document.querySelector("iframe");
+  frame.width = params.get("w") || "390";
+  frame.height = params.get("h") || "844";
+  frame.src = "/";
+</script>

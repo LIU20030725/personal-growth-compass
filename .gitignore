@@ -8,6 +8,7 @@ dist/
 !src/ability/docs/audits/**/*.png
 playwright-report/
 test-results/
+!docs/健康模块/验收证据/2026-08-14-v1.0-independent-acceptance/screenshots/*-final.png
 .chrome-headless-profile/
 .chrome-headless-mobile-profile/
 .agents/
