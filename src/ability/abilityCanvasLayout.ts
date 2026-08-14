@@ -6,6 +6,10 @@ export type CanvasPoint = { x: number; y: number };
 export type AbilityCanvasLayoutOptions = {
   collapsedNodeIds?: ReadonlySet<string>;
   manualPositions?: Record<string, CanvasPoint>;
+  /** Absolute top-left positions for phase containers. */
+  manualPhasePositions?: Record<string, CanvasPoint>;
+  /** Alias matching the persisted CanvasPreferences field. */
+  phasePositions?: Record<string, CanvasPoint>;
 };
 
 export type AbilityCanvasNode = CanvasPoint & {
@@ -22,6 +26,14 @@ export type AbilityCanvasEdge = {
   branchX: number;
 };
 
+export type AbilityCanvasPhaseEdge = {
+  id: string;
+  fromPhaseId: string;
+  toPhaseId: string;
+  from: CanvasPoint;
+  to: CanvasPoint;
+};
+
 export type AbilityCanvasGroup = CanvasPoint & {
   id: string;
   name: string;
@@ -30,7 +42,19 @@ export type AbilityCanvasGroup = CanvasPoint & {
   nodeIds: string[];
 };
 
+export type AbilityCanvasPhase = CanvasPoint & {
+  id: string;
+  name: string;
+  description: string;
+  estimatedDuration: string;
+  width: number;
+  height: number;
+  nodeCount: number;
+};
+
 export type AbilityCanvasLayout = {
+  phases: AbilityCanvasPhase[];
+  phaseEdges: AbilityCanvasPhaseEdge[];
   nodes: AbilityCanvasNode[];
   edges: AbilityCanvasEdge[];
   groups: AbilityCanvasGroup[];
@@ -45,9 +69,19 @@ export const BRANCH_X_OFFSET = 224;
 const GROUP_PADDING_X = 32;
 const GROUP_PADDING_TOP = 64;
 const GROUP_PADDING_BOTTOM = 32;
+const PHASE_PADDING_X = 32;
+const PHASE_GAP = 32;
+const PHASE_MIN_WIDTH = 320;
+const PHASE_HEADER_SPACE = 80;
+const PHASE_BOTTOM_SPACE = 64;
+const PHASE_MIN_HEIGHT = 320;
 
 function snapCoordinate(value: number): number {
   return Math.round(value / CANVAS_GRID) * CANVAS_GRID;
+}
+
+function isFiniteCanvasPoint(point: CanvasPoint): boolean {
+  return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
 
 export function snapCanvasPoint(point: CanvasPoint): CanvasPoint {
@@ -108,6 +142,25 @@ export function layoutAbilityCanvas(
     if (!positions.has(node.id)) place(node.id, 0);
   });
 
+  const orderedPhases = state.phases
+    .filter((phase) => phase.skillTreeId === treeId)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  let phaseCursorX = -PHASE_PADDING_X;
+  const phaseWidths = new Map<string, number>();
+  orderedPhases.forEach((phase) => {
+    const members = visibleNodes.filter((node) => node.phaseId === phase.id);
+    const memberPoints = members.map((node) => positions.get(node.id)).filter((point): point is CanvasPoint => !!point);
+    const minX = memberPoints.length ? Math.min(...memberPoints.map((point) => point.x)) : 0;
+    const maxX = memberPoints.length ? Math.max(...memberPoints.map((point) => point.x)) : minX;
+    const width = snapCoordinate(Math.max(PHASE_MIN_WIDTH, maxX - minX + NODE_WIDTH + PHASE_PADDING_X * 2));
+    members.forEach((node) => {
+      const point = positions.get(node.id);
+      if (point) point.x = snapCoordinate(phaseCursorX + PHASE_PADDING_X + point.x - minX);
+    });
+    phaseWidths.set(phase.id, width);
+    phaseCursorX = snapCoordinate(phaseCursorX + width + PHASE_GAP);
+  });
+
   const explicitGroups = state.parallelGroups.filter((group) => group.skillTreeId === treeId);
   for (const group of explicitGroups) {
     if (!group.continuationNodeId || !visibleIds.has(group.continuationNodeId)) continue;
@@ -119,9 +172,68 @@ export function layoutAbilityCanvas(
     continuation.y = snapCoordinate(memberPositions.reduce((sum, point) => sum + point.y, 0) / memberPositions.length);
   }
 
+  const skillPoints = [...positions.values()];
+  const phaseY = snapCoordinate((skillPoints.length ? Math.min(...skillPoints.map((point) => point.y)) : 0) - PHASE_HEADER_SPACE);
+  const phaseBottom = snapCoordinate((skillPoints.length ? Math.max(...skillPoints.map((point) => point.y)) + NODE_HEIGHT : 160) + PHASE_BOTTOM_SPACE);
+  const phaseHeight = Math.ceil(Math.max(PHASE_MIN_HEIGHT, phaseBottom - phaseY) / (CANVAS_GRID * 2)) * CANVAS_GRID * 2;
+  let phaseX = -PHASE_PADDING_X;
+  const phases: AbilityCanvasPhase[] = orderedPhases.map((phase) => {
+    const width = phaseWidths.get(phase.id) ?? PHASE_MIN_WIDTH;
+    const item = {
+      id: phase.id,
+      name: phase.name,
+      description: phase.description,
+      estimatedDuration: phase.estimatedDuration,
+      x: phaseX,
+      y: phaseY,
+      width,
+      height: phaseHeight,
+      nodeCount: visibleNodes.filter((node) => node.phaseId === phase.id).length
+    };
+    phaseX = snapCoordinate(phaseX + width + PHASE_GAP);
+    return item;
+  });
+  const manuallyPositionedNodeIds = new Set<string>();
   for (const [id, point] of Object.entries(options.manualPositions ?? {})) {
-    if (positions.has(id)) positions.set(id, snapCanvasPoint(point));
+    if (!positions.has(id) || !isFiniteCanvasPoint(point)) continue;
+    positions.set(id, snapCanvasPoint(point));
+    manuallyPositionedNodeIds.add(id);
   }
+  const manualPhasePositions = options.manualPhasePositions ?? options.phasePositions ?? {};
+  phases.forEach((phase) => {
+    const requestedPosition = manualPhasePositions[phase.id];
+    if (!requestedPosition || !isFiniteCanvasPoint(requestedPosition)) return;
+    const nextPosition = snapCanvasPoint(requestedPosition);
+    const delta = { x: nextPosition.x - phase.x, y: nextPosition.y - phase.y };
+    phase.x = nextPosition.x;
+    phase.y = nextPosition.y;
+    visibleNodes.filter((node) => node.phaseId === phase.id).forEach((node) => {
+      if (manuallyPositionedNodeIds.has(node.id)) return;
+      const point = positions.get(node.id);
+      if (!point) return;
+      point.x += delta.x;
+      point.y += delta.y;
+    });
+  });
+  phases.forEach((phase) => {
+    const memberBottom = visibleNodes
+      .filter((node) => node.phaseId === phase.id)
+      .map((node) => positions.get(node.id)?.y)
+      .filter((y): y is number => y !== undefined)
+      .reduce((bottom, y) => Math.max(bottom, y + NODE_HEIGHT + PHASE_BOTTOM_SPACE), phase.y + phase.height);
+    const requiredHeight = memberBottom - phase.y;
+    phase.height = Math.ceil(Math.max(phase.height, requiredHeight) / (CANVAS_GRID * 2)) * CANVAS_GRID * 2;
+  });
+  const phaseEdges: AbilityCanvasPhaseEdge[] = phases.slice(0, -1).map((phase, index) => {
+    const nextPhase = phases[index + 1];
+    return {
+      id: `phase-order-${phase.id}-${nextPhase.id}`,
+      fromPhaseId: phase.id,
+      toPhaseId: nextPhase.id,
+      from: { x: phase.x + phase.width, y: phase.y + phase.height / 2 },
+      to: { x: nextPhase.x, y: nextPhase.y + nextPhase.height / 2 }
+    };
+  });
 
   const nodes: AbilityCanvasNode[] = visibleNodes.map((node) => ({
     id: node.id,
@@ -135,7 +247,12 @@ export function layoutAbilityCanvas(
   for (const outcome of state.outcomes.filter((item) => item.skillTreeId === treeId && item.showOnTree)) {
     const parent = outcome.skillNodeId ? positions.get(outcome.skillNodeId) : undefined;
     if (!parent || (outcome.skillNodeId && !visibleIds.has(outcome.skillNodeId))) continue;
-    nodes.push({ id: outcome.id, kind: 'outcome', x: parent.x + 38, y: parent.y + 92, hiddenChildCount: 0 });
+    nodes.push({
+      id: outcome.id,
+      kind: 'outcome',
+      ...snapCanvasPoint({ x: parent.x + 38, y: parent.y + 92 }),
+      hiddenChildCount: 0
+    });
   }
 
   const continuationById = new Map(
@@ -183,5 +300,5 @@ export function layoutAbilityCanvas(
     if (children.length > 1) addGroup(`auto-${parent.id}`, '可并行', children);
   });
 
-  return { nodes, edges, groups };
+  return { phases, phaseEdges, nodes, edges, groups };
 }

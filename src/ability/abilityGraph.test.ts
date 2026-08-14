@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   getNodeDisplayState,
+  getNextActionCandidates,
+  getNextActionEmptyReason,
+  getCurrentPhase,
+  getPhaseProgress,
   getTransitiveDependents,
   getTreeProgress,
   hasPrerequisiteWarning,
@@ -13,15 +17,15 @@ const stamp = '2026-08-02T00:00:00.000Z';
 
 function baseState(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [
       { id: 'tree-a', name: '前端开发', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp },
       { id: 'tree-b', name: '摄影', description: '', role: 'side', status: 'active', focusedRank: null, createdAt: stamp, updatedAt: '2026-08-03T00:00:00.000Z' }
     ],
     phases: [
-      { id: 'phase-a1', skillTreeId: 'tree-a', name: '基础', description: '', order: 0 },
-      { id: 'phase-a2', skillTreeId: 'tree-a', name: '实践', description: '', order: 1 },
-      { id: 'phase-b1', skillTreeId: 'tree-b', name: '基础', description: '', order: 0 }
+      { id: 'phase-a1', skillTreeId: 'tree-a', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'phase-a2', skillTreeId: 'tree-a', name: '实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 1 },
+      { id: 'phase-b1', skillTreeId: 'tree-b', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }
     ],
     nodes: [
       node('root', 'tree-a', 'phase-a1', 'available'),
@@ -36,6 +40,8 @@ function baseState(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: null
   };
 }
@@ -48,6 +54,7 @@ function node(id: string, treeId: string, phaseId: string, progress: SkillNode['
     name: id,
     description: '',
     progress,
+    requiredForPhase: true,
     masteryNote: '',
     archivedAt: null,
     createdAt: stamp,
@@ -56,6 +63,103 @@ function node(id: string, treeId: string, phaseId: string, progress: SkillNode['
 }
 
 describe('ability graph', () => {
+  it('returns only unarchived, unmastered nodes with mastered primary prerequisites', () => {
+    const state = baseState();
+    state.nodes[0] = { ...state.nodes[0], progress: 'mastered' };
+    state.nodes.push(node('auxiliary-target', 'tree-a', 'phase-a1', 'available'));
+    state.nodes.push({ ...node('archived', 'tree-a', 'phase-a1', 'available'), archivedAt: stamp });
+    state.nodes.push(node('other-tree', 'tree-b', 'phase-b1', 'available'));
+    state.dependencies.push({
+      id: 'edge-auxiliary',
+      skillTreeId: 'tree-a',
+      prerequisiteNodeId: 'leaf',
+      dependentNodeId: 'auxiliary-target',
+      kind: 'auxiliary'
+    });
+
+    expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual([
+      'auxiliary-target',
+      'middle'
+    ]);
+  });
+
+  it('requires every unarchived parallel member to be mastered before recommending its continuation', () => {
+    const state = baseState();
+    state.nodes = [
+      node('parent', 'tree-a', 'phase-a1', 'mastered'),
+      node('parallel-a', 'tree-a', 'phase-a1', 'mastered'),
+      node('parallel-b', 'tree-a', 'phase-a1', 'available'),
+      { ...node('parallel-archived', 'tree-a', 'phase-a1', 'available'), archivedAt: stamp },
+      node('continuation', 'tree-a', 'phase-a1', 'available')
+    ];
+    state.dependencies = [
+      { id: 'parent-a', skillTreeId: 'tree-a', prerequisiteNodeId: 'parent', dependentNodeId: 'parallel-a', kind: 'primary' },
+      { id: 'parent-b', skillTreeId: 'tree-a', prerequisiteNodeId: 'parent', dependentNodeId: 'parallel-b', kind: 'primary' },
+      { id: 'parent-continuation', skillTreeId: 'tree-a', prerequisiteNodeId: 'parent', dependentNodeId: 'continuation', kind: 'primary' }
+    ];
+    state.parallelGroups = [{
+      id: 'parallel-group',
+      skillTreeId: 'tree-a',
+      phaseId: 'phase-a1',
+      name: '可并行',
+      nodeIds: ['parallel-a', 'parallel-b', 'parallel-archived'],
+      parentNodeId: 'parent',
+      continuationNodeId: 'continuation'
+    }];
+
+    expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual(['parallel-b']);
+
+    state.nodes[2] = { ...state.nodes[2], progress: 'mastered' };
+    expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual(['continuation']);
+  });
+
+  it('stably sorts parallel candidates by progress, phase, creation time, then id', () => {
+    const state = baseState();
+    state.dependencies = [];
+    state.nodes = [
+      { ...node('available-early-b', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-01T00:00:00.000Z' },
+      { ...node('available-newer', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-03T00:00:00.000Z' },
+      { ...node('in-progress-later-phase', 'tree-a', 'phase-a2', 'in_progress'), createdAt: '2026-08-04T00:00:00.000Z' },
+      { ...node('available-later-phase', 'tree-a', 'phase-a2', 'available'), createdAt: '2026-08-01T00:00:00.000Z' },
+      { ...node('available-early-a', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-01T00:00:00.000Z' },
+      { ...node('available-older', 'tree-a', 'phase-a1', 'available'), createdAt: '2026-08-02T00:00:00.000Z' }
+    ];
+
+    expect(getNextActionCandidates(state, 'tree-a').map((item) => item.id)).toEqual([
+      'in-progress-later-phase',
+      'available-early-a',
+      'available-early-b',
+      'available-older',
+      'available-newer',
+      'available-later-phase'
+    ]);
+  });
+
+  it('reports an empty tree when there are no unarchived nodes', () => {
+    const state = baseState();
+    state.nodes = state.nodes.map((item) => ({ ...item, archivedAt: stamp }));
+
+    expect(getNextActionEmptyReason(state, 'tree-a')).toBe('empty_tree');
+  });
+
+  it('reports all mastered when every unarchived node is mastered', () => {
+    const state = baseState();
+    state.nodes = state.nodes.map((item) => ({ ...item, progress: 'mastered' }));
+
+    expect(getNextActionEmptyReason(state, 'tree-a')).toBe('all_mastered');
+  });
+
+  it('reports prerequisite blocking only when unfinished nodes have no candidates', () => {
+    const state = baseState();
+    state.nodes[0] = { ...state.nodes[0], archivedAt: stamp };
+
+    expect(getNextActionCandidates(state, 'tree-a')).toEqual([]);
+    expect(getNextActionEmptyReason(state, 'tree-a')).toBe('prerequisites_blocked');
+
+    state.nodes[0] = { ...state.nodes[0], archivedAt: null };
+    expect(getNextActionEmptyReason(state, 'tree-a')).toBeNull();
+  });
+
   it('keeps every unstarted node available regardless of suggested predecessors', () => {
     const state = baseState();
     expect(getNodeDisplayState(state.nodes[0], state)).toBe('available');
@@ -111,6 +215,18 @@ describe('ability graph', () => {
     expect(() => validateAbilityState(archivedTarget)).not.toThrow();
   });
 
+  it('rejects resource links that reference missing resources', () => {
+    const state = baseState();
+    state.resourceLinks.push({
+      id: 'resource-link',
+      skillNodeId: 'root',
+      resourceId: 'missing-resource',
+      createdAt: stamp
+    });
+
+    expect(() => validateAbilityState(state)).toThrow('资源关联引用了不存在的学习资源');
+  });
+
   it('returns transitive descendants and tree progress', () => {
     const state = baseState();
     state.nodes[0] = { ...state.nodes[0], progress: 'mastered' };
@@ -118,6 +234,25 @@ describe('ability graph', () => {
 
     expect(getTransitiveDependents(state, 'root')).toEqual(['middle', 'leaf']);
     expect(getTreeProgress(state, 'tree-a')).toEqual({ total: 3, mastered: 1, inProgress: 1, percent: 33 });
+  });
+
+  it('uses only required nodes for phase completion and current phase selection', () => {
+    const state = baseState();
+    state.nodes[0] = { ...state.nodes[0], progress: 'mastered' };
+    state.nodes.push({ ...node('optional', 'tree-a', 'phase-a1', 'available'), requiredForPhase: false });
+
+    expect(getPhaseProgress(state, 'phase-a1')).toEqual({ mastered: 1, required: 1, complete: true });
+    expect(getCurrentPhase(state, 'tree-a')?.id).toBe('phase-a2');
+  });
+
+  it('returns explicit completed progress for empty and optional-only stages without blocking later work', () => {
+    const state = baseState();
+    state.nodes = state.nodes.filter((item) => item.phaseId !== 'phase-a1');
+    expect(getPhaseProgress(state, 'phase-a1')).toEqual({ mastered: 0, required: 0, complete: true });
+
+    state.nodes.push({ ...node('optional', 'tree-a', 'phase-a1', 'available'), requiredForPhase: false });
+    expect(getPhaseProgress(state, 'phase-a1')).toEqual({ mastered: 0, required: 0, complete: true });
+    expect(getCurrentPhase(state, 'tree-a')?.id).toBe('phase-a2');
   });
 
   it('selects last visited focused, ranked focused, then newest active tree', () => {

@@ -1,9 +1,9 @@
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import type { LearningPhase, SkillNode, SkillOutcome, SkillRole } from '../types';
 
-function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+export function DialogFrame({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   const dialogRef = useRef<HTMLElement>(null);
   const titleId = useId();
   const returnFocusRef = useRef<HTMLElement | null>(document.activeElement instanceof HTMLElement ? document.activeElement : null);
@@ -84,36 +84,48 @@ export function TreeFormDialog({ onClose, onSave, initial }: {
   </form></DialogFrame>;
 }
 
-export function PhaseFormDialog({ onClose, onSave }: {
+export function PhaseFormDialog({ onClose, onSave, onDelete, deleteDisabledReason, initial }: {
   onClose: () => void;
-  onSave: (value: { name: string; description: string }) => void;
-}) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  return <DialogFrame title="添加学习阶段" onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSave({ name: name.trim(), description: description.trim() }); }}>
-    <Field label="阶段名称"><input data-dialog-initial aria-label="阶段名称" value={name} onChange={(event) => setName(event.target.value)} /></Field>
-    <Field label="阶段目标"><textarea aria-label="阶段目标" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
-    <footer><button type="button" onClick={onClose}>取消</button><button className="ability-primary" type="submit" disabled={!name.trim()}>保存阶段</button></footer>
-  </form></DialogFrame>;
-}
-
-export function NodeFormDialog({ phases, nodes, onClose, onSave, initial }: {
-  phases: LearningPhase[];
-  nodes: SkillNode[];
-  onClose: () => void;
-  onSave: (value: { name: string; description: string; phaseId: string; prerequisiteNodeIds: string[] }) => void;
-  initial?: { nodeId: string; name: string; description: string; phaseId: string; prerequisiteNodeIds: string[] };
+  onSave: (value: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>) => void;
+  onDelete?: () => void;
+  deleteDisabledReason?: string;
+  initial?: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>;
 }) {
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
-  const [phaseId, setPhaseId] = useState(initial?.phaseId ?? phases[0]?.id ?? '');
+  const [estimatedDuration, setEstimatedDuration] = useState(initial?.estimatedDuration ?? '');
+  const [plannedStartOn, setPlannedStartOn] = useState(initial?.plannedStartOn ?? '');
+  const [plannedEndOn, setPlannedEndOn] = useState(initial?.plannedEndOn ?? '');
+  return <DialogFrame title={initial ? '编辑学习阶段' : '添加学习阶段'} onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (name.trim()) onSave({ name: name.trim(), description: description.trim(), estimatedDuration: estimatedDuration.trim(), plannedStartOn: plannedStartOn || undefined, plannedEndOn: plannedEndOn || undefined }); }}>
+    <Field label="阶段名称"><input data-dialog-initial aria-label="阶段名称" value={name} onChange={(event) => setName(event.target.value)} /></Field>
+    <Field label="阶段目标"><textarea aria-label="阶段目标" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
+    <Field label="预计时长"><input aria-label="阶段预计时长" value={estimatedDuration} onChange={(event) => setEstimatedDuration(event.target.value)} placeholder="例如：4 周" /></Field>
+    <div className="ability-field-row"><Field label="计划开始"><input aria-label="阶段计划开始" type="date" value={plannedStartOn} onChange={(event) => setPlannedStartOn(event.target.value)} /></Field><Field label="计划结束"><input aria-label="阶段计划结束" type="date" value={plannedEndOn} onChange={(event) => setPlannedEndOn(event.target.value)} /></Field></div>
+    {onDelete && deleteDisabledReason ? <p className="ability-form-hint">{deleteDisabledReason}</p> : null}
+    <footer>{onDelete ? <button className="ability-danger" type="button" disabled={Boolean(deleteDisabledReason)} onClick={() => { if (window.confirm('确定删除这个空阶段吗？')) onDelete(); }}>删除阶段</button> : null}<span className="ability-dialog-footer-spacer" /><button type="button" onClick={onClose}>取消</button><button className="ability-primary" type="submit" disabled={!name.trim()}>保存阶段</button></footer>
+  </form></DialogFrame>;
+}
+
+export function NodeFormDialog({ phases, nodes, onClose, onSave, initial, defaultPhaseId }: {
+  phases: LearningPhase[];
+  nodes: SkillNode[];
+  onClose: () => void;
+  onSave: (value: { name: string; description: string; phaseId: string; prerequisiteNodeIds: string[]; requiredForPhase: boolean }) => void;
+  initial?: { nodeId: string; name: string; description: string; phaseId: string; prerequisiteNodeIds: string[]; requiredForPhase: boolean };
+  defaultPhaseId?: string;
+}) {
+  const [name, setName] = useState(initial?.name ?? '');
+  const [description, setDescription] = useState(initial?.description ?? '');
+  const [phaseId, setPhaseId] = useState(initial?.phaseId ?? defaultPhaseId ?? phases[0]?.id ?? '');
+  const [requiredForPhase, setRequiredForPhase] = useState(initial?.requiredForPhase ?? true);
   const [prerequisites, setPrerequisites] = useState<string[]>(initial?.prerequisiteNodeIds ?? []);
   const candidates = nodes.filter((node) => !node.archivedAt && node.id !== initial?.nodeId);
   const toggle = (id: string) => setPrerequisites((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-  return <DialogFrame title={initial ? '编辑技能节点' : '添加技能节点'} onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (name.trim() && phaseId) onSave({ name: name.trim(), description: description.trim(), phaseId, prerequisiteNodeIds: prerequisites }); }}>
+  return <DialogFrame title={initial ? '编辑技能节点' : '添加技能节点'} onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (name.trim() && phaseId) onSave({ name: name.trim(), description: description.trim(), phaseId, prerequisiteNodeIds: prerequisites, requiredForPhase }); }}>
     <Field label="节点名称"><input data-dialog-initial aria-label="节点名称" value={name} onChange={(event) => setName(event.target.value)} /></Field>
     <Field label="节点说明"><textarea aria-label="节点说明" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
     <Field label="所属阶段"><select aria-label="所属阶段" value={phaseId} onChange={(event) => setPhaseId(event.target.value)}>{phases.map((phase) => <option value={phase.id} key={phase.id}>{phase.name}</option>)}</select></Field>
+    <label className="ability-check"><input type="checkbox" checked={requiredForPhase} onChange={(event) => setRequiredForPhase(event.target.checked)} />作为阶段必修节点</label>
     <fieldset><legend>前置技能（可多选）</legend>{candidates.length ? candidates.map((node) => <label className="ability-check" key={node.id}><input type="checkbox" checked={prerequisites.includes(node.id)} onChange={() => toggle(node.id)} />{node.name}</label>) : <p>这是第一个技能节点，无需选择前置技能。</p>}</fieldset>
     <footer><button type="button" onClick={onClose}>取消</button><button className="ability-primary" type="submit" disabled={!name.trim() || !phaseId}>保存节点</button></footer>
   </form></DialogFrame>;
@@ -138,22 +150,18 @@ export function ParallelGroupDialog({ phases, nodes, onClose, onSave }: {
   </form></DialogFrame>;
 }
 
-export function OutcomeFormDialog({ nodes, defaultNodeId, onClose, onSave }: {
-  nodes: SkillNode[];
-  defaultNodeId: string | null;
+export function OutcomeFormDialog({ nodeId, onClose, onSave }: {
+  nodeId: string;
   onClose: () => void;
   onSave: (value: Pick<SkillOutcome, 'skillNodeId' | 'title' | 'description' | 'occurredOn' | 'showOnTree'>) => void;
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [occurredOn, setOccurredOn] = useState(new Date().toISOString().slice(0, 10));
-  const [skillNodeId, setSkillNodeId] = useState(defaultNodeId ?? '');
   const [showOnTree, setShowOnTree] = useState(false);
-  const activeNodes = useMemo(() => nodes.filter((node) => !node.archivedAt), [nodes]);
-  return <DialogFrame title="记录技能成果" onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (title.trim() && occurredOn) onSave({ title: title.trim(), description: description.trim(), occurredOn, skillNodeId: skillNodeId || null, showOnTree }); }}>
+  return <DialogFrame title="记录技能成果" onClose={onClose}><form onSubmit={(event) => { event.preventDefault(); if (title.trim() && occurredOn) onSave({ title: title.trim(), description: description.trim(), occurredOn, skillNodeId: nodeId, showOnTree }); }}>
     <Field label="成果名称"><input data-dialog-initial aria-label="成果名称" value={title} onChange={(event) => setTitle(event.target.value)} /></Field>
     <Field label="完成日期"><input aria-label="完成日期" type="date" value={occurredOn} onChange={(event) => setOccurredOn(event.target.value)} /></Field>
-    <Field label="关联节点"><select aria-label="成果关联节点" value={skillNodeId} onChange={(event) => setSkillNodeId(event.target.value)}><option value="">只关联整棵技能树</option>{activeNodes.map((node) => <option value={node.id} key={node.id}>{node.name}</option>)}</select></Field>
     <Field label="简短说明"><textarea aria-label="成果说明" value={description} onChange={(event) => setDescription(event.target.value)} /></Field>
     <label className="ability-check"><input type="checkbox" checked={showOnTree} onChange={(event) => setShowOnTree(event.target.checked)} /> 作为重大成果展示在技能树上</label>
     <footer><button type="button" onClick={onClose}>取消</button><button className="ability-primary" type="submit" disabled={!title.trim() || !occurredOn}>保存成果</button></footer>

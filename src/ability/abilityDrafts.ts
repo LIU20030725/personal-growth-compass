@@ -104,6 +104,8 @@ export function applyDraft(
     skillTreeId: treeId,
     name: phase.name.trim(),
     description: phase.description.trim(),
+    estimatedDuration: '',
+    requiredNodePolicy: 'all_required' as const,
     order: phase.order
   }));
   const nodes = draft.nodes.map((node) => ({
@@ -113,6 +115,7 @@ export function applyDraft(
     name: node.name.trim(),
     description: node.description.trim(),
     progress: node.progress,
+    requiredForPhase: true,
     masteryNote: node.masteryNote.trim(),
     archivedAt: null,
     createdAt: now,

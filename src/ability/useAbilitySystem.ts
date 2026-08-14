@@ -34,6 +34,7 @@ export function useAbilitySystem(options: Options = {}) {
   const [state, setState] = useState(() => loadAbilityState(storageRef.current));
   const stateRef = useRef(state);
   const historyRef = useRef<Array<typeof state>>([]);
+  const redoRef = useRef<Array<typeof state>>([]);
   const [persistenceError, setPersistenceError] = useState('');
 
   const commit = useCallback((transform: (current: typeof state) => typeof state): void => {
@@ -41,6 +42,7 @@ export function useAbilitySystem(options: Options = {}) {
       const next = transform(stateRef.current);
       saveAbilityState(storageRef.current, next);
       historyRef.current = [...historyRef.current.slice(-49), stateRef.current];
+      redoRef.current = [];
       stateRef.current = next;
       setState(next);
       setPersistenceError('');
@@ -58,8 +60,24 @@ export function useAbilitySystem(options: Options = {}) {
     try {
       saveAbilityState(storageRef.current, previous);
       historyRef.current = historyRef.current.slice(0, -1);
+      redoRef.current = [...redoRef.current.slice(-49), stateRef.current];
       stateRef.current = previous;
       setState(previous);
+      setPersistenceError('');
+    } catch (error) {
+      setPersistenceError(error instanceof Error ? error.message : '能力数据保存失败');
+    }
+  }, []);
+
+  const redo = useCallback((): void => {
+    const next = redoRef.current[redoRef.current.length - 1];
+    if (!next) return;
+    try {
+      saveAbilityState(storageRef.current, next);
+      redoRef.current = redoRef.current.slice(0, -1);
+      historyRef.current = [...historyRef.current.slice(-49), stateRef.current];
+      stateRef.current = next;
+      setState(next);
       setPersistenceError('');
     } catch (error) {
       setPersistenceError(error instanceof Error ? error.message : '能力数据保存失败');
@@ -70,6 +88,8 @@ export function useAbilitySystem(options: Options = {}) {
     state,
     canUndo: historyRef.current.length > 0,
     undo,
+    canRedo: redoRef.current.length > 0,
+    redo,
     persistenceError,
     clearPersistenceError: () => setPersistenceError(''),
     applyTreeDraft: (draft: SkillTreeDraft) => commit((current) => applyDraft(current, draft, nextId, currentTime())),
@@ -78,17 +98,20 @@ export function useAbilitySystem(options: Options = {}) {
     archiveTree: (treeId: string) => commit((current) => engine.archiveTree(current, treeId, currentTime())),
     restoreTree: (treeId: string) => commit((current) => engine.restoreTree(current, treeId, currentTime())),
     reorderFocusedTrees: (treeIds: string[]) => commit((current) => engine.reorderFocusedTrees(current, treeIds, currentTime())),
-    addPhase: (input: Pick<LearningPhase, 'skillTreeId' | 'name' | 'description'>) => {
+    addPhase: (input: Pick<LearningPhase, 'skillTreeId' | 'name' | 'description'> & Partial<Pick<LearningPhase, 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>>) => {
       const id = nextId('phase');
       commit((current) => engine.addPhase(current, input, id, currentTime()));
       return id;
     },
-    updatePhase: (phaseId: string, patch: Pick<LearningPhase, 'name' | 'description'>) =>
+    updatePhase: (phaseId: string, patch: Pick<LearningPhase, 'name' | 'description' | 'estimatedDuration' | 'plannedStartOn' | 'plannedEndOn'>) =>
       commit((current) => engine.updatePhase(current, phaseId, patch, currentTime())),
+
+    removePhase: (phaseId: string) =>
+      commit((current) => engine.removePhase(current, phaseId, currentTime())),
     reorderPhases: (treeId: string, phaseIds: string[]) =>
       commit((current) => engine.reorderPhases(current, treeId, phaseIds, currentTime())),
     addNode: (
-      input: Omit<SkillNode, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt'>,
+      input: Omit<SkillNode, 'id' | 'createdAt' | 'updatedAt' | 'archivedAt' | 'requiredForPhase'> & Partial<Pick<SkillNode, 'requiredForPhase'>>,
       prerequisiteNodeIds: string[] = []
     ) => {
       const nodeId = nextId('node');
@@ -138,7 +161,7 @@ export function useAbilitySystem(options: Options = {}) {
       ));
       return nodeId;
     },
-    updateNode: (nodeId: string, patch: Pick<SkillNode, 'name' | 'description' | 'phaseId'>) =>
+    updateNode: (nodeId: string, patch: Pick<SkillNode, 'name' | 'description' | 'phaseId' | 'requiredForPhase'>) =>
       commit((current) => engine.updateNode(current, nodeId, patch, currentTime())),
     archiveNode: (nodeId: string) => commit((current) => engine.archiveNode(current, nodeId, currentTime())),
     restoreNode: (nodeId: string) => commit((current) => engine.restoreNode(current, nodeId, currentTime())),
@@ -161,6 +184,21 @@ export function useAbilitySystem(options: Options = {}) {
     linkTask: (nodeId: string, taskId: string) =>
       commit((current) => engine.linkTask(current, nodeId, taskId, nextId('task-link'))),
     unlinkTask: (linkId: string) => commit((current) => engine.unlinkTask(current, linkId)),
+    addOrLinkResource: (nodeId: string, input: engine.SkillResourceInput) =>
+      commit((current) => engine.addOrLinkResource(
+        current,
+        nodeId,
+        input,
+        nextId('resource'),
+        nextId('resource-link'),
+        currentTime()
+      )),
+    linkExistingResource: (nodeId: string, resourceId: string) =>
+      commit((current) => engine.linkExistingResource(current, nodeId, resourceId, nextId('resource-link'), currentTime())),
+    updateResource: (resourceId: string, patch: { title: string; note: string }) =>
+      commit((current) => engine.updateResource(current, resourceId, patch, currentTime())),
+    unlinkResource: (linkId: string) => commit((current) => engine.unlinkResource(current, linkId)),
+    deleteResource: (resourceId: string) => commit((current) => engine.deleteResource(current, resourceId)),
     addOutcome: (input: Omit<SkillOutcome, 'id' | 'createdAt' | 'updatedAt'>) =>
       commit((current) => engine.addOutcome(current, input, nextId('outcome'), currentTime())),
     updateOutcome: (outcomeId: string, patch: Pick<SkillOutcome, 'title' | 'description' | 'occurredOn' | 'skillNodeId'>) =>

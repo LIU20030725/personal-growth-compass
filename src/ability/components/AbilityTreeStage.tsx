@@ -24,21 +24,27 @@ import {
   ChevronRight,
   GitMerge,
   Info,
+  Keyboard,
   LocateFixed,
   Medal,
+  Pencil,
   Plus,
   RotateCcw,
+  Redo2,
   Sparkles,
   Trash2,
   Undo2
 } from 'lucide-react';
 import { NODE_STATE_LABELS } from '../abilityConfig';
-import { getNodeDisplayState, getPrimaryChildren } from '../abilityGraph';
-import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type CanvasPoint } from '../abilityCanvasLayout';
+import { getNodeDisplayState, getPhaseProgress, getPrimaryChildren } from '../abilityGraph';
+import { CANVAS_GRID, NODE_HEIGHT, NODE_WIDTH, layoutAbilityCanvas, snapCanvasPoint, type AbilityCanvasNode, type CanvasPoint } from '../abilityCanvasLayout';
 import { buildAlignedOrthogonalPath } from '../abilityCanvasGeometry';
-import { loadCanvasPreferences, saveCanvasPreferences, type CanvasPreferences } from '../abilityCanvasStorage';
-import type { StorageLike } from '../../lib/storage';
+import { buildAbilityVisibleGraph } from '../abilityView';
+import type { CanvasPreferences } from '../abilityCanvasStorage';
+import { runAbilityHistoryAction, type CanvasPreferenceHistory } from '../abilityCanvasHistory';
+import { getKeyboardNavigationTarget, resolveAbilityCanvasCommand, type AbilityCanvasCommand, type AbilityKeyboardTarget } from '../abilityKeyboard';
 import type { AbilityState, NodeProgress, SkillTree, TreeNodeFilter } from '../types';
+import { DialogFrame } from './AbilityForms';
 
 type SkillNodeData = Record<string, unknown> & {
   label: string;
@@ -52,11 +58,21 @@ type SkillNodeData = Record<string, unknown> & {
   onOpenDetails: () => void;
   onDelete: () => void;
   onRename: (name: string) => void;
+  renameRequest: number;
 };
 
 type OutcomeNodeData = Record<string, unknown> & { label: string; onOpen: () => void };
 type GroupNodeData = Record<string, unknown> & { label: string };
-type FlowNodeData = SkillNodeData | OutcomeNodeData | GroupNodeData;
+type PhaseNodeData = Record<string, unknown> & {
+  label: string;
+  description: string;
+  estimatedDuration: string;
+  progressLabel: string;
+  empty: boolean;
+  onAddFirstNode: () => void;
+  onEdit: () => void;
+};
+type FlowNodeData = SkillNodeData | OutcomeNodeData | GroupNodeData | PhaseNodeData;
 type FlowNode = Node<FlowNodeData>;
 type AlignedEdgeData = Record<string, unknown> & { branchX: number };
 type AlignedFlowEdge = Edge<AlignedEdgeData>;
@@ -65,11 +81,22 @@ type Props = {
   state: AbilityState;
   tree: SkillTree;
   selectedNodeId: string | null;
+  focusRequest?: AbilityFocusRequest | null;
+  fitLayoutRequest?: number;
   stateFilter: TreeNodeFilter;
-  storage?: StorageLike;
+  preferences: CanvasPreferences;
+  canvasHistory: CanvasPreferenceHistory;
+  onCommitPreferences: (preferences: CanvasPreferences) => boolean;
+  onUpdateViewport: (viewport: CanvasPreferences['viewport']) => void;
+  onUndoCanvas: () => boolean;
+  onRedoCanvas: () => boolean;
+  onResetLayout: () => boolean;
   onSelectNode: (nodeId: string | null) => void;
   onSelectOutcome: (outcomeId: string) => void;
-  onAddChild: (nodeId: string) => string;
+  onAddPhase: () => void;
+  onAddNode: (phaseId?: string) => void;
+  onEditPhase: (phaseId: string) => void;
+  onAddChild: (nodeId: string, name?: string) => string;
   onAddSibling: (nodeId: string) => string;
   onAddParent: (nodeId: string) => string;
   onRenameNode: (nodeId: string, name: string) => void;
@@ -80,12 +107,41 @@ type Props = {
   onOpenDetails: (nodeId: string) => void;
   onUndo: () => void;
   canUndo: boolean;
+  onRedo: () => void;
+  canRedo: boolean;
 };
+
+export type AbilityFocusRequest = { nodeId: string; sequence: number };
+
+export function getRenderedSkillNodeIds(nodes: readonly AbilityCanvasNode[]): ReadonlySet<string> {
+  return new Set(nodes.filter((node) => node.kind === 'skill').map((node) => node.id));
+}
+
+export function consumeFocusRequest(
+  consumedSequence: number,
+  request: AbilityFocusRequest | null | undefined
+): AbilityFocusRequest | null {
+  return request && request.sequence > consumedSequence ? request : null;
+}
+
+export function consumeAbilityFocusRequest(
+  consumedSequence: number,
+  request: AbilityFocusRequest | null | undefined,
+  focus: (nodeId: string) => void
+): number {
+  const freshRequest = consumeFocusRequest(consumedSequence, request);
+  if (!freshRequest) return consumedSequence;
+  focus(freshRequest.nodeId);
+  return freshRequest.sequence;
+}
 
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label);
   useEffect(() => setDraft(data.label), [data.label]);
+  useEffect(() => {
+    if (data.renameRequest > 0) setEditing(true);
+  }, [data.renameRequest]);
   const save = () => {
     const name = draft.trim();
     if (name && name !== data.label) data.onRename(name);
@@ -122,12 +178,12 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
       aria-label={`${data.hiddenChildCount ? '展开' : '折叠'} ${data.label} 分支`}
       onClick={(event) => { event.stopPropagation(); data.onToggleCollapse(); }}
     >{data.hiddenChildCount ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}{data.hiddenChildCount ? data.hiddenChildCount : ''}</button> : null}
-    {data.selected ? <button
+    <button
       className="nodrag ability-add-child"
       type="button"
       aria-label={`为 ${data.label} 添加子节点`}
       onClick={(event) => { event.stopPropagation(); data.onAddChild(); }}
-    ><Plus size={18} /></button> : null}
+    ><Plus size={18} /></button>
     <Handle className="ability-flow-handle" type="source" position={Position.Right} />
   </div>;
 }
@@ -140,7 +196,19 @@ function ParallelGroupNode({ data }: NodeProps<Node<GroupNodeData>>) {
   return <div className="ability-parallel-group"><span><GitMerge size={14} />{data.label}</span></div>;
 }
 
-const nodeTypes = { skill: SkillCanvasNode, outcome: OutcomeCanvasNode, parallelGroup: ParallelGroupNode };
+function PhaseCanvasNode({ data }: NodeProps<Node<PhaseNodeData>>) {
+  return <div className={`ability-canvas-phase ${data.empty ? 'is-empty' : ''}`} role="group" aria-label={`阶段 ${data.label}`}>
+    <Handle className="ability-phase-handle" type="target" position={Position.Left} />
+    <header>
+      <div><small>{data.progressLabel}{data.estimatedDuration ? ` · ${data.estimatedDuration}` : ''}</small><strong>{data.label}</strong>{data.description ? <p>{data.description}</p> : null}</div>
+      <button className="nodrag" type="button" aria-label={`编辑阶段 ${data.label}`} onClick={data.onEdit}><Pencil size={13} /></button>
+    </header>
+    {data.empty ? <div className="ability-canvas-phase-empty"><span>这个阶段还没有技能节点</span><button className="nodrag" type="button" aria-label={`在 ${data.label} 添加第一个节点`} onClick={data.onAddFirstNode}><Plus size={15} />添加第一个节点</button></div> : null}
+    <Handle className="ability-phase-handle" type="source" position={Position.Right} />
+  </div>;
+}
+
+const nodeTypes = { skill: SkillCanvasNode, outcome: OutcomeCanvasNode, parallelGroup: ParallelGroupNode, phase: PhaseCanvasNode };
 
 function AlignedOrthogonalEdge({ id, sourceX, sourceY, targetX, targetY, markerEnd, style, data }: EdgeProps<AlignedFlowEdge>) {
   const path = buildAlignedOrthogonalPath({
@@ -155,9 +223,72 @@ function AlignedOrthogonalEdge({ id, sourceX, sourceY, targetX, targetY, markerE
 
 const edgeTypes = { aligned: AlignedOrthogonalEdge };
 
-function isInteractiveTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  return Boolean(target.closest('input, textarea, select, button, a, [contenteditable="true"], [role="dialog"]'));
+export function applyCanvasDragPreference(
+  preferences: CanvasPreferences,
+  nodeId: string,
+  position: CanvasPoint
+): CanvasPreferences {
+  const snapped = snapCanvasPoint(position);
+  if (nodeId.startsWith('phase:')) {
+    return {
+      ...preferences,
+      phasePositions: { ...preferences.phasePositions, [nodeId.slice('phase:'.length)]: snapped }
+    };
+  }
+  return { ...preferences, positions: { ...preferences.positions, [nodeId]: snapped } };
+}
+
+export function commitCanvasDragPreference(
+  preferences: CanvasPreferences,
+  nodeId: string,
+  position: CanvasPoint,
+  commit: (preferences: CanvasPreferences) => boolean
+): boolean {
+  return commit(applyCanvasDragPreference(preferences, nodeId, position));
+}
+
+export function applyPhaseDragPreference(
+  preferences: CanvasPreferences,
+  phaseId: string,
+  from: CanvasPoint,
+  to: CanvasPoint,
+  memberNodeIds: string[]
+): CanvasPreferences {
+  const previous = snapCanvasPoint(from);
+  const next = snapCanvasPoint(to);
+  const delta = { x: next.x - previous.x, y: next.y - previous.y };
+  const memberIds = new Set(memberNodeIds);
+  return {
+    ...preferences,
+    phasePositions: { ...preferences.phasePositions, [phaseId]: next },
+    positions: Object.fromEntries(Object.entries(preferences.positions).map(([id, point]) => [
+      id,
+      memberIds.has(id) ? snapCanvasPoint({ x: point.x + delta.x, y: point.y + delta.y }) : point
+    ]))
+  };
+}
+
+export function resetCanvasLayoutPreferences(preferences: CanvasPreferences): CanvasPreferences {
+  return { ...preferences, positions: {}, phasePositions: {} };
+}
+
+export function removePhaseCanvasPreference(preferences: CanvasPreferences, phaseId: string): CanvasPreferences {
+  const { [phaseId]: _removed, ...phasePositions } = preferences.phasePositions;
+  return { ...preferences, phasePositions };
+}
+
+export function isCanvasPaneTarget(target: EventTarget | null): boolean {
+  return target instanceof Element && target.classList.contains('react-flow__pane');
+}
+
+function getKeyboardTarget(target: EventTarget | null): AbilityKeyboardTarget {
+  if (!(target instanceof HTMLElement)) return {};
+  return {
+    tagName: target.tagName,
+    contentEditable: target.isContentEditable || Boolean(target.closest('[contenteditable]:not([contenteditable="false"])')),
+    insideMenu: Boolean(target.closest('[role="menu"]')),
+    insideDialog: Boolean(target.closest('[role="dialog"]'))
+  };
 }
 
 function sameSelection(current: ReadonlySet<string>, ids: string[]): boolean {
@@ -165,20 +296,30 @@ function sameSelection(current: ReadonlySet<string>, ids: string[]): boolean {
 }
 
 export function AbilityTreeStage(props: Props) {
-  const browserStorage = props.storage ?? window.localStorage;
-  const [preferences, setPreferences] = useState<CanvasPreferences>(() => loadCanvasPreferences(browserStorage, props.tree.id));
+  const preferences = props.preferences;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(props.selectedNodeId ? [props.selectedNodeId] : []));
+  const selectedIdsRef = useRef(selectedIds);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [copiedName, setCopiedName] = useState('');
+  const copiedNameRef = useRef('');
+  const [renameRequest, setRenameRequest] = useState({ nodeId: '', sequence: 0 });
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const instanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const previousSkillCountRef = useRef(
     props.state.nodes.filter((node) => node.skillTreeId === props.tree.id && !node.archivedAt).length
   );
+  const previousFitRequestRef = useRef(props.fitLayoutRequest ?? 0);
+  const phaseDragStartPositionRef = useRef<CanvasPoint | null>(null);
+  const phaseDragPositionRef = useRef<CanvasPoint | null>(null);
+  const consumedFocusRequestRef = useRef({ treeId: props.tree.id, sequence: 0 });
 
   useEffect(() => {
-    const next = loadCanvasPreferences(browserStorage, props.tree.id);
-    setPreferences(next);
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
+  useEffect(() => {
     const requestedNode = props.selectedNodeId
       ? props.state.nodes.find((node) => node.id === props.selectedNodeId && node.skillTreeId === props.tree.id && !node.archivedAt)
       : null;
@@ -186,13 +327,25 @@ export function AbilityTreeStage(props: Props) {
     queueMicrotask(() => {
       const instance = instanceRef.current;
       if (!instance) return;
-      if (Object.keys(next.positions).length || next.viewport.zoom !== 1 || next.viewport.x || next.viewport.y) {
-        void instance.setViewport(next.viewport, { duration: 0 });
+      if (Object.keys(preferences.positions).length || preferences.viewport.zoom !== 1 || preferences.viewport.x || preferences.viewport.y) {
+        void instance.setViewport(preferences.viewport, { duration: 0 });
       } else {
         void instance.fitView({ padding: 0.2, maxZoom: 1.15, duration: 0 });
       }
     });
-  }, [browserStorage, props.tree.id]);
+  }, [props.tree.id]);
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const clearFromPane = (event: MouseEvent) => {
+      if (!isCanvasPaneTarget(event.target)) return;
+      setSelectedIds(new Set());
+      props.onSelectNode(null);
+    };
+    document.addEventListener('click', clearFromPane, true);
+    return () => document.removeEventListener('click', clearFromPane, true);
+  }, [props.onSelectNode]);
 
   useEffect(() => {
     const requestedNode = props.selectedNodeId
@@ -201,11 +354,42 @@ export function AbilityTreeStage(props: Props) {
     setSelectedIds(new Set(requestedNode ? [requestedNode.id] : []));
   }, [props.selectedNodeId, props.state.nodes, props.tree.id]);
 
+  useEffect(() => {
+    const consumedSequence = consumedFocusRequestRef.current.treeId === props.tree.id
+      ? consumedFocusRequestRef.current.sequence
+      : 0;
+    const sequence = consumeAbilityFocusRequest(consumedSequence, props.focusRequest, (nodeId) => {
+      setSelectedIds(new Set([nodeId]));
+      requestAnimationFrame(() => {
+        void instanceRef.current?.fitView({
+          nodes: [{ id: nodeId }],
+          padding: 1.6,
+          duration: 220,
+          maxZoom: 1.15
+        });
+      });
+    });
+    consumedFocusRequestRef.current = { treeId: props.tree.id, sequence };
+  }, [props.focusRequest, props.tree.id]);
+
+  const visibleGraph = useMemo(
+    () => buildAbilityVisibleGraph(props.state, props.tree.id, props.stateFilter, props.selectedNodeId),
+    [props.selectedNodeId, props.state, props.stateFilter, props.tree.id]
+  );
+  const layoutState = useMemo(() => ({
+    ...props.state,
+    nodes: visibleGraph.nodes,
+    dependencies: visibleGraph.dependencies,
+    parallelGroups: visibleGraph.parallelGroups,
+    outcomes: visibleGraph.outcomes
+  }), [props.state, visibleGraph]);
   const collapsedNodeIds = useMemo(() => new Set(preferences.collapsedNodeIds), [preferences.collapsedNodeIds]);
-  const layout = useMemo(() => layoutAbilityCanvas(props.state, props.tree.id, {
+  const layout = useMemo(() => layoutAbilityCanvas(layoutState, props.tree.id, {
     collapsedNodeIds,
-    manualPositions: preferences.positions
-  }), [props.state, props.tree.id, collapsedNodeIds, preferences.positions]);
+    manualPositions: preferences.positions,
+    phasePositions: preferences.phasePositions
+  }), [layoutState, props.tree.id, collapsedNodeIds, preferences.phasePositions, preferences.positions]);
+  const renderedSkillNodeIds = useMemo(() => getRenderedSkillNodeIds(layout.nodes), [layout.nodes]);
 
   useEffect(() => {
     const skillCount = layout.nodes.filter((node) => node.kind === 'skill').length;
@@ -217,26 +401,17 @@ export function AbilityTreeStage(props: Props) {
     });
   }, [layout.nodes]);
 
-  const filteredSkillIds = useMemo(() => {
-    const treeNodes = props.state.nodes.filter((node) => node.skillTreeId === props.tree.id && !node.archivedAt);
-    const phaseOrder = props.state.phases.filter((phase) => phase.skillTreeId === props.tree.id).sort((a, b) => a.order - b.order);
-    const currentPhaseId = phaseOrder.find((phase) => treeNodes.some((node) => node.phaseId === phase.id && node.progress !== 'mastered'))?.id ?? phaseOrder[phaseOrder.length - 1]?.id;
-    return new Set(treeNodes.filter((node) => {
-      if (props.stateFilter === 'all') return true;
-      if (props.stateFilter === 'current_phase') return node.phaseId === currentPhaseId;
-      return node.progress === props.stateFilter;
-    }).map((node) => node.id));
-  }, [props.state, props.tree.id, props.stateFilter]);
+  useEffect(() => {
+    if (!props.selectedNodeId || visibleGraph.selectedNodeId) return;
+    setSelectedIds(new Set());
+    props.onSelectNode(null);
+  }, [props.onSelectNode, props.selectedNodeId, visibleGraph.selectedNodeId]);
 
   const toggleCollapse = useCallback((nodeId: string) => {
-    setPreferences((current) => {
-      const ids = new Set(current.collapsedNodeIds);
-      ids.has(nodeId) ? ids.delete(nodeId) : ids.add(nodeId);
-      const next = { ...current, collapsedNodeIds: [...ids] };
-      saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return next;
-    });
-  }, [browserStorage, props.tree.id]);
+    const ids = new Set(preferences.collapsedNodeIds);
+    ids.has(nodeId) ? ids.delete(nodeId) : ids.add(nodeId);
+    props.onCommitPreferences({ ...preferences, collapsedNodeIds: [...ids] });
+  }, [preferences, props.onCommitPreferences]);
 
   const deleteBranch = useCallback((nodeId: string) => {
     props.onDeleteBranch(nodeId);
@@ -248,7 +423,7 @@ export function AbilityTreeStage(props: Props) {
   const computedNodes = useMemo<FlowNode[]>(() => {
     const skills = layout.nodes.flatMap((item): FlowNode[] => {
       if (item.kind === 'outcome') {
-        const outcome = props.state.outcomes.find((candidate) => candidate.id === item.id);
+        const outcome = visibleGraph.outcomes.find((candidate) => candidate.id === item.id);
         return outcome ? [{
           id: item.id,
           type: 'outcome',
@@ -261,10 +436,9 @@ export function AbilityTreeStage(props: Props) {
           zIndex: 4
         }] : [];
       }
-      if (!filteredSkillIds.has(item.id)) return [];
-      const node = props.state.nodes.find((candidate) => candidate.id === item.id);
+      const node = visibleGraph.nodes.find((candidate) => candidate.id === item.id);
       if (!node) return [];
-      const children = getPrimaryChildren(props.state, node.id).filter((child) => !child.archivedAt);
+      const children = getPrimaryChildren(layoutState, node.id).filter((child) => !child.archivedAt);
       return [{
         id: item.id,
         type: 'skill',
@@ -272,6 +446,7 @@ export function AbilityTreeStage(props: Props) {
         position: { x: item.x, y: item.y },
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
+        draggable: true,
         selected: selectedIds.has(item.id),
         data: {
           label: node.name,
@@ -294,7 +469,8 @@ export function AbilityTreeStage(props: Props) {
           onToggleCollapse: () => toggleCollapse(node.id),
           onOpenDetails: () => props.onOpenDetails(node.id),
           onDelete: () => deleteBranch(node.id),
-          onRename: (name) => props.onRenameNode(node.id, name)
+          onRename: (name) => props.onRenameNode(node.id, name),
+          renameRequest: renameRequest.nodeId === node.id ? renameRequest.sequence : 0
         },
         zIndex: 5
       }];
@@ -313,24 +489,56 @@ export function AbilityTreeStage(props: Props) {
       focusable: false,
       zIndex: 0
     }));
-    return [...groups, ...skills];
+    const phaseNodes: FlowNode[] = layout.phases.map((phase) => {
+      const progress = getPhaseProgress(props.state, phase.id);
+      const actualNodeCount = props.state.nodes.filter((node) => node.phaseId === phase.id && !node.archivedAt).length;
+      return {
+        id: `phase:${phase.id}`,
+        type: 'phase',
+        ariaLabel: `阶段 ${phase.name}`,
+        position: { x: phase.x, y: phase.y },
+        width: phase.width,
+        height: phase.height,
+        style: { width: phase.width, height: phase.height },
+        data: {
+          label: phase.name,
+          description: phase.description,
+          estimatedDuration: phase.estimatedDuration,
+          progressLabel: `${progress.mastered}/${progress.required} 个必修节点`,
+          empty: actualNodeCount === 0,
+          onAddFirstNode: () => props.onAddNode(phase.id),
+          onEdit: () => props.onEditPhase(phase.id)
+        },
+        draggable: true,
+        selectable: false,
+        connectable: false,
+        focusable: false,
+        zIndex: -5
+      };
+    });
+    return [...phaseNodes, ...groups, ...skills];
   }, [
     deleteBranch,
     dropTargetId,
-    filteredSkillIds,
     layout,
+    layoutState,
     props.onAddChild,
+    props.onAddNode,
+    props.onEditPhase,
     props.onOpenDetails,
     props.onRenameNode,
     props.onSelectNode,
     props.onSelectOutcome,
     props.state,
+    renameRequest,
     selectedIds,
-    toggleCollapse
+    toggleCollapse,
+    visibleGraph.nodes,
+    visibleGraph.outcomes
   ]);
 
-  const computedEdges = useMemo<Edge[]>(() => layout.edges.flatMap((item) => {
-    if (!filteredSkillIds.has(item.fromId) || !filteredSkillIds.has(item.toId)) return [];
+  const computedEdges = useMemo<Edge[]>(() => {
+    const nodeEdges = layout.edges.flatMap((item) => {
     const related = selectedIds.has(item.fromId) || selectedIds.has(item.toId);
     const auxiliary = item.kind === 'auxiliary';
     const stroke = auxiliary
@@ -349,7 +557,19 @@ export function AbilityTreeStage(props: Props) {
         : { stroke, strokeWidth: related ? 2.6 : 2, opacity: selectedIds.size && !related ? 0.58 : 1 },
       zIndex: auxiliary ? 1 : 2
     }];
-  }), [filteredSkillIds, layout.edges, selectedIds]);
+    });
+    const phaseEdges: Edge[] = layout.phaseEdges.map((item) => ({
+      id: item.id,
+      source: `phase:${item.fromPhaseId}`,
+      target: `phase:${item.toPhaseId}`,
+      type: 'default',
+      className: 'ability-edge-phase-order',
+      markerEnd: { type: MarkerType.ArrowClosed, width: 13, height: 13, color: '#858b91' },
+      style: { stroke: '#858b91', strokeWidth: 1.6 },
+      zIndex: -3
+    }));
+    return [...phaseEdges, ...nodeEdges];
+  }, [layout.edges, layout.phaseEdges, selectedIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<FlowNode>(computedNodes);
   const edges = computedEdges;
@@ -389,59 +609,81 @@ export function AbilityTreeStage(props: Props) {
     props.onSelectNode(created);
   }, [props.onAddChild, props.onAddParent, props.onAddSibling, props.onSelectNode, selectedIds]);
 
+  const undoAction = useCallback(() => {
+    const source = runAbilityHistoryAction('undo', props.canvasHistory, props.canUndo, props.onUndoCanvas, props.onUndo);
+    if (source) setNotice(source === 'canvas' ? '已撤销画布调整' : '已撤销上一步操作');
+  }, [props.canvasHistory, props.canUndo, props.onUndo, props.onUndoCanvas]);
+
+  const redoAction = useCallback(() => {
+    const source = runAbilityHistoryAction('redo', props.canvasHistory, props.canRedo, props.onRedoCanvas, props.onRedo);
+    if (source) setNotice(source === 'canvas' ? '已重做画布调整' : '已重做上一步操作');
+  }, [props.canvasHistory, props.canRedo, props.onRedo, props.onRedoCanvas]);
+
   const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (isInteractiveTarget(event.target)) return;
-    const command = event.ctrlKey || event.metaKey;
-    const key = event.key.toLowerCase();
-    if (command && key === 'z') {
-      if (!props.canUndo) return;
-      event.preventDefault();
-      props.onUndo();
-      setNotice('已撤销上一步操作');
+    if (document.activeElement !== shellRef.current) return;
+    const command = resolveAbilityCanvasCommand(event, getKeyboardTarget(event.target), { selectedNodeIds: [...selectedIds] });
+    if (!command || (command === 'paste-child' && !copiedNameRef.current && !copiedName)) return;
+    const selectedId = selectedIds.size === 1 ? [...selectedIds][0] : null;
+    event.preventDefault();
+    if (command === 'undo') return undoAction();
+    if (command === 'redo') return redoAction();
+    if (command === 'add-child' || command === 'add-sibling') return addFromKeyboard(command === 'add-child' ? 'child' : 'sibling');
+    if (command === 'rename' && selectedId) {
+      setRenameRequest((request) => ({ nodeId: selectedId, sequence: request.sequence + 1 }));
       return;
     }
-    if (command && key === 'c') {
-      const id = [...selectedIds][0];
-      const node = props.state.nodes.find((item) => item.id === id);
+    if (command === 'copy' && selectedId) {
+      const node = props.state.nodes.find((item) => item.id === selectedId);
       if (node) {
-        event.preventDefault();
+        copiedNameRef.current = node.name;
         setCopiedName(node.name);
       }
       return;
     }
-    if (command && key === 'v' && copiedName) {
-      const parentId = [...selectedIds][0];
-      if (parentId) {
-        event.preventDefault();
-        const id = props.onAddChild(parentId);
-        props.onRenameNode(id, `${copiedName} 副本`);
-      }
+    if (command === 'paste-child' && selectedId) {
+      const id = props.onAddChild(selectedId, `${copiedNameRef.current || copiedName} 副本`);
+      setSelectedIds(new Set([id]));
+      props.onSelectNode(id);
       return;
     }
-    if (event.key === 'Delete' || event.key === 'Backspace') {
-      if (!selectedIds.size) return;
-      event.preventDefault();
-      [...selectedIds].forEach(deleteBranch);
+    if (command === 'delete-branch' && selectedId) return deleteBranch(selectedId);
+    if (command === 'clear-selection') {
+      setSelectedIds(new Set());
+      props.onSelectNode(null);
       return;
     }
-    if (command && event.key === 'Enter') {
-      event.preventDefault();
-      addFromKeyboard(event.shiftKey ? 'sibling' : 'child');
+    if (command === 'show-shortcuts') {
+      setShortcutsOpen(true);
+      return;
     }
-  }, [addFromKeyboard, copiedName, deleteBranch, props.canUndo, props.onAddChild, props.onRenameNode, props.onUndo, props.state.nodes, selectedIds]);
+    if (selectedId && command.startsWith('select-')) {
+      const nextId = getKeyboardNavigationTarget(
+        props.state,
+        selectedId,
+        command as Extract<AbilityCanvasCommand, `select-${string}`>,
+        renderedSkillNodeIds
+      );
+      if (!nextId) return;
+      setSelectedIds(new Set([nextId]));
+      props.onSelectNode(nextId);
+      void instanceRef.current?.fitView({ nodes: [{ id: nextId }], padding: 1.6, duration: 180, maxZoom: 1.15 });
+    }
+  }, [addFromKeyboard, copiedName, deleteBranch, props, redoAction, renderedSkillNodeIds, selectedIds, undoAction]);
 
-  const persistPreferences = useCallback((patch: Partial<CanvasPreferences>) => {
-    setPreferences((current) => {
-      const next = { ...current, ...patch };
-      saveCanvasPreferences(browserStorage, props.tree.id, next);
-      return next;
-    });
-  }, [browserStorage, props.tree.id]);
+  const persistPreferences = useCallback((next: CanvasPreferences): boolean => {
+    return props.onCommitPreferences(next);
+  }, [props.onCommitPreferences]);
 
-  const resetLayout = () => {
-    persistPreferences({ positions: {} });
+  const persistViewport = useCallback((viewport: CanvasPreferences['viewport']) => {
+    props.onUpdateViewport(viewport);
+  }, [props.onUpdateViewport]);
+
+  useEffect(() => {
+    const request = props.fitLayoutRequest ?? 0;
+    if (request === previousFitRequestRef.current) return;
+    previousFitRequestRef.current = request;
     queueMicrotask(() => void instanceRef.current?.fitView({ padding: 0.2, maxZoom: 1.15, duration: 220 }));
-  };
+  }, [props.fitLayoutRequest]);
 
   const locateSelected = () => {
     const id = [...selectedIds][0];
@@ -450,8 +692,9 @@ export function AbilityTreeStage(props: Props) {
   };
 
   return <section className="ability-tree-stage" aria-label={`${props.tree.name}技能树舞台`}>
-    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>聚焦画布后：Ctrl + Enter 新建子技能 · Ctrl + Shift + Enter 新建同级</span></div>
+    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>单击查看详情 · 双击改名 · Ctrl + Enter 新建子技能</span></div>
     <div
+      ref={shellRef}
       className="ability-flow-shell"
       role="group"
       aria-label={`${props.tree.name}交互画布`}
@@ -485,15 +728,45 @@ export function AbilityTreeStage(props: Props) {
         onSelectionChange={({ nodes: selected }) => {
           const ids = selected.filter((node) => node.type === 'skill').map((node) => node.id);
           if (ids.length === 0) return;
-          setSelectedIds((current) => sameSelection(current, ids) ? current : new Set(ids));
+          if (sameSelection(selectedIdsRef.current, ids)) return;
+          setSelectedIds(new Set(ids));
           props.onSelectNode(ids.length === 1 ? ids[0] : null);
         }}
+        onNodeDragStart={(_, node) => {
+          if (node.type === 'phase') {
+            phaseDragStartPositionRef.current = node.position;
+            phaseDragPositionRef.current = node.position;
+          }
+        }}
         onNodeDrag={(_, node) => {
-          if (node.type !== 'skill') return;
-          const target = instanceRef.current?.getIntersectingNodes(node).find((item) => item.type === 'skill' && item.id !== node.id);
-          setDropTargetId(target?.id ?? null);
+          if (node.type === 'phase') {
+            const previous = phaseDragPositionRef.current ?? node.position;
+            const delta = { x: node.position.x - previous.x, y: node.position.y - previous.y };
+            phaseDragPositionRef.current = node.position;
+            const phaseId = node.id.slice('phase:'.length);
+            const memberIds = new Set(props.state.nodes.filter((item) => item.phaseId === phaseId && !item.archivedAt).map((item) => item.id));
+            setNodes((current) => current.map((item) => item.id !== node.id && memberIds.has(item.id)
+              ? { ...item, position: { x: item.position.x + delta.x, y: item.position.y + delta.y } }
+              : item));
+            return;
+          }
+          if (node.type === 'skill') {
+            const target = instanceRef.current?.getIntersectingNodes(node).find((item) => item.type === 'skill' && item.id !== node.id);
+            setDropTargetId(target?.id ?? null);
+          }
         }}
         onNodeDragStop={(_, node) => {
+          if (node.type === 'phase') {
+            const phaseId = node.id.slice('phase:'.length);
+            const from = phaseDragStartPositionRef.current ?? node.position;
+            phaseDragStartPositionRef.current = null;
+            phaseDragPositionRef.current = null;
+            const memberIds = props.state.nodes.filter((item) => item.phaseId === phaseId && !item.archivedAt).map((item) => item.id);
+            if (!persistPreferences(applyPhaseDragPreference(preferences, phaseId, from, node.position, memberIds))) {
+              setNodes(computedNodes);
+            }
+            return;
+          }
           if (node.type !== 'skill') return;
           const targetId = dropTargetId;
           setDropTargetId(null);
@@ -501,15 +774,17 @@ export function AbilityTreeStage(props: Props) {
             try { props.onReparent(node.id, targetId); } catch { /* invalid cycle keeps the original parent */ }
             return;
           }
-          persistPreferences({ positions: { ...preferences.positions, [node.id]: snapCanvasPoint(node.position) } });
+          if (!commitCanvasDragPreference(preferences, node.id, node.position, persistPreferences)) {
+            setNodes(computedNodes);
+          }
         }}
         onConnect={(connection: Connection) => {
-          if (connection.source && connection.target && connection.source !== connection.target) {
+          if (connection.source && connection.target && connection.source !== connection.target && !connection.source.startsWith('phase:') && !connection.target.startsWith('phase:')) {
             props.onConnectAuxiliary(connection.source, connection.target);
           }
         }}
         onMoveEnd={(_, viewport) => {
-          if (layout.nodes.length > 0) persistPreferences({ viewport });
+          if (layout.nodes.length > 0) persistViewport(viewport);
         }}
         defaultViewport={preferences.viewport}
         minZoom={0.2}
@@ -537,13 +812,17 @@ export function AbilityTreeStage(props: Props) {
           pannable
           zoomable
           nodeStrokeWidth={2}
-          nodeColor={(node) => node.type === 'parallelGroup' ? '#f4ead1' : node.selected ? '#f4b400' : '#d9dde0'}
+          nodeColor={(node) => node.type === 'phase' ? '#f5f3ec' : node.type === 'parallelGroup' ? '#f4ead1' : node.selected ? '#f4b400' : '#d9dde0'}
           maskColor="rgba(249, 248, 244, .76)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
-          <button type="button" onClick={resetLayout}><RotateCcw size={15} />重新自动布局</button>
+          <button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
+          <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
+          <button type="button" onClick={props.onResetLayout}><RotateCcw size={15} />重新自动布局</button>
           <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
-          <button type="button" disabled={!props.canUndo} onClick={() => { props.onUndo(); setNotice('已撤销上一步操作'); }}><Undo2 size={15} />撤销</button>
+          <button type="button" disabled={!props.canvasHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
+          <button type="button" disabled={!props.canvasHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
+          <button type="button" aria-label="键盘快捷键" onClick={() => setShortcutsOpen(true)}><Keyboard size={15} />快捷键</button>
         </Panel>
         {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>
@@ -554,6 +833,22 @@ export function AbilityTreeStage(props: Props) {
         </Panel> : null}
       </ReactFlow>
     </div>
+    {shortcutsOpen ? <DialogFrame title="画布快捷键" onClose={() => setShortcutsOpen(false)}>
+      <div className="ability-shortcuts-dialog">
+        <dl>
+          <div><dt>Enter / F2</dt><dd>编辑名称</dd></div>
+          <div><dt>Ctrl / ⌘ + Enter</dt><dd>添加子节点</dd></div>
+          <div><dt>Ctrl / ⌘ + Shift + Enter</dt><dd>添加同级节点</dd></div>
+          <div><dt>Delete / Backspace</dt><dd>删除分支</dd></div>
+          <div><dt>Ctrl / ⌘ + Z / Y</dt><dd>撤销 / 重做</dd></div>
+          <div><dt>Ctrl / ⌘ + C / V</dt><dd>复制 / 粘贴为子节点</dd></div>
+          <div><dt>方向键 / Home / End</dt><dd>在父子和同级节点间导航</dd></div>
+          <div><dt>Esc</dt><dd>清除选择并关闭详情</dd></div>
+          <div><dt>?</dt><dd>打开本说明</dd></div>
+        </dl>
+        <button type="button" data-dialog-initial onClick={() => setShortcutsOpen(false)}>知道了</button>
+      </div>
+    </DialogFrame> : null}
     {notice ? <div className="ability-undo-toast" role="status"><span>{notice}</span>{props.canUndo ? <button type="button" onClick={() => { props.onUndo(); setNotice(''); }}>撤销</button> : null}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}>×</button></div> : null}
   </section>;
 }

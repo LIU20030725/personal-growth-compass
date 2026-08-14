@@ -15,8 +15,8 @@ function populatedState(): AbilityState {
   return {
     ...createInitialAbilityState(),
     trees: [{ id: 'tree', name: '写作', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp }],
-    phases: [{ id: 'phase', skillTreeId: 'tree', name: '基础', description: '', order: 0 }],
-    nodes: [{ id: 'node', skillTreeId: 'tree', phaseId: 'phase', name: '每日写作', description: '', progress: 'in_progress', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }],
+    phases: [{ id: 'phase', skillTreeId: 'tree', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }],
+    nodes: [{ id: 'node', skillTreeId: 'tree', phaseId: 'phase', name: '每日写作', description: '', progress: 'in_progress', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }],
     lastVisitedTreeId: 'tree'
   };
 }
@@ -29,6 +29,83 @@ describe('ability storage', () => {
     const state = populatedState();
     saveAbilityState(localStorage, state);
     expect(loadAbilityState(localStorage)).toEqual(state);
+  });
+
+  it('migrates a schema v1 snapshot without dropping legacy evidence or task links', () => {
+    const v1Snapshot = {
+      schemaVersion: 1,
+      trees: [{ id: 'tree', name: '写作', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp }],
+      phases: [{ id: 'phase', skillTreeId: 'tree', name: '基础', description: '建立写作习惯', order: 0 }],
+      nodes: [{ id: 'node', skillTreeId: 'tree', phaseId: 'phase', name: '每日写作', description: '', progress: 'in_progress', masteryNote: '已连续写作 30 天', archivedAt: null, createdAt: stamp, updatedAt: stamp }],
+      dependencies: [],
+      parallelGroups: [],
+      masteryCriteria: [],
+      taskLinks: [{ id: 'task-link', skillNodeId: 'node', taskId: 'legacy-task' }],
+      outcomes: [],
+      lastVisitedTreeId: 'tree'
+    };
+    localStorage.setItem(ABILITY_STORAGE_KEY, JSON.stringify(v1Snapshot));
+
+    const migrated = loadAbilityState(localStorage);
+
+    expect(migrated.schemaVersion).toBe(2);
+    expect(migrated.phases[0]).toMatchObject({
+      description: '建立写作习惯',
+      estimatedDuration: '',
+      requiredNodePolicy: 'all_required'
+    });
+    expect(migrated.nodes[0]).toMatchObject({
+      requiredForPhase: true,
+      masteryNote: '已连续写作 30 天'
+    });
+    expect(migrated.taskLinks).toEqual(v1Snapshot.taskLinks);
+    expect(migrated.resources).toEqual([]);
+    expect(migrated.resourceLinks).toEqual([]);
+  });
+
+  it('keeps schema migration idempotent after the migrated snapshot is saved and reloaded', () => {
+    const v1Snapshot = {
+      schemaVersion: 1,
+      trees: [{ id: 'tree', name: '写作', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp }],
+      phases: [{ id: 'phase', skillTreeId: 'tree', name: '基础', description: '', order: 0 }],
+      nodes: [{ id: 'node', skillTreeId: 'tree', phaseId: 'phase', name: '每日写作', description: '', progress: 'in_progress', masteryNote: '旧掌握说明', archivedAt: null, createdAt: stamp, updatedAt: stamp }],
+      dependencies: [], parallelGroups: [], masteryCriteria: [],
+      taskLinks: [{ id: 'task-link', skillNodeId: 'node', taskId: 'legacy-task' }],
+      outcomes: [], lastVisitedTreeId: 'tree'
+    };
+    localStorage.setItem(ABILITY_STORAGE_KEY, JSON.stringify(v1Snapshot));
+
+    const first = loadAbilityState(localStorage);
+    saveAbilityState(localStorage, first);
+    const second = loadAbilityState(localStorage);
+
+    expect(second).toEqual(first);
+    expect(second.nodes).toHaveLength(1);
+    expect(second.taskLinks).toEqual(v1Snapshot.taskLinks);
+    expect(second.nodes[0].masteryNote).toBe('旧掌握说明');
+  });
+
+  it('repairs a partially damaged v2 snapshot without discarding valid trees, phases, or nodes', () => {
+    const partial: Partial<AbilityState> & Record<string, unknown> = populatedState();
+    delete partial.resources;
+    delete partial.resourceLinks;
+    partial.dependencies = [{ id: 'orphan-edge', skillTreeId: 'tree', prerequisiteNodeId: 'node', dependentNodeId: 'missing' }];
+    partial.masteryCriteria = [
+      { id: 'valid-criterion', skillNodeId: 'node', description: '完成练习', satisfied: false, source: 'manual' },
+      { id: 'orphan-criterion', skillNodeId: 'missing', description: '无效', satisfied: false, source: 'manual' }
+    ];
+    localStorage.setItem(ABILITY_STORAGE_KEY, JSON.stringify(partial));
+
+    const repaired = loadAbilityState(localStorage);
+
+    expect(repaired.trees.map((tree) => tree.id)).toEqual(['tree']);
+    expect(repaired.phases.map((phase) => phase.id)).toEqual(['phase']);
+    expect(repaired.nodes.map((node) => node.id)).toEqual(['node']);
+    expect(repaired.dependencies).toEqual([]);
+    expect(repaired.masteryCriteria.map((criterion) => criterion.id)).toEqual(['valid-criterion']);
+    expect(repaired.resources).toEqual([]);
+    expect(repaired.resourceLinks).toEqual([]);
+    expect(localStorage.getItem(ABILITY_STORAGE_KEY)).not.toBeNull();
   });
 
   it('backs up a corrupt snapshot before returning an empty state', () => {

@@ -2,17 +2,23 @@ import { describe, expect, it } from 'vitest';
 import {
   addCriterion,
   addChildNode,
+  addPhase,
   addAuxiliaryDependency,
   addOutcome,
+  addOrLinkResource,
   archiveNodeBranch,
   archiveNode,
   archiveTree,
   demoteNode,
+  deleteResource,
   getNodeRemovalMode,
   linkTask,
+  linkExistingResource,
   masterNode,
   removeEmptyNode,
+  removePhase,
   removeOutcome,
+  unlinkResource,
   reorderFocusedTrees,
   replaceNodeDependencies,
   reparentNode,
@@ -24,6 +30,9 @@ import {
   toggleCriterion,
   unlinkTask,
   updateTree,
+  updateNode,
+  updatePhase,
+  updateResource,
   upsertParallelGroup
 } from './abilityEngine';
 import { getDependencyKind, getPrimaryChildren, getPrimaryParent } from './abilityGraph';
@@ -33,19 +42,19 @@ const before = '2026-08-01T00:00:00.000Z';
 const now = '2026-08-02T00:00:00.000Z';
 
 function node(id: string, phaseId: string, progress: SkillNode['progress'] = 'available'): SkillNode {
-  return { id, skillTreeId: 'tree', phaseId, name: id, description: '', progress, masteryNote: '', archivedAt: null, createdAt: before, updatedAt: before };
+  return { id, skillTreeId: 'tree', phaseId, name: id, description: '', progress, requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: before, updatedAt: before };
 }
 
 function state(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [
       { id: 'tree', name: '前端', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: before, updatedAt: before },
       { id: 'tree-2', name: '写作', description: '', role: 'side', status: 'active', focusedRank: null, createdAt: before, updatedAt: before }
     ],
     phases: [
-      { id: 'phase-1', skillTreeId: 'tree', name: '基础', description: '', order: 0 },
-      { id: 'phase-2', skillTreeId: 'tree', name: '实践', description: '', order: 1 }
+      { id: 'phase-1', skillTreeId: 'tree', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'phase-2', skillTreeId: 'tree', name: '实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 1 }
     ],
     nodes: [node('root', 'phase-1'), node('child', 'phase-2')],
     dependencies: [{ id: 'edge', skillTreeId: 'tree', prerequisiteNodeId: 'root', dependentNodeId: 'child' }],
@@ -53,6 +62,8 @@ function state(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: 'tree'
   };
 }
@@ -69,14 +80,36 @@ describe('ability engine', () => {
     expect(next.trees[1].status).toBe('active');
   });
 
+  it('creates and edits stage metadata, updates required status, and only removes empty stages', () => {
+    let next = addPhase(state(), {
+      skillTreeId: 'tree', name: '进阶', description: '独立项目', estimatedDuration: '6 周', plannedStartOn: '2026-09-01'
+    }, 'phase-3', now);
+    next = updatePhase(next, 'phase-3', {
+      name: '高级实践', description: '上线作品', estimatedDuration: '8 周', plannedStartOn: '2026-09-02', plannedEndOn: '2026-10-28'
+    }, now);
+    expect(next.phases.find((phase) => phase.id === 'phase-3')).toMatchObject({
+      name: '高级实践', estimatedDuration: '8 周', plannedStartOn: '2026-09-02', plannedEndOn: '2026-10-28'
+    });
+
+    next = updateNode(next, 'root', {
+      name: 'root', description: '', phaseId: 'phase-1', requiredForPhase: false
+    }, now);
+    expect(next.nodes.find((item) => item.id === 'root')?.requiredForPhase).toBe(false);
+    expect(() => removePhase(next, 'phase-1', now)).toThrow('请先移动或归档阶段内的技能节点');
+
+    next = removePhase(next, 'phase-3', now);
+    expect(next.phases.some((phase) => phase.id === 'phase-3')).toBe(false);
+  });
+
   it('starts any node while keeping mastery confirmation manual', () => {
     expect(startNode(state(), 'child', now).nodes[1].progress).toBe('in_progress');
     let next = startNode(state(), 'root', now);
     expect(next.nodes[0].progress).toBe('in_progress');
     next = addCriterion(next, 'root', '完成语义化页面', 'criterion');
-    expect(() => masterNode(next, 'root', '', now)).toThrow('请填写提前掌握说明');
-    next = masterNode(next, 'root', '已有项目证明', now);
-    expect(next.nodes[0]).toMatchObject({ progress: 'mastered', masteryNote: '已有项目证明' });
+    expect(() => masterNode(next, 'root', '', now)).toThrow('请先完成全部掌握标准，或记录一项真实成果');
+    next = toggleCriterion(next, 'criterion');
+    next = masterNode(next, 'root', '', now);
+    expect(next.nodes[0]).toMatchObject({ progress: 'mastered', masteryNote: '' });
     expect(startNode(next, 'child', now).nodes[1].progress).toBe('in_progress');
   });
 
@@ -90,8 +123,8 @@ describe('ability engine', () => {
     expect(next.nodes.find((item) => item.id === 'child')?.progress).toBe('in_progress');
   });
 
-  it('rejects mastery without satisfied criteria, an outcome, or a written rationale', () => {
-    expect(() => masterNode(state(), 'root', '', now)).toThrow('请先完成掌握标准、记录成果，或填写判断依据');
+  it('rejects mastery without satisfied criteria or an outcome, even with a legacy rationale', () => {
+    expect(() => masterNode(state(), 'root', '', now)).toThrow('请先添加掌握标准或记录一项成果');
 
     const withOutcome = addOutcome(state(), {
       skillTreeId: 'tree',
@@ -102,7 +135,7 @@ describe('ability engine', () => {
       showOnTree: false
     }, 'proof', now);
     expect(masterNode(withOutcome, 'root', '', now).nodes[0].progress).toBe('mastered');
-    expect(masterNode(state(), 'root', '已能独立完成真实项目', now).nodes[0].progress).toBe('mastered');
+    expect(() => masterNode(state(), 'root', '已能独立完成真实项目', now)).toThrow('请先添加掌握标准或记录一项成果');
   });
 
   it('replaces dependencies and validates parallel groups', () => {
@@ -125,6 +158,46 @@ describe('ability engine', () => {
     const withoutOutcome = removeOutcome(next, 'outcome');
     expect(withoutOutcome.outcomes).toEqual([]);
     expect(withoutOutcome.nodes).toEqual(next.nodes);
+  });
+
+  it('stores one resource globally and links it to multiple nodes', () => {
+    let next = addOrLinkResource(state(), 'root', {
+      url: 'https://example.com/guide/?utm_source=feed',
+      title: '语义化指南',
+      type: 'article',
+      note: '先看第二节'
+    }, 'resource-1', 'resource-link-1', now);
+    next = addOrLinkResource(next, 'child', {
+      url: 'https://EXAMPLE.com/guide',
+      title: '重复标题不应覆盖',
+      type: 'article',
+      note: ''
+    }, 'resource-2', 'resource-link-2', now);
+
+    expect(next.resources).toHaveLength(1);
+    expect(next.resourceLinks).toHaveLength(2);
+    expect(next.resources[0]).toMatchObject({
+      id: 'resource-1',
+      normalizedUrl: 'https://example.com/guide',
+      sourceDomain: 'example.com',
+      source: 'manual'
+    });
+    expect(() => deleteResource(next, 'resource-1')).toThrow('学习资源仍关联技能节点');
+
+    next = unlinkResource(next, 'resource-link-1');
+    next = unlinkResource(next, 'resource-link-2');
+    expect(deleteResource(next, 'resource-1').resources).toEqual([]);
+  });
+
+  it('reuses existing resources, updates notes, and protects duplicate links', () => {
+    let next = addOrLinkResource(state(), 'root', {
+      url: 'https://example.com/course', title: '入门课', type: 'course', note: ''
+    }, 'resource-1', 'resource-link-1', now);
+    expect(() => linkExistingResource(next, 'root', 'resource-1', 'duplicate-link', now)).toThrow('该资源已经关联当前节点');
+
+    next = linkExistingResource(next, 'child', 'resource-1', 'resource-link-2', now);
+    next = updateResource(next, 'resource-1', { title: '入门课程', note: '重点看实战' }, '2026-08-13T00:00:00.000Z');
+    expect(next.resources[0]).toMatchObject({ title: '入门课程', note: '重点看实战', updatedAt: '2026-08-13T00:00:00.000Z' });
   });
 
   it('deletes only empty nodes and archives nodes with relationships', () => {

@@ -1,6 +1,7 @@
 import type {
   AbilityState,
   DependencyEdge,
+  LearningPhase,
   NodeDisplayState,
   SkillNode,
   SkillTree
@@ -60,6 +61,41 @@ export function getNodeDisplayState(node: SkillNode, state: AbilityState): NodeD
   return node.progress;
 }
 
+export function getNextActionCandidates(state: AbilityState, treeId: string): SkillNode[] {
+  const phaseOrder = new Map(
+    state.phases.filter((phase) => phase.skillTreeId === treeId).map((phase) => [phase.id, phase.order])
+  );
+  return state.nodes
+    .filter((node) => node.skillTreeId === treeId && !node.archivedAt && node.progress !== 'mastered')
+    .filter((node) => state.dependencies
+      .filter((edge) => edge.dependentNodeId === node.id && getDependencyKind(state, edge) === 'primary')
+      .every((edge) => requireNode(state, edge.prerequisiteNodeId).progress === 'mastered'))
+    .filter((node) => state.parallelGroups
+      .filter((group) => group.continuationNodeId === node.id)
+      .every((group) => group.nodeIds
+        .map((nodeId) => requireNode(state, nodeId))
+        .filter((member) => !member.archivedAt)
+        .every((member) => member.progress === 'mastered')))
+    .sort((a, b) =>
+      Number(b.progress === 'in_progress') - Number(a.progress === 'in_progress') ||
+      (phaseOrder.get(a.phaseId) ?? 0) - (phaseOrder.get(b.phaseId) ?? 0) ||
+      a.createdAt.localeCompare(b.createdAt) ||
+      a.id.localeCompare(b.id)
+    );
+}
+
+export type NextActionEmptyReason = 'empty_tree' | 'all_mastered' | 'prerequisites_blocked';
+
+export function getNextActionEmptyReason(
+  state: AbilityState,
+  treeId: string
+): NextActionEmptyReason | null {
+  const nodes = state.nodes.filter((node) => node.skillTreeId === treeId && !node.archivedAt);
+  if (nodes.length === 0) return 'empty_tree';
+  if (nodes.every((node) => node.progress === 'mastered')) return 'all_mastered';
+  return getNextActionCandidates(state, treeId).length === 0 ? 'prerequisites_blocked' : null;
+}
+
 export function hasPrerequisiteWarning(node: SkillNode, state: AbilityState): boolean {
   return node.progress !== 'available' &&
     getPrerequisiteNodes(state, node.id).some((item) => item.progress !== 'mastered');
@@ -84,7 +120,7 @@ function assertAcyclic(state: AbilityState, treeId: string): void {
 }
 
 export function validateAbilityState(state: AbilityState): void {
-  if (state.schemaVersion !== 1) throw new Error('不支持的能力数据版本');
+  if (state.schemaVersion !== 2) throw new Error('不支持的能力数据版本');
   assertUniqueIds(state.trees, '技能树');
   assertUniqueIds(state.phases, '学习阶段');
   assertUniqueIds(state.nodes, '技能节点');
@@ -93,6 +129,8 @@ export function validateAbilityState(state: AbilityState): void {
   assertUniqueIds(state.masteryCriteria, '掌握标准');
   assertUniqueIds(state.taskLinks, '任务链接');
   assertUniqueIds(state.outcomes, '成果');
+  assertUniqueIds(state.resources, '学习资源');
+  assertUniqueIds(state.resourceLinks, '资源关联');
 
   for (const phase of state.phases) requireTree(state, phase.skillTreeId);
   for (const node of state.nodes) {
@@ -148,6 +186,19 @@ export function validateAbilityState(state: AbilityState): void {
       if (node.skillTreeId !== outcome.skillTreeId) throw new Error('成果关联节点必须属于同一技能树');
     }
   }
+  const normalizedUrls = new Set<string>();
+  for (const resource of state.resources) {
+    if (!resource.normalizedUrl || normalizedUrls.has(resource.normalizedUrl)) throw new Error('学习资源 URL 必须唯一');
+    normalizedUrls.add(resource.normalizedUrl);
+  }
+  const resourceLinkKeys = new Set<string>();
+  for (const link of state.resourceLinks) {
+    requireNode(state, link.skillNodeId);
+    if (!state.resources.some((resource) => resource.id === link.resourceId)) throw new Error('资源关联引用了不存在的学习资源');
+    const key = `${link.skillNodeId}:${link.resourceId}`;
+    if (resourceLinkKeys.has(key)) throw new Error('同一节点不能重复关联资源');
+    resourceLinkKeys.add(key);
+  }
   if (state.lastVisitedTreeId && !state.trees.some((tree) => tree.id === state.lastVisitedTreeId)) {
     throw new Error('最近访问技能树不存在');
   }
@@ -200,6 +251,29 @@ export function getTreeProgress(state: AbilityState, treeId: string): {
     inProgress,
     percent: nodes.length ? Math.round((mastered / nodes.length) * 100) : 0
   };
+}
+
+export function getPhaseProgress(state: AbilityState, phaseId: string): {
+  mastered: number;
+  required: number;
+  complete: boolean;
+} {
+  const requiredNodes = state.nodes.filter(
+    (node) => node.phaseId === phaseId && node.requiredForPhase && !node.archivedAt
+  );
+  const mastered = requiredNodes.filter((node) => node.progress === 'mastered').length;
+  return {
+    mastered,
+    required: requiredNodes.length,
+    complete: mastered === requiredNodes.length
+  };
+}
+
+export function getCurrentPhase(state: AbilityState, treeId: string): LearningPhase | null {
+  const phases = state.phases
+    .filter((phase) => phase.skillTreeId === treeId)
+    .sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  return phases.find((phase) => !getPhaseProgress(state, phase.id).complete) ?? phases[phases.length - 1] ?? null;
 }
 
 export function selectDefaultTree(state: AbilityState): SkillTree | null {

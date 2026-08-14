@@ -2,8 +2,10 @@ export type SkillRole = 'main' | 'side' | 'exploring';
 export type SkillTreeStatus = 'active' | 'archived';
 export type NodeProgress = 'available' | 'in_progress' | 'mastered';
 export type NodeDisplayState = NodeProgress;
-export type TreeNodeFilter = 'all' | 'current_phase' | NodeDisplayState;
+export type TreeNodeFilter = 'all' | 'next' | 'mastered';
 export type CriterionSource = 'manual' | 'ai';
+export type ResourceType = 'video' | 'article' | 'document' | 'course' | 'tool' | 'other';
+export type ResourceSource = 'manual' | 'ai';
 
 export type SkillTree = {
   id: string;
@@ -21,6 +23,10 @@ export type LearningPhase = {
   skillTreeId: string;
   name: string;
   description: string;
+  estimatedDuration: string;
+  plannedStartOn?: string;
+  plannedEndOn?: string;
+  requiredNodePolicy: 'all_required';
   order: number;
 };
 
@@ -31,10 +37,35 @@ export type SkillNode = {
   name: string;
   description: string;
   progress: NodeProgress;
+  requiredForPhase: boolean;
   masteryNote: string;
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type SkillResource = {
+  id: string;
+  url: string;
+  normalizedUrl: string;
+  title: string;
+  type: ResourceType;
+  sourceDomain: string;
+  note: string;
+  source: ResourceSource;
+  aiReason?: string;
+  aiApplicableNode?: string;
+  aiDifficulty?: string;
+  aiConfidence?: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SkillResourceLink = {
+  id: string;
+  skillNodeId: string;
+  resourceId: string;
+  createdAt: string;
 };
 
 export type DependencyEdge = {
@@ -82,7 +113,7 @@ export type SkillOutcome = {
 };
 
 export type AbilityState = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   trees: SkillTree[];
   phases: LearningPhase[];
   nodes: SkillNode[];
@@ -91,6 +122,8 @@ export type AbilityState = {
   masteryCriteria: MasteryCriterion[];
   taskLinks: SkillTaskLink[];
   outcomes: SkillOutcome[];
+  resources: SkillResource[];
+  resourceLinks: SkillResourceLink[];
   lastVisitedTreeId: string | null;
 };
 

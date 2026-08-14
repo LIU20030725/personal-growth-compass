@@ -14,12 +14,12 @@ function seeded(): AbilityState {
       { id: 'writing', name: '写作', description: '', role: 'side', status: 'active', focusedRank: 2, createdAt: stamp, updatedAt: stamp }
     ],
     phases: [
-      { id: 'react-phase', skillTreeId: 'react', name: '基础', description: '', order: 0 },
-      { id: 'write-phase', skillTreeId: 'writing', name: '基础', description: '', order: 0 }
+      { id: 'react-phase', skillTreeId: 'react', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 },
+      { id: 'write-phase', skillTreeId: 'writing', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 0 }
     ],
     nodes: [
-      { id: 'react-node', skillTreeId: 'react', phaseId: 'react-phase', name: '组件设计', description: '', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
-      { id: 'write-node', skillTreeId: 'writing', phaseId: 'write-phase', name: '文章结构', description: '', progress: 'available', masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }
+      { id: 'react-node', skillTreeId: 'react', phaseId: 'react-phase', name: '组件设计', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp },
+      { id: 'write-node', skillTreeId: 'writing', phaseId: 'write-phase', name: '文章结构', description: '', progress: 'available', requiredForPhase: true, masteryNote: '', archivedAt: null, createdAt: stamp, updatedAt: stamp }
     ],
     lastVisitedTreeId: 'react'
   };
@@ -46,7 +46,7 @@ describe('Dice Life ability navigation', () => {
     window.history.replaceState({}, '', '/ability/trees/react');
     render(<App />);
     expect(await screen.findByRole('group', { name: 'React 全栈交互画布' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '打开技能树 写作' }));
+    fireEvent.click(screen.getByRole('button', { name: '从技能库打开技能树 写作' }));
     expect(await screen.findByRole('group', { name: '写作交互画布' })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/ability/trees/writing');
   });

@@ -12,6 +12,7 @@ function makeNode(id: string, phaseId: string): SkillNode {
     name: id,
     description: '',
     progress: 'available',
+    requiredForPhase: true,
     masteryNote: '',
     archivedAt: null,
     createdAt: stamp,
@@ -21,11 +22,11 @@ function makeNode(id: string, phaseId: string): SkillNode {
 
 function makeState(): AbilityState {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     trees: [{ id: 'tree', name: '前端', description: '', role: 'main', status: 'active', focusedRank: 1, createdAt: stamp, updatedAt: stamp }],
     phases: [
-      { id: 'phase-2', skillTreeId: 'tree', name: '实践', description: '', order: 2 },
-      { id: 'phase-1', skillTreeId: 'tree', name: '基础', description: '', order: 1 }
+      { id: 'phase-2', skillTreeId: 'tree', name: '实践', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 2 },
+      { id: 'phase-1', skillTreeId: 'tree', name: '基础', description: '', estimatedDuration: '', requiredNodePolicy: 'all_required', order: 1 }
     ],
     nodes: [
       makeNode('html', 'phase-1'),
@@ -40,6 +41,8 @@ function makeState(): AbilityState {
     masteryCriteria: [],
     taskLinks: [],
     outcomes: [{ id: 'site', skillTreeId: 'tree', skillNodeId: 'react', title: '个人网站', description: '', occurredOn: '2026-08-02', showOnTree: true, createdAt: stamp, updatedAt: stamp }],
+    resources: [],
+    resourceLinks: [],
     lastVisitedTreeId: 'tree'
   };
 }
