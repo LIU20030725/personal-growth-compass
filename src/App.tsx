@@ -44,8 +44,8 @@ const AbilityModule = lazy(() => import('./ability/AbilityModule').then((module)
 
 const period = '2026-06';
 const currentYear = '2026';
-const releaseVersion = 'V2.0';
-const releaseDate = '2026-08-01';
+const releaseVersion = 'V2.1.0';
+const releaseDate = '2026-08-14';
 const propertyValue = 420000;
 const liabilityValue = 2100;
 

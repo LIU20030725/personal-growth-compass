@@ -1,256 +1,110 @@
-# Personal Growth Compass
+# Dice Life · Personal Growth Compass
 
-Personal Growth Compass is a React + TypeScript web app for turning personal growth into a visible, reviewable, game-like dashboard.
+Dice Life 是一个本地优先、游戏化表达的个人成长仪表盘，把财富、能力、身体健康、情绪、任务与冒险记录整理成可持续回顾的生活系统。
 
-The long-term product vision is a personal growth compass that tracks four life systems: wealth, ability, body, and emotion. The current open-source implementation focuses on the wealth and economy module, presented as **GoldQuest Finance**, a bright RPG-style finance command hall.
+## 当前版本
 
-## Current Status
-
-This repository is an active frontend prototype.
-
-- Current implemented module: economy / wealth dashboard
-- Current package version: `2.0.0`
-- Release date in `package.json`: `2026-07-02`
-- Main development branch: `codex/economic-system/main`
-- Framework: React 18 + Vite + TypeScript
-- Data model: in-memory demo data with frontend calculation logic
-
-The broader personal growth system is described in the PRD and implementation plan under `docs/superpowers/`, but not every planned module has been implemented yet.
-
-## What You Can Try Today
-
-The current UI includes a finance dashboard with:
-
-- Net worth hero panel and economy score
-- Monthly income, expense, and balance cards
-- Cash, investment, and receivable account groups
-- Expandable account details
-- Quick transaction entry
-- Account-level income, expense, profit, loss, and transfer records
-- Monthly cashflow detail sheet
-- Monthly savings calendar with source details
-- RPG-inspired sidebar navigation for wealth, ability, body, emotion, and achievements
-- Hard-outline report style based on the project design system
-
-## Product Vision
-
-The original PRD defines a personal growth PWA where users can track progress across four systems:
-
-| System | Planned Purpose |
+| 项目 | 内容 |
 | --- | --- |
-| Wealth / Economy | Track accounts, income, expense, assets, liabilities, goals, and financial progress |
-| Ability | Track career skills, habits, competencies, learning, and side-project achievements |
-| Body | Track health logs, exercise, and body metrics |
-| Emotion | Track stress, emotional release, and self-reflection records |
+| 正式版本 | `2.1.0` |
+| 发布日期 | `2026-08-14` |
+| 产品主线 | `main` |
+| 发布标签 | `V2.1.0` |
+| 技术栈 | React 18、TypeScript、Vite、Vitest、Playwright、axe-core |
 
-The app uses game-like language such as levels, quests, achievements, progress bars, and milestones, but the design principle is practical first: every game element should map to real personal progress.
+本次发布重点迭代了情绪、能力和身体健康模块。完整版本说明见 [CHANGELOG.md](./CHANGELOG.md)，发布快照见 [spec/releases/v2.1.0/README.md](./spec/releases/v2.1.0/README.md)。
 
-## Design Direction
+## 已实现模块
 
-The current visual system is documented in `STYLE.md`.
+| 模块 | 当前能力 | 主要目录 |
+| --- | --- | --- |
+| 财富 | 账户、流水、转账、月度账单、储蓄日历与支出分析 | `src/finance/` |
+| 能力 | 技能树、阶段、学习资源、成果、下一步定位、撤销/重做与快捷键 | `src/ability/` |
+| 身体健康 | 身体指标、训练、饮食、睡眠、饮水、历史更正、回收站与备份恢复 | `src/health/` |
+| 情绪 | 情绪记录、表情、音乐收藏及网易云/QQ 音乐元数据识别 | `src/emotion/`、`server/music/` |
+| 任务 | 任务中心与成长积分相关流程 | `src/tasks/` |
+| 冒险日志 | 旅途、家园、投入与发现记录 | `src/adventure-journal/` |
 
-Core style keywords:
+## 快速开始
 
-- Bright RPG dashboard
-- Hard-outline ledger cards
-- White and light-gray report surfaces
-- 2px ink borders
-- Solid offset shadows
-- Gold primary actions
-- Emerald positive states
-- Ruby risk and expense states
-- Sidebar character/status panel
-- Bilingual micro-labels for a command-console feeling
-
-Important design rule: preserve the vertical dashboard layout unless a change explicitly requires a layout redesign. Most UI work should improve component details, states, copy, spacing, forms, and overlays without rearranging the main information architecture.
-
-## Tech Stack
-
-| Area | Technology |
-| --- | --- |
-| App framework | React 18 |
-| Language | TypeScript |
-| Build tool | Vite |
-| Testing | Vitest, Testing Library, jsdom |
-| Icons | lucide-react |
-| Styling | CSS in `src/styles.css` |
-| Finance logic | `src/finance/financeEngine.ts` |
-
-## Getting Started
-
-### Prerequisites
-
-Use a recent Node.js version. Node 18+ is recommended.
-
-### Install
+要求 Node.js 18 或更高版本。
 
 ```bash
 npm install
-```
-
-### Run Locally
-
-```bash
 npm run dev
 ```
 
-The dev server starts on:
+默认地址：`http://127.0.0.1:5173/`
 
-```text
-http://127.0.0.1:5173/
-```
+Windows 用户也可以双击仓库中的 `启动 Dice Life.bat`。
 
-### Build
-
-```bash
-npm run build
-```
-
-### Test
+## 质量门禁
 
 ```bash
 npm test
+npm run build
+npm run test:e2e
+npm run test:a11y
 ```
 
-### Watch Tests
+模块开发完成后必须运行全仓测试和生产构建；UI 变更还需保留桌面、平板和移动端截图及 axe 结果。
 
-```bash
-npm run test:watch
-```
-
-## Project Structure
+## 仓库结构
 
 ```text
 .
-|-- docs/
-|   |-- git-branching-and-versioning-guide.md
-|   `-- superpowers/
-|       |-- plans/2026-06-21-plan.md
-|       `-- specs/2026-06-21-spec.md
-|-- src/
-|   |-- App.tsx
-|   |-- App.test.tsx
-|   |-- main.tsx
-|   |-- styles.css
-|   |-- test-setup.ts
-|   `-- finance/
-|       |-- financeEngine.ts
-|       `-- financeEngine.test.ts
-|-- ui/
-|   |-- design.md
-|   `-- V0/
-|       |-- README.md
-|       `-- ui-evaluation.md
-|-- PROJECT_CONTEXT.md
-|-- STYLE.md
-|-- package.json
-|-- tsconfig.json
-`-- vite.config.ts
+├─ api/                         # Serverless API 入口
+├─ docs/                        # PRD、实施计划、审计与模块验收证据
+│  ├─ 健康模块/
+│  ├─ 情绪模块/
+│  └─ git-branching-and-versioning-guide.md
+├─ server/music/                # 音乐元数据解析与安全边界
+├─ spec/releases/               # 正式版本快照
+├─ src/
+│  ├─ ability/                  # 能力模块
+│  ├─ adventure-journal/        # 冒险日志
+│  ├─ emotion/                  # 情绪模块
+│  ├─ finance/                  # 财富模块
+│  ├─ health/                   # 身体健康模块
+│  └─ tasks/                    # 任务模块
+├─ CHANGELOG.md                 # 整站版本时间线
+├─ PROJECT_CONTEXT.md           # 产品上下文
+├─ STYLE.md                     # 视觉规范
+└─ package.json
 ```
 
-## Key Files
+## 分支结构
 
-| File | Purpose |
-| --- | --- |
-| `src/App.tsx` | Main economy dashboard UI and interaction state |
-| `src/styles.css` | Global visual system and component styling |
-| `src/finance/financeEngine.ts` | Finance calculations such as net worth, monthly balance, savings rate, budget alerts, and economy score |
-| `src/App.test.tsx` | UI workflow tests for dashboard, sheets, accounts, transactions, and calendar details |
-| `src/finance/financeEngine.test.ts` | Unit tests for finance calculation logic |
-| `STYLE.md` | Overall UI style guide |
-| `PROJECT_CONTEXT.md` | Current product and implementation context |
-| `docs/superpowers/specs/2026-06-21-spec.md` | Original PRD / design specification |
-| `docs/superpowers/plans/2026-06-21-plan.md` | Original implementation plan |
+`main` 是唯一正式产品主线。模块工作使用 `codex/<module>/...` 命名，稳定后合回 `main`：
 
-## Implemented Finance Logic
+```text
+main
+├─ codex/ability/main
+├─ codex/emotion/main
+├─ codex/health/main
+├─ codex/adventure-journal/main
+└─ codex/economic-system/main
+```
 
-`src/finance/financeEngine.ts` currently provides:
+详细规则、版本时间线和命名规范见 [Git 分支与版本管理规范](./docs/git-branching-and-versioning-guide.md)。
 
-- Transaction, asset, liability, goal, and budget types
-- Monthly income and expense aggregation
-- Monthly balance calculation
-- Asset, liability, and net worth calculation
-- Savings rate calculation
-- Budget usage alerts
-- Goal progress calculation
-- Economy score calculation
+## 数据与隐私
 
-This module is a good starting point if you want to extract the business logic away from the current single-page prototype.
+- 当前成长数据主要保存在浏览器本地。
+- 健康模块提供 JSON 备份与恢复；恢复前会完成预检并要求确认整体替换。
+- 健康提示仅用于记录和自我观察，不构成医疗诊断或治疗建议。
+- 音乐解析只处理支持平台的公开链接，并限制响应体、重定向和目标地址范围。
 
-## Roadmap
+## 版本资料
 
-Short-term improvements:
+| 日期 | 版本 | 重点 |
+| --- | --- | --- |
+| 2026-08-14 | `V2.1.0` | 情绪、能力、身体健康三模块整合 |
+| 2026-07-02 | `V2.0` | 账户驱动经济系统 |
+| 2026-06-28 | `v0.1-0628` | 经济系统早期备份 |
 
-- Persist user-entered account and transaction data
-- Support editing and deleting transaction records
-- Improve account detail hierarchy
-- Add more account type fields
-- Refine the monthly cashflow filter experience
-- Add more regression tests around account transfers and monthly summaries
+旧标签与历史分支只读保留，不覆盖、不强制改写，以保证 Git 历史可追溯。
 
-Medium-term improvements:
+## 许可证
 
-- Split the large `App.tsx` into reusable components
-- Introduce a real storage adapter
-- Add route-based pages for the wider growth system
-- Implement ability, body, emotion, and achievements modules
-- Add PWA manifest and offline support
-
-Long-term product direction:
-
-- Goal contracts and reward redemption
-- Skill tree and habit streak systems
-- Health and emotion tracking modules
-- Full growth dashboard across all life systems
-- Optional mobile packaging through Capacitor
-
-## Branches And Versions
-
-Important branches:
-
-| Branch | Meaning |
-| --- | --- |
-| `codex/economic-system/main` | Current main development branch for the economy system |
-| `codex/economic-system/v2.1-20260705-ui-polish` | UI polish iteration branch |
-| `codex/economy-system-v0.1-0628` | Early economy-system archive branch |
-| `codex/stitch-ui-v1` | Stitch visual reference archive |
-| `main` | Initial repository baseline |
-
-Published GitHub releases:
-
-| Release | Notes |
-| --- | --- |
-| `v0.1-0628` | Early React/Vite economy dashboard backup |
-| `V2.0` | Account-driven finance system with account records, transfers, monthly bills, savings calendar details, and expense analysis |
-
-## Contributing
-
-Contributions are welcome, especially around:
-
-- Refactoring the current dashboard into smaller components
-- Improving accessibility and responsive behavior
-- Adding persistent storage
-- Extending test coverage
-- Implementing planned growth modules from the PRD
-- Improving the documentation and design system
-
-Recommended workflow:
-
-1. Create a feature branch from `codex/economic-system/main`.
-2. Keep UI layout changes explicit and focused.
-3. Run `npm test` and `npm run build`.
-4. Open a pull request with screenshots or a short screen recording when the change affects UI.
-
-## Notes For Open-Source Users
-
-- The app is currently a frontend prototype, not a production finance product.
-- It does not connect to a backend service.
-- The current account and transaction data are demo-oriented.
-- The project has no license file yet; reuse terms should be clarified before production or commercial use.
-- `package.json` is marked `"private": true` to prevent accidental npm publishing.
-
-## License
-
-No license has been added yet.
-
-If you plan to reuse or redistribute this project, add an explicit open-source license first.
+仓库目前尚未添加开源许可证。用于公开分发或商业用途前，请先补充明确的许可证。
