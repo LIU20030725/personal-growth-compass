@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   Apple,
+  ArrowRight,
   ChevronLeft,
   Clock3,
   Dumbbell,
@@ -124,7 +125,11 @@ export function HealthModule() {
         ? "数据与隐私"
         : cards.find((c) => c.id === view)!.title;
   return (
-    <section ref={moduleRef} className="health-module" aria-labelledby="health-title">
+    <section
+      ref={moduleRef}
+      className={`health-module health-view-${view}`}
+      aria-labelledby="health-title"
+    >
       <p className="sr-only" role="status" aria-live="polite">
         {status}
       </p>
@@ -136,7 +141,7 @@ export function HealthModule() {
           </button>
         )}
         <div className="health-eyebrow">
-          <HeartPulse size={16} /> HEALTH JOURNAL
+          <HeartPulse size={16} /> 健康记录 · 本地保存
         </div>
         <h1 id="health-title">{title}</h1>
         <p>
@@ -152,30 +157,70 @@ export function HealthModule() {
       )}
       {view === "home" && (
         <>
-          <section className="health-today" aria-labelledby="today-overview">
-            <div className="health-today-copy">
-              <span id="today-overview">今日概览</span>
+          <div className="health-command-grid">
+            <section className="health-today" aria-labelledby="today-overview">
+              <div className="health-today-copy">
+                <span id="today-overview">今日概览</span>
+                <strong>
+                  {todayDailyCount + todayMealCount + todayWorkoutCount > 0
+                    ? "今天的记录正在慢慢形成"
+                    : "先记下一件已经发生的小事"}
+                </strong>
+                <p>不用补齐所有项目，真实留下一个数据就有价值。</p>
+              </div>
+              <div className="health-today-metrics" aria-label="今日记录摘要">
+                <div>
+                  <GlassWater aria-hidden="true" />
+                  <span>饮水</span>
+                  <strong>{health.todayWaterMl ? `${health.todayWaterMl} ml` : "未记录"}</strong>
+                </div>
+                <div>
+                  <Utensils aria-hidden="true" />
+                  <span>餐食</span>
+                  <strong>{todayMealCount ? `${todayMealCount} 餐` : "未记录"}</strong>
+                </div>
+                <div>
+                  <Dumbbell aria-hidden="true" />
+                  <span>训练</span>
+                  <strong>{todayWorkoutCount ? `${todayWorkoutCount} 次` : "未记录"}</strong>
+                </div>
+              </div>
+              <button className="health-primary-action" onClick={() => setQuickOpen(true)}>
+                <Plus size={18} aria-hidden="true" />
+                一键记录
+              </button>
+            </section>
+            <aside className="health-next-card">
+              <span className="health-section-kicker">
+                {health.draftWorkout ? "继续上次" : "最近状态"}
+              </span>
               <strong>
-                {health.todayWaterMl
-                  ? `今天已记录饮水 ${health.todayWaterMl} ml`
-                  : "今天还没有记录，从一件小事开始"}
+                {health.draftWorkout
+                  ? "有一份未完成的训练"
+                  : latest?.weightGrams
+                    ? `最近体重 ${(latest.weightGrams / 1000).toFixed(1)} kg`
+                    : "还没有身体记录"}
               </strong>
               <p>
-                今天 {todayMealCount} 条餐食记录 · {todayWorkoutCount} 次训练记录
+                {health.draftWorkout
+                  ? "草稿已保存在本地，可以回到训练页继续。"
+                  : latest
+                    ? "进入身体状态查看原始记录与变化。"
+                    : "体重、体脂和 BMI 会按记录时间保留。"}
               </p>
-            </div>
-            <button className="health-primary-action" onClick={() => setQuickOpen(true)}>
-              <Plus size={18} aria-hidden="true" />
-              一键记录
-            </button>
-          </section>
+              <button onClick={() => setView(health.draftWorkout ? "workouts" : "body")}>
+                {health.draftWorkout ? "继续训练" : latest ? "查看身体趋势" : "添加首条身体记录"}
+                <ArrowRight size={17} aria-hidden="true" />
+              </button>
+            </aside>
+          </div>
           <section className="health-quick-section" aria-labelledby="quick-entrances">
             <div className="health-section-heading">
               <div>
-                <span className="health-section-kicker">快速入口</span>
-                <h2 id="quick-entrances">选择想记录的内容</h2>
+                <span className="health-section-kicker">全部记录</span>
+                <h2 id="quick-entrances">按内容进入</h2>
               </div>
-              <p>只填写已经发生的事实，缺少记录不代表失败。</p>
+              <p>查看历史、趋势，或补充更完整的数据。</p>
             </div>
             <div className="health-card-grid">
             {cards.map(({ id, title, subtitle, icon: Icon }) => (
@@ -190,6 +235,7 @@ export function HealthModule() {
                   <strong>{title}</strong>
                   <small>{subtitle}</small>
                 </span>
+                <ArrowRight className="health-entry-arrow" aria-hidden="true" />
               </button>
             ))}
             </div>
@@ -199,7 +245,7 @@ export function HealthModule() {
               <Waves aria-hidden="true" />
               <div>
                 <span className="health-section-kicker">回看变化</span>
-                <strong>周 / 月记录趋势</strong>
+                <strong>周 / 月记录回看</strong>
                 <p>
                   近 7 天 {recentCount(7)} 条 · 近 30 天 {recentCount(30)} 条。
                   {health.bodyRecords.length + health.daily.length < 2
@@ -213,7 +259,7 @@ export function HealthModule() {
               <div>
                 <span className="health-section-kicker">本地优先</span>
                 <strong>历史与数据管理</strong>
-                <p>导出、导入、垃圾箱与恢复都集中在这里。</p>
+                <p>导出、导入、垃圾箱与恢复。</p>
                 <button onClick={() => setView("data")}>数据与隐私</button>
               </div>
             </aside>
@@ -232,7 +278,7 @@ export function HealthModule() {
       {view === "body" && (
         <div className="health-two-column">
           <form
-            className="health-panel"
+            className="health-panel health-record-form"
             onSubmit={(e) => {
               e.preventDefault();
               const saved = health.addBodyRecord({
@@ -298,7 +344,7 @@ export function HealthModule() {
             </label>
             <button type="submit">保存身体记录</button>
           </form>
-          <div className="health-panel">
+          <div className="health-panel health-history-panel">
             <h2>历史与趋势</h2>
             <p className="health-trend" aria-live="polite">
               {bodyTrend.comparable
@@ -339,7 +385,7 @@ export function HealthModule() {
       {view === "meals" && (
         <div className="health-two-column">
           <form
-            className="health-panel"
+            className="health-panel health-record-form"
             onSubmit={async (e) => {
               e.preventDefault();
               const ok = await health.addMealWithPhotos({
@@ -415,7 +461,7 @@ export function HealthModule() {
             </p>
             <button type="submit">保存餐食</button>
           </form>
-          <div className="health-panel">
+          <div className="health-panel health-history-panel">
             <h2>餐次时间线</h2>
             {health.meals.length ? (
               health.meals.map((m) => (
@@ -454,10 +500,11 @@ export function HealthModule() {
       )}
       {view === "daily" && (
         <div className="health-two-column health-daily-layout">
-          <div className="health-panel">
+          <div className="health-panel health-daily-recorder">
             <h2>今日快速记录</h2>
             {health.preferences.enabledDailyMetrics.includes("water") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-water-title">
+                <span className="health-section-kicker" id="daily-water-title">饮水</span>
                 <div className="water-actions">
                   {health.preferences.waterQuickAmountsMl.map((n) => (
                     <button key={n} onClick={() => health.addWater(n)}>
@@ -486,10 +533,11 @@ export function HealthModule() {
                 >
                   保存自定义饮水
                 </button>
-              </>
+              </section>
             )}
             {health.preferences.enabledDailyMetrics.includes("sleep") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-sleep-title">
+                <span className="health-section-kicker" id="daily-sleep-title">睡眠</span>
                 <label>
                   睡眠时长（小时）
                   <input
@@ -531,10 +579,11 @@ export function HealthModule() {
                 >
                   保存睡眠
                 </button>
-              </>
+              </section>
             )}
             {health.preferences.enabledDailyMetrics.includes("activity") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-activity-title">
+                <span className="health-section-kicker" id="daily-activity-title">活动</span>
                 <label>
                   活动记录方式
                   <select
@@ -574,10 +623,11 @@ export function HealthModule() {
                 >
                   保存活动
                 </button>
-              </>
+              </section>
             )}
             {health.preferences.enabledDailyMetrics.includes("energy") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-energy-title">
+                <span className="health-section-kicker" id="daily-energy-title">精力</span>
                 <label>
                   主观精力（1–5）
                   <input
@@ -598,14 +648,14 @@ export function HealthModule() {
                 >
                   保存精力
                 </button>
-              </>
+              </section>
             )}
             <p className="health-hint">
               没有记录不等于 0，也不会显示未达标警报。
             </p>
             <strong>今天已有 {todayDailyCount} 条日常记录</strong>
           </div>
-          <div className="health-panel">
+          <div className="health-panel health-settings-panel">
             <div className="health-panel-heading">
               <div><span className="health-section-kicker">低频设置</span><h2>管理日常指标</h2></div>
               <button className="health-secondary-action" aria-expanded={dailySettingsOpen} onClick={() => setDailySettingsOpen((open) => !open)}>
@@ -1399,7 +1449,10 @@ function WorkoutRecorder({
         </>
       )}
       {definition.mode !== "duration" && (
-        <button onClick={() => setAdvanced((value) => !value)}>
+        <button
+          className="health-progressive-action"
+          onClick={() => setAdvanced((value) => !value)}
+        >
           {advanced ? "收起进阶记录" : "展开进阶记录"}
         </button>
       )}
@@ -1547,7 +1600,10 @@ function WorkoutRecorder({
           </div>
         ))}
       {grouped && (
-        <button onClick={() => setSets((current) => [...current, toSet()])}>
+        <button
+          className="health-add-set-action"
+          onClick={() => setSets((current) => [...current, toSet()])}
+        >
           添加一组
         </button>
       )}
@@ -1581,6 +1637,7 @@ function WorkoutRecorder({
         </div>
       )}
       <button
+        className="health-save-action"
         onClick={() =>
           onSave({
             distanceMeters: distance ? Number(distance) * 1000 : undefined,
