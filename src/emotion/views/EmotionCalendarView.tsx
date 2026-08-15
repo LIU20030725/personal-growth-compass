@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star } from 'lucide-react';
 import { getCalendarDaySummary, getImportantDaysForDate, getLocalDateKey, getOnThisDayEntries } from '../emotionEngine';
 import type { EmotionEntry, EmotionImportantDay } from '../types';
 import { EmotionEntryCard } from '../components/EmotionEntryCard';
@@ -33,7 +33,6 @@ export function EmotionCalendarView({ entries, importantDays, month, onMonth, on
   }
 
   return <div className="emotion-view">
-    <header className="emotion-view-header"><div><span className="emotion-eyebrow"><CalendarDays /> MOOD CALENDAR</span><h1>心情日历</h1><p>看见变化，不把任何一天定义成好或坏。</p></div></header>
     <section className="emotion-calendar-card" aria-label={`${year}年${monthNumber}月心情日历`}>
       <div className="emotion-calendar-title"><button type="button" aria-label="上个月" onClick={() => shift(-1)}><ChevronLeft /></button><h2>{year} 年 {monthNumber} 月</h2><button type="button" aria-label="下个月" onClick={() => shift(1)}><ChevronRight /></button></div>
       <div className="emotion-calendar-weekdays">{weekdays.map((day) => <span key={day}>周{day}</span>)}</div>

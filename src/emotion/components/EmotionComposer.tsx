@@ -59,6 +59,8 @@ function AttachmentPreview({ attachment, getBlob, onRemove }: AttachmentPreviewP
 
 export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob }: EmotionComposerProps) {
   const [draft, setDraft] = useState(initial);
+  const [activeMoodGroup, setActiveMoodGroup] = useState(() => moodPresets.find((mood) => mood.id === initial.moodId)?.group ?? moodGroups[0].id);
+  const [activeActivityGroup, setActiveActivityGroup] = useState(() => activityPresets.find((activity) => initial.activityIds.includes(activity.id))?.group ?? activityGroups[0].id);
   const [pending, setPending] = useState<EmotionAttachmentInput[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -265,37 +267,41 @@ export function EmotionComposer({ initial = emptyDraft, onSave, onClose, getBlob
       <section ref={dialogRef} className="emotion-composer" role="dialog" aria-modal="true" aria-labelledby="emotion-composer-title">
         <header className="emotion-composer__header">
           <button ref={closeButtonRef} className="emotion-icon-button" type="button" aria-label="关闭记录" onClick={close} disabled={saving}><X /></button>
-          <div><span>NEW MOMENT</span><h2 id="emotion-composer-title">记录此刻感受</h2></div>
-          <button className="emotion-save-link" type="button" onClick={submit} disabled={saving || recording}>{saving ? '保存中' : '保存'}</button>
+          <div><span>此刻记录</span><h2 id="emotion-composer-title">记录此刻感受</h2></div>
+          <span className="emotion-composer__privacy">仅存在本设备</span>
         </header>
 
         <div className="emotion-composer__body">
           <section className="emotion-form-section">
             <div className="emotion-section-heading"><span>01</span><div><h3>此刻，你是什么状态？</h3><p>只选一个最接近的就好</p></div></div>
-            {moodGroups.map((group) => <div className="emotion-choice-group" key={group.id}>
-              <h4>{group.label}</h4>
-              <div className="emotion-mood-grid" role="radiogroup" aria-label={group.label}>
-                {moodPresets.filter((mood) => mood.group === group.id).map((mood) => <button
+            <div className="emotion-category-switcher" role="group" aria-label="情绪分类">
+              {moodGroups.map((group) => <button key={group.id} type="button" aria-pressed={activeMoodGroup === group.id} onClick={() => setActiveMoodGroup(group.id)}>{group.label}</button>)}
+            </div>
+            <div className="emotion-choice-group">
+              <div className="emotion-mood-grid" role="radiogroup" aria-label="此刻情绪">
+                {moodPresets.filter((mood) => mood.group === activeMoodGroup).map((mood) => <button
                   key={mood.id} className={`emotion-mood-choice${draft.moodId === mood.id ? ' is-selected' : ''}`}
                   type="button" role="radio" aria-checked={draft.moodId === mood.id} aria-label={mood.label}
                   onClick={() => setDraft((value) => ({ ...value, moodId: mood.id }))}
                 ><EmotionIcon moodId={mood.id} size="medium" /><span>{mood.label}</span></button>)}
               </div>
-            </div>)}
+            </div>
           </section>
 
           <section className="emotion-form-section">
             <div className="emotion-section-heading"><span>02</span><div><h3>刚刚在做什么？</h3><p>可以选择多个活动</p></div></div>
-            {activityGroups.map((group) => <div className="emotion-activity-group" key={group.id}>
-              <h4>{group.label}</h4>
-              <div className="emotion-activity-grid">{activityPresets.filter((activity) => activity.group === group.id).map((activity) => {
+            <div className="emotion-category-switcher" role="group" aria-label="活动分类">
+              {activityGroups.map((group) => <button key={group.id} type="button" aria-pressed={activeActivityGroup === group.id} onClick={() => setActiveActivityGroup(group.id)}>{group.label}</button>)}
+            </div>
+            <div className="emotion-activity-group">
+              <div className="emotion-activity-grid">{activityPresets.filter((activity) => activity.group === activeActivityGroup).map((activity) => {
                 const selected = draft.activityIds.includes(activity.id);
                 return <button type="button" role="checkbox" aria-checked={selected} aria-label={activity.label}
                   className={`emotion-activity-chip${selected ? ' is-selected' : ''}`} key={activity.id}
                   onClick={() => setDraft((value) => ({ ...value, activityIds: selected ? value.activityIds.filter((id) => id !== activity.id) : [...value.activityIds, activity.id] }))}
                 ><EmotionActivityIcon activityId={activity.id} /><span>{activity.label}</span></button>;
               })}</div>
-            </div>)}
+            </div>
           </section>
 
           <section className="emotion-form-section">

@@ -1,4 +1,3 @@
-import { LockKeyhole, Sparkles } from 'lucide-react';
 import type { EmotionEntry, EmotionImportantDay } from '../types';
 import { getLocalDateKey, getRecentJournalEntries } from '../emotionEngine';
 import { EmotionEntryCard } from '../components/EmotionEntryCard';
@@ -20,10 +19,6 @@ export function EmotionJournalView({ entries, latestToday, upcomingImportantDays
     return result;
   }, {});
   return <div className="emotion-view">
-    <header className="emotion-view-header">
-      <div><span className="emotion-eyebrow"><Sparkles /> PRIVATE MOMENTS</span><h1>我的心情</h1><p>不需要评价，只需要诚实地留下一刻。</p></div>
-      <span className="emotion-private-badge"><LockKeyhole />仅自己可见</span>
-    </header>
     <EmotionReminderBanner days={upcomingImportantDays} />
     {latestToday && <EmotionStatusCard entry={latestToday} onOpen={() => onOpen(latestToday.id)} />}
     {!entries.length ? <div className="emotion-empty-state"><EmotionGardenIllustration /><h2>今天还没有留下心情</h2><p>哪怕只选一个表情，也是一份完整记录。</p></div> :

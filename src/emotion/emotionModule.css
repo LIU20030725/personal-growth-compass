@@ -12,7 +12,7 @@
   --emotion-blue: #bcd7e6;
   --emotion-shadow: 0 12px 34px rgb(59 91 79 / 8%);
   position: relative;
-  min-height: calc(100vh - 64px);
+  min-height: calc(100dvh - 64px);
   color: var(--emotion-text);
   background:
     radial-gradient(circle at 6% 4%, rgb(169 217 200 / 19%), transparent 30rem),
@@ -26,7 +26,7 @@
 .emotion-module button, .emotion-module label { touch-action: manipulation; }
 .emotion-module button { font: inherit; }
 .emotion-module button:focus-visible, .emotion-module input:focus-visible, .emotion-module textarea:focus-visible { outline: 3px solid rgb(78 130 111 / 45%); outline-offset: 3px; }
-.emotion-module__canvas { width: min(1060px, calc(100% - 64px)); margin: 0 auto; padding: 48px 0 142px; }
+.emotion-module__canvas { width: min(1060px, calc(100% - 64px)); margin: 0 auto; padding: 40px 0 72px; }
 .emotion-view { animation: emotion-enter .22s ease-out; }
 
 .emotion-view-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 32px; }
@@ -227,3 +227,74 @@
 .emotion-mood-choice.is-selected { position: relative; border-color: transparent; color: #31443d; background: transparent; box-shadow: none; font-weight: 850; }
 .emotion-mood-choice.is-selected::after { content: ''; position: absolute; left: 50%; bottom: 4px; width: 5px; height: 5px; border-radius: 50%; background: #668f80; transform: translateX(-50%); }
 .emotion-mood-choice.is-selected .emotion-face { box-shadow: none; }
+
+/* v1.5 Calm Command Center: quiet hierarchy, one primary action and in-flow navigation. */
+.emotion-workspace-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding: 6px 0 24px; margin-bottom: 16px; border-bottom: 1px solid var(--emotion-border); }
+.emotion-workspace-header__copy { min-width: 0; }
+.emotion-segmented__button { min-height: 44px; }
+.emotion-workspace-header h1 { margin: 8px 0; font-size: clamp(30px, 4vw, 42px); line-height: 1.08; letter-spacing: -.04em; }
+.emotion-workspace-header p { margin: 0; color: var(--emotion-muted); font-size: 15px; }
+.emotion-workspace-header__actions { display: grid; grid-template-columns: auto auto; align-items: center; justify-items: end; gap: 9px 10px; }
+.emotion-workspace-header__actions .emotion-private-badge { grid-column: 1 / -1; }
+.emotion-workspace-primary, .emotion-secondary-action { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; font-weight: 850; cursor: pointer; }
+.emotion-workspace-primary { padding: 0 20px; border: 1px solid #ddc55f; color: #493e17; background: var(--emotion-brand); box-shadow: 0 7px 18px rgb(143 118 27 / 12%); }
+.emotion-secondary-action { padding: 0 14px; border: 1px solid var(--emotion-border); color: #52655e; background: var(--emotion-surface); }
+.emotion-workspace-primary svg, .emotion-secondary-action svg { width: 18px; height: 18px; }
+
+.emotion-module .emotion-dock { position: static; inset: auto; z-index: 30; height: auto; display: flex; align-items: center; margin: 0 0 30px; padding: 0; pointer-events: auto; }
+.emotion-module .emotion-bottom-nav { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--emotion-border); border-radius: 14px; background: rgb(255 255 255 / 78%); box-shadow: none; backdrop-filter: none; }
+.emotion-module .emotion-bottom-nav button { min-width: 108px; height: 46px; border-radius: 10px; }
+.emotion-module .emotion-bottom-nav button[aria-current="page"] { color: #4c4119; background: #fbf2ca; }
+.emotion-module .emotion-fab { display: none; }
+
+.emotion-composer { width: min(960px, 100%); max-height: calc(100dvh - 64px); border-radius: 18px; box-shadow: 0 24px 70px rgb(26 50 41 / 22%); }
+.emotion-composer__header { grid-template-columns: 48px 1fr minmax(90px, auto); }
+.emotion-composer__header span { letter-spacing: .08em; }
+.emotion-composer__privacy { justify-self: end; text-align: right; line-height: 1.35; }
+.emotion-category-switcher { display: flex; gap: 6px; margin: 0 0 16px; padding-bottom: 2px; overflow-x: auto; scrollbar-width: none; }
+.emotion-category-switcher::-webkit-scrollbar { display: none; }
+.emotion-category-switcher button { min-width: max-content; min-height: 44px; padding: 0 14px; border: 1px solid var(--emotion-border); border-radius: 10px; color: #596a63; background: #f8fbf9; cursor: pointer; }
+.emotion-category-switcher button[aria-pressed="true"] { border-color: #d9c45f; color: #514619; background: #fbf2ca; font-weight: 850; }
+.emotion-choice-group, .emotion-activity-group { margin-top: 0; }
+.emotion-module .emotion-mood-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.emotion-module .emotion-mood-choice { min-height: 106px; border-radius: 12px; }
+.emotion-module .emotion-activity-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
+.emotion-module .emotion-activity-chip { min-height: 48px; padding: 0 10px; border-radius: 10px; }
+.emotion-favorite-button, .emotion-calendar-title button, .emotion-media-item > button, .emotion-attachment-preview > button { min-width: 44px; width: 44px; min-height: 44px; height: 44px; }
+
+.emotion-feedback { position: fixed; z-index: 120; right: 24px; top: 82px; display: flex; align-items: center; gap: 12px; max-width: 360px; min-height: 48px; padding: 10px 12px 10px 16px; border: 1px solid #cce1d8; border-radius: 12px; color: #35554a; background: #f4faf7; box-shadow: var(--emotion-shadow); }
+.emotion-feedback button { width: 32px; height: 32px; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; }
+.emotion-day-empty { display: grid; justify-items: start; gap: 8px; padding: 28px 4px; border-top: 1px solid var(--emotion-border); border-bottom: 1px solid var(--emotion-border); }
+.emotion-day-empty h2, .emotion-day-empty p { margin: 0; }
+.emotion-day-empty p { color: var(--emotion-muted); }
+.emotion-day-empty button { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; margin-top: 8px; padding: 0 15px; border: 1px solid #ddc55f; border-radius: 12px; color: #493e17; background: var(--emotion-brand); font-weight: 850; cursor: pointer; }
+.emotion-day-empty button svg { width: 18px; }
+
+@media (min-width: 681px) {
+  .emotion-module .emotion-composer { width: min(960px, calc(100vw - 40px)); max-height: calc(100dvh - 40px); }
+  .emotion-module .emotion-mood-choice { min-height: 106px; gap: 9px; }
+  .emotion-module .emotion-mood-choice .emotion-face--medium { width: 66px; height: 66px; }
+}
+
+@media (max-width: 680px) {
+  .emotion-module__canvas { padding-bottom: 126px; }
+  .emotion-workspace-header { display: block; padding-bottom: 20px; margin-bottom: 14px; }
+  .emotion-workspace-header h1 { font-size: 32px; }
+  .emotion-workspace-header__actions { display: flex; flex-wrap: wrap; justify-content: flex-start; margin-top: 15px; }
+  .emotion-workspace-header__actions .emotion-private-badge { margin: 0; }
+  .emotion-workspace-primary { display: none; }
+  .emotion-secondary-action { min-height: 44px; }
+  .emotion-module .emotion-dock { position: fixed; left: var(--emotion-module-left, 0); right: var(--emotion-module-right, 0); bottom: max(12px, env(safe-area-inset-bottom)); height: 62px; display: block; margin: 0; padding: 0 12px; pointer-events: none; }
+  .emotion-module .emotion-bottom-nav { width: calc(100% - 76px); height: 62px; display: flex; padding: 5px; border-radius: 17px; background: rgb(255 255 255 / 96%); box-shadow: 0 10px 28px rgb(48 78 67 / 12%); pointer-events: auto; }
+  .emotion-module .emotion-bottom-nav button { min-width: 0; height: 50px; border-radius: 12px; }
+  .emotion-module .emotion-fab { position: absolute; right: 12px; top: 0; width: 62px; min-width: 62px; height: 62px; display: flex; padding: 0; border-radius: 17px; pointer-events: auto; }
+  .emotion-composer { max-height: 100dvh; height: 100dvh; }
+  .emotion-composer__privacy { max-width: 80px; font-size: 9px !important; }
+  .emotion-module .emotion-mood-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .emotion-module .emotion-activity-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .emotion-feedback, .emotion-error-toast { left: 14px; right: 14px; top: max(70px, env(safe-area-inset-top)); max-width: none; }
+}
+
+@media (max-width: 390px) {
+  .emotion-module .emotion-mood-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
