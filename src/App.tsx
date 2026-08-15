@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   HelpCircle,
   HeartPulse,
+  Home,
   LineChart,
   LogOut,
   Medal,
@@ -39,6 +40,9 @@ import { TaskBoard } from './tasks/TaskBoard';
 import { EmotionModule } from './emotion/EmotionModule';
 import { HealthModule } from './health/HealthModule';
 import { parseAbilityPath, pushAbilityTree, replaceAbilityTree } from './ability/abilityRoute';
+import { TodayOverview, type TodayModule, type TodayQuickAction } from './today/TodayOverview';
+import { useTodayOverview } from './today/useTodayOverview';
+import type { ModuleIntent } from './today/todayIntent';
 
 const AbilityModule = lazy(() => import('./ability/AbilityModule').then((module) => ({ default: module.AbilityModule })));
 
@@ -50,7 +54,7 @@ const propertyValue = 420000;
 const liabilityValue = 2100;
 
 type AccountGroupId = 'cash' | 'investment' | 'receivable';
-type MainView = 'finance' | 'character' | 'ability' | 'body' | 'emotion' | 'quests' | 'achievements' | 'journal';
+type MainView = 'today' | 'finance' | 'character' | 'ability' | 'body' | 'emotion' | 'quests' | 'achievements' | 'journal';
 
 type Account = {
   id: string;
@@ -546,7 +550,7 @@ function CharacterStatusView() {
   );
 }
 
-const moduleViewContent: Record<Exclude<MainView, 'finance' | 'character'>, { eyebrow: string; title: string; description: string; items: string[] }> = {
+const moduleViewContent: Record<Exclude<MainView, 'today' | 'finance' | 'character'>, { eyebrow: string; title: string; description: string; items: string[] }> = {
   ability: { eyebrow: 'Ability Tree', title: '能力属性', description: '用技能树管理专业能力、通用能力与长期练习。', items: ['专业技能树', '本周练习', '能力里程碑'] },
   body: { eyebrow: 'Body Status', title: '健康状况', description: '记录睡眠、运动与身体指标，保持稳定输出。', items: ['睡眠恢复', '运动计划', '身体数据'] },
   emotion: { eyebrow: 'Mind Status', title: '情绪状态', description: '用轻量记录观察压力、能量与情绪波动。', items: ['今日情绪', '压力来源', '恢复行动'] },
@@ -555,7 +559,7 @@ const moduleViewContent: Record<Exclude<MainView, 'finance' | 'character'>, { ey
   journal: { eyebrow: 'Adventure Journal', title: '冒险日志', description: '汇总每日行动、复盘与成长轨迹，留下可回看的个人史。', items: ['今日记录', '周度复盘', '成长时间线'] }
 };
 
-function ModuleView({ view }: { view: Exclude<MainView, 'finance' | 'character'> }) {
+function ModuleView({ view }: { view: Exclude<MainView, 'today' | 'finance' | 'character'> }) {
   const content = moduleViewContent[view];
   return (
     <section className="module-view panel" aria-label={`${content.title}模块`}>
@@ -568,6 +572,26 @@ function ModuleView({ view }: { view: Exclude<MainView, 'finance' | 'character'>
         ))}
       </div>
     </section>
+  );
+}
+
+function TodayOverviewContainer({
+  onOpenModule,
+  onQuickAction,
+  onCompleteTask,
+}: {
+  onOpenModule(module: TodayModule, detail?: string | null): void;
+  onQuickAction(action: TodayQuickAction): void;
+  onCompleteTask(taskId: string): void;
+}) {
+  const model = useTodayOverview();
+  return (
+    <TodayOverview
+      model={model}
+      onOpenModule={onOpenModule}
+      onQuickAction={onQuickAction}
+      onCompleteTask={onCompleteTask}
+    />
   );
 }
 
@@ -590,8 +614,9 @@ export default function App() {
   const [renameValue, setRenameValue] = useState('');
   const [formError, setFormError] = useState('');
   const [activeView, setActiveView] = useState<MainView>(() =>
-    window.location.pathname.startsWith('/ability') ? 'ability' : 'finance'
+    window.location.pathname.startsWith('/ability') ? 'ability' : 'today'
   );
+  const [moduleIntent, setModuleIntent] = useState<ModuleIntent | null>(null);
 
   const openView = (view: MainView) => {
     setActiveView(view);
@@ -602,9 +627,30 @@ export default function App() {
     if (window.location.pathname.startsWith('/ability')) window.history.pushState({}, '', '/');
   };
 
+  const openTodayModule = (module: TodayModule, detail?: string | null) => {
+    if (module === 'ability' && detail) {
+      setActiveView('ability');
+      pushAbilityTree(detail);
+      return;
+    }
+    openView(module);
+  };
+
+  const openTodayQuickAction = (action: TodayQuickAction) => {
+    setModuleIntent({ id: Date.now(), type: action });
+    if (action === 'emotion.record') openView('emotion');
+    else if (action === 'health.quick-record') openView('body');
+    else openView('quests');
+  };
+
+  const completeTodayTask = (taskId: string) => {
+    setModuleIntent({ id: Date.now(), type: 'tasks.complete', taskId });
+    openView('quests');
+  };
+
   useEffect(() => {
     const syncViewFromPath = () => {
-      setActiveView(window.location.pathname.startsWith('/ability') ? 'ability' : 'finance');
+      setActiveView(window.location.pathname.startsWith('/ability') ? 'ability' : 'today');
     };
     window.addEventListener('popstate', syncViewFromPath);
     return () => window.removeEventListener('popstate', syncViewFromPath);
@@ -892,7 +938,7 @@ export default function App() {
     <>
       <a className="skip-link" href="#main-content">跳到主要内容</a>
       <header className="app-header" aria-label="全局导航" data-shell-surface="calm">
-        <button className="brand-mark" type="button" onClick={() => openView('finance')} aria-label="Dice Life 首页">
+        <button className="brand-mark" type="button" onClick={() => openView('today')} aria-label="Dice Life 首页">
           <strong>Dice Life</strong>
           <span className="brand-die" aria-hidden="true"><i /><i /><i /><i /><i /></span>
         </button>
@@ -922,6 +968,7 @@ export default function App() {
           <p>点击查看人物状态</p>
         </button>
         <nav className="side-nav" aria-label="系统模块">
+          <button className={activeView === 'today' ? 'active' : ''} aria-current={activeView === 'today' ? 'page' : undefined} type="button" onClick={() => openView('today')}><Home size={19} /> 今日总览</button>
           <button className={activeView === 'finance' ? 'active' : ''} aria-current={activeView === 'finance' ? 'page' : undefined} type="button" onClick={() => openView('finance')}><CircleDollarSign size={19} /> 财富状况</button>
           <button className={activeView === 'ability' ? 'active' : ''} aria-current={activeView === 'ability' ? 'page' : undefined} type="button" onClick={() => openView('ability')}><Brain size={19} /> 能力属性</button>
           <button className={activeView === 'body' ? 'active' : ''} aria-current={activeView === 'body' ? 'page' : undefined} type="button" onClick={() => openView('body')}><HeartPulse size={19} /> 健康状况</button>
@@ -948,8 +995,14 @@ export default function App() {
         </div>
       </aside>
 
-      <main className={`app-shell${activeView === 'emotion' ? ' emotion-shell' : ''}${activeView === 'body' ? ' health-shell' : ''}`} id="main-content" tabIndex={-1}>
-      {activeView === 'finance' ? (
+      <main className={`app-shell${activeView === 'today' ? ' today-shell' : ''}${activeView === 'emotion' ? ' emotion-shell' : ''}${activeView === 'body' ? ' health-shell' : ''}`} id="main-content" tabIndex={-1}>
+      {activeView === 'today' ? (
+        <TodayOverviewContainer
+          onOpenModule={openTodayModule}
+          onQuickAction={openTodayQuickAction}
+          onCompleteTask={completeTodayTask}
+        />
+      ) : activeView === 'finance' ? (
       <>
       <section className="hero-panel wealth-hero">
         <div className="hero-copy">
@@ -1067,11 +1120,20 @@ export default function App() {
       ) : activeView === 'character' ? (
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
-        <TaskBoard />
+        <TaskBoard
+          intent={moduleIntent?.type === 'tasks.create' || moduleIntent?.type === 'tasks.complete' ? moduleIntent : null}
+          onIntentConsumed={() => setModuleIntent(null)}
+        />
       ) : activeView === 'body' ? (
-        <HealthModule />
+        <HealthModule
+          intent={moduleIntent?.type === 'health.quick-record' ? moduleIntent : null}
+          onIntentConsumed={() => setModuleIntent(null)}
+        />
       ) : activeView === 'emotion' ? (
-        <EmotionModule />
+        <EmotionModule
+          intent={moduleIntent?.type === 'emotion.record' ? moduleIntent : null}
+          onIntentConsumed={() => setModuleIntent(null)}
+        />
       ) : activeView === 'journal' ? (
         <AdventureJournalPage onGoToTasks={() => openView('quests')} />
       ) : activeView === 'ability' ? (

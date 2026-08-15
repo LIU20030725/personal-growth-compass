@@ -2,9 +2,26 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from './App';
 
+function openFinance() {
+  fireEvent.click(screen.getByRole('button', { name: /财富状况/ }));
+}
+
 describe('Economy dashboard', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/');
+  });
+
+  it('uses the global today overview as home and returns there from the Dice Life logo', () => {
+    render(<App />);
+
+    expect(screen.getByRole('heading', { name: '今日总览' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /今日总览/ })).toHaveAttribute('aria-current', 'page');
+
+    fireEvent.click(screen.getByRole('button', { name: /财富状况/ }));
+    expect(screen.getByRole('heading', { name: '净资产' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Dice Life/ }));
+    expect(screen.getByRole('heading', { name: '今日总览' })).toBeInTheDocument();
   });
 
   it('marks the calm shared shell and exposes the current navigation destination', () => {
@@ -14,11 +31,12 @@ describe('Economy dashboard', () => {
     const sidebar = screen.getByRole('complementary', { name: '角色与模块导航' });
     expect(header).toHaveAttribute('data-shell-surface', 'calm');
     expect(sidebar).toHaveAttribute('data-shell-surface', 'calm');
-    expect(within(sidebar).getByRole('button', { name: /财富状况/ })).toHaveAttribute('aria-current', 'page');
+    expect(within(sidebar).getByRole('button', { name: /今日总览/ })).toHaveAttribute('aria-current', 'page');
+    expect(within(sidebar).getByRole('button', { name: /财富状况/ })).not.toHaveAttribute('aria-current');
 
     fireEvent.click(within(header).getByRole('button', { name: '任务' }));
     expect(within(header).getByRole('button', { name: '任务' })).toHaveAttribute('aria-current', 'page');
-    expect(within(sidebar).getByRole('button', { name: /财富状况/ })).not.toHaveAttribute('aria-current');
+    expect(within(sidebar).getByRole('button', { name: /今日总览/ })).not.toHaveAttribute('aria-current');
   });
 
   it('uses the Dice Life shell and switches between character and system views', async () => {
@@ -45,6 +63,7 @@ describe('Economy dashboard', () => {
 
   it('keeps the page focused on net worth and account groups without the removed formula strip', () => {
     render(<App />);
+    openFinance();
 
     expect(screen.getByRole('heading', { name: '净资产' })).toBeInTheDocument();
     expect(screen.getByText('¥611,520')).toBeInTheDocument();
@@ -78,6 +97,7 @@ describe('Economy dashboard', () => {
 
   it('closes subpages when the backdrop canvas is clicked', () => {
     render(<App />);
+    openFinance();
 
     fireEvent.click(screen.getByRole('button', { name: /本月收入支出/ }));
     const cashflowPage = screen.getByLabelText('本月收入支出详情');
@@ -97,6 +117,7 @@ describe('Economy dashboard', () => {
 
   it('adds a new cash account from the account dropdown', () => {
     render(<App />);
+    openFinance();
 
     fireEvent.click(screen.getByRole('button', { name: /增加银行卡/ }));
     fireEvent.change(screen.getByLabelText('账户名称'), { target: { value: '工商银行卡' } });
@@ -111,6 +132,7 @@ describe('Economy dashboard', () => {
 
   it('renames accounts from the detail pencil and deletes them only after confirmation', () => {
     render(<App />);
+    openFinance();
 
     fireEvent.click(screen.getByRole('button', { name: /招商银行卡/ }));
     const detail = screen.getByLabelText('账户详情表单');
@@ -134,6 +156,7 @@ describe('Economy dashboard', () => {
 
   it('posts quick cashflow entries to the selected cash account and ledger', () => {
     render(<App />);
+    openFinance();
 
     fireEvent.click(screen.getByRole('button', { name: /记一笔/ }));
     fireEvent.change(screen.getByLabelText('资金账户'), { target: { value: 'wechat' } });
@@ -159,6 +182,7 @@ describe('Economy dashboard', () => {
 
   it('shows account records as monthly bill cards with balance after each item', () => {
     render(<App />);
+    openFinance();
 
     fireEvent.click(screen.getByRole('button', { name: /招商银行卡/ }));
     fireEvent.change(screen.getByLabelText('金额'), { target: { value: '300' } });
@@ -187,6 +211,7 @@ describe('Economy dashboard', () => {
 
   it('uses profit/loss wording for investment accounts and supports transfer without changing monthly income or expense', () => {
     render(<App />);
+    openFinance();
 
     fireEvent.click(screen.getByRole('button', { name: /理财账户/ }));
     fireEvent.click(screen.getByRole('button', { name: /同花顺 A 股/ }));
@@ -207,6 +232,7 @@ describe('Economy dashboard', () => {
 
   it('opens a month detail sheet from the savings calendar and shows income and expense sources', () => {
     render(<App />);
+    openFinance();
 
     const savingsCalendar = screen.getByLabelText('2026 年月度存钱日历');
     fireEvent.click(within(savingsCalendar).getByRole('button', { name: /6月/ }));

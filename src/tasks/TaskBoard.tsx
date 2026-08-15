@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   Archive,
   CalendarDays,
@@ -28,6 +28,7 @@ import type {
 } from './types';
 import { RewardChest } from './RewardChest';
 import { useTaskSystem } from './useTaskSystem';
+import type { ModuleIntent } from '../today/todayIntent';
 import './TaskBoard.css';
 
 const today = () => new Date().toLocaleDateString('sv-SE');
@@ -199,7 +200,12 @@ function CompletionForm({ task, onSubmit, onClose }: { task: ShortTask; onSubmit
   );
 }
 
-export function TaskBoard() {
+type TaskBoardIntentProps = {
+  intent?: Extract<ModuleIntent, { type: 'tasks.create' | 'tasks.complete' }> | null;
+  onIntentConsumed?(): void;
+};
+
+export function TaskBoard({ intent, onIntentConsumed }: TaskBoardIntentProps = {}) {
   const system = useTaskSystem();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [dimension, setDimension] = useState<GrowthDimension | 'all'>('all');
@@ -221,6 +227,18 @@ export function TaskBoard() {
     return selectedGoal === 'all' || (selectedGoal === 'maintenance' ? task.isMaintenance : task.goalId === selectedGoal);
   });
   const newWeekCompletions = weeklyPreview.newCompletionIds.map((id) => system.state.completions.find((entry) => entry.id === id)).filter(Boolean);
+
+  useEffect(() => {
+    if (!intent) return;
+    if (intent.type === 'tasks.create') {
+      setDialog({ type: 'task' });
+    } else {
+      const task = system.state.tasks.find((candidate) => candidate.id === intent.taskId && candidate.status === 'active');
+      const completedToday = task && system.state.completions.some((entry) => entry.taskId === task.id && new Date(entry.completedAt).toLocaleDateString('sv-SE') === today());
+      if (task && !completedToday) setDialog({ type: 'completion', task });
+    }
+    onIntentConsumed?.();
+  }, [intent?.id]);
 
   function confirmArchive() {
     if (dialog?.type !== 'archive') return;

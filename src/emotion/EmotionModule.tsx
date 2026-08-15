@@ -13,6 +13,7 @@ import { EmotionCreateMenu } from './components/EmotionCreateMenu';
 import { EmotionImportantDayComposer } from './components/EmotionImportantDayComposer';
 import './emotionModule.css';
 import './emotionEnhancements.css';
+import type { IntentProps } from '../today/todayIntent';
 
 type MainRoute = { name: 'journal' } | { name: 'library' } | { name: 'calendar'; month: string };
 type EmotionRoute = MainRoute |
@@ -30,7 +31,7 @@ function getMainRoute(route: EmotionRoute): MainRoute {
   return route;
 }
 
-export function EmotionModule() {
+export function EmotionModule({ intent, onIntentConsumed }: IntentProps<'emotion.record'> = {}) {
   const system = useEmotionSystem();
   const [route, setRoute] = useState<EmotionRoute>({ name: 'journal' });
   const [composer, setComposer] = useState<{ mode: 'create' } | { mode: 'edit'; entryId: string } | null>(null);
@@ -82,6 +83,12 @@ export function EmotionModule() {
     setComposer(null);
     window.setTimeout(() => composerTriggerRef.current?.focus(), 0);
   }
+
+  useEffect(() => {
+    if (intent?.type !== 'emotion.record') return;
+    openComposer({ mode: 'create' });
+    onIntentConsumed?.();
+  }, [intent?.id]);
 
   function openCreateMenu() {
     composerTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;

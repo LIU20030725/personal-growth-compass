@@ -20,4 +20,11 @@ describe("Dice Life health navigation", () => {
       screen.queryByText("记录睡眠、运动与身体指标，保持稳定输出。"),
     ).not.toBeInTheDocument();
   });
+
+  it("opens one-tap health recording directly from Today", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "打开快捷记录" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /记录健康/ }));
+    expect(screen.getByRole("dialog", { name: "一键记录" })).toBeInTheDocument();
+  });
 });

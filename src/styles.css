@@ -436,6 +436,13 @@ p {
   max-width: 1440px;
 }
 
+.app-shell.today-shell {
+  max-width: none;
+  background:
+    radial-gradient(circle at 78% 8%, rgb(244 200 63 / 7%), transparent 24rem),
+    radial-gradient(circle at 18% 36%, rgb(95 142 121 / 6%), transparent 30rem);
+}
+
 /* Shared AA fallback for compact yellow status labels rendered by modules. */
 .app-shell .weekly-bonus {
   color: #514619;
