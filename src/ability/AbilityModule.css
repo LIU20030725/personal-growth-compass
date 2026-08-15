@@ -65,8 +65,9 @@
 .ability-flow-handle { width: 9px !important; height: 9px !important; border: 2px solid #fffefa !important; background: #69727c !important; opacity: .72; transition: opacity 120ms ease, transform 120ms ease; }.ability-flow-node:hover .ability-flow-handle, .ability-flow-node.selected .ability-flow-handle { opacity: 1; transform: scale(1.12); }
 .ability-branch-port { right: -22px !important; z-index: 7; display: grid; width: 44px !important; height: 44px !important; min-height: 44px; place-items: center; border: 0 !important; border-radius: 50%; color: #26332f; background: transparent !important; opacity: 1; cursor: crosshair; transform: translateY(-50%) !important; }
 .ability-branch-port::before { width: 9px; height: 9px; border: 2px solid #fffefa; border-radius: 50%; background: #69727c; content: ""; transition: width 140ms ease, height 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
-.ability-branch-port[data-revealed="true"]::before { position: absolute; width: 28px; height: 28px; border-color: #d4b84b; background: #fff8d6; box-shadow: 0 3px 10px rgba(38,51,47,.14); }
-.ability-branch-port svg { position: relative; z-index: 1; pointer-events: none; }
+.ability-branch-port:hover::before, .ability-branch-port:focus-visible::before { position: absolute; width: 28px; height: 28px; border-color: #d4b84b; background: #fff8d6; box-shadow: 0 3px 10px rgba(38,51,47,.14); }
+.ability-branch-port svg { position: relative; z-index: 1; opacity: 0; pointer-events: none; transform: scale(.72); transition: opacity 120ms ease, transform 120ms ease; }
+.ability-branch-port:hover svg, .ability-branch-port:focus-visible svg { opacity: 1; transform: scale(1); }
 .ability-branch-port:focus-visible { outline: 3px solid rgba(242,214,107,.9); outline-offset: 1px; }
 .ability-collapse-branch { position: absolute; top: 50%; left: -31px; display: flex; min-width: 24px; height: 24px; min-height: 24px !important; align-items: center; justify-content: center; gap: 1px; padding: 0 4px !important; border: 1px solid #a5a8ab; border-radius: 999px; color: #5e646b; background: #fff; font-size: 9px; font-weight: 800; transform: translateY(-50%); }
 .ability-node-floating-toolbar { position: absolute; bottom: calc(100% + 10px); left: 50%; z-index: 10; display: flex; gap: 4px; padding: 4px; border: 1px solid #d5d4cf; border-radius: 9px; background: rgba(255, 255, 252, .98); box-shadow: 0 4px 12px rgba(31, 34, 36, .1); transform: translateX(-50%); }
@@ -357,7 +358,7 @@
 .ability-node-panel header small,
 .ability-dialog header small,
 .ability-library-rail-header small {
-  color: var(--ability-sage);
+  color: #47665b;
   letter-spacing: .11em;
 }
 
@@ -470,7 +471,7 @@
   padding: 4px 8px;
   border-color: #b9d1c7;
   border-radius: 8px;
-  color: #4f7165;
+  color: #47665b;
   background: var(--ability-sage-soft);
   font-size: 12px;
 }
@@ -627,7 +628,8 @@
   background: transparent !important;
 }
 
-.ability-branch-port[data-revealed="true"]::before {
+.ability-branch-port:hover::before,
+.ability-branch-port:focus-visible::before {
   border-color: #d7bd56 !important;
   background: var(--ability-yellow-soft) !important;
   box-shadow: 0 5px 14px rgba(174, 141, 25, .16);
@@ -691,7 +693,7 @@
 }
 
 .ability-parallel-group > span {
-  color: #587a6e;
+  color: #47665b;
 }
 
 .ability-canvas-toolbar,
@@ -1058,4 +1060,31 @@
   .ability-dialog {
     border-radius: 16px 16px 0 0;
   }
+}
+
+/* V5 interaction target pass: retain compact visuals inside a full-size hit area. */
+.ability-tree-toolbar button,
+.ability-stage-view-switch button,
+.ability-flow-outcome,
+.ability-undo-toast button,
+.ability-resource-main a,
+.ability-node-inline-input {
+  min-height: 44px;
+}
+
+.ability-collapse-branch {
+  left: -48px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border-color: transparent;
+  background: transparent;
+}
+
+.ability-collapse-branch:hover,
+.ability-collapse-branch:focus-visible {
+  border-color: #c6d5cf;
+  background: var(--ability-surface);
 }

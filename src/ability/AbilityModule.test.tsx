@@ -99,16 +99,9 @@ describe('AbilityModule', () => {
     const htmlPort = await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' });
     const reactPort = screen.getByRole('button', { name: '为 React 状态管理 添加子节点' });
 
-    expect(htmlPort).toHaveAttribute('data-revealed', 'false');
-    expect(htmlPort.querySelector('svg')).toBeNull();
-    fireEvent.mouseEnter(htmlPort);
-    expect(htmlPort).toHaveAttribute('data-revealed', 'true');
+    expect(htmlPort).toHaveAttribute('data-reveal-on', 'hover focus');
     expect(htmlPort.querySelector('svg')).not.toBeNull();
-    fireEvent.mouseLeave(htmlPort);
-    expect(htmlPort).toHaveAttribute('data-revealed', 'false');
-    fireEvent.focus(reactPort);
-    expect(reactPort).toHaveAttribute('data-revealed', 'true');
-    expect(reactPort.querySelector('svg')).not.toBeNull();
+    expect(reactPort).toHaveAttribute('data-reveal-on', 'hover focus');
   });
 
   it('focuses and cycles through next action candidates in a stable order', async () => {
@@ -632,7 +625,7 @@ describe('AbilityModule', () => {
     expect(within(detail).getByRole('heading', { name: '技能 40' })).toBeInTheDocument();
     fireEvent.click(within(detail).getByRole('button', { name: '关闭技能详情' }));
     expect(screen.queryByLabelText('技能节点详情')).not.toBeInTheDocument();
-    expect(openingNode).toHaveFocus();
+    await waitFor(() => expect(openingNode).toHaveFocus());
   });
 
   it('uses a compact skill library and exposes only the core tree actions and filters', async () => {

@@ -38,6 +38,8 @@ test.beforeEach(async ({ page }) => {
   await openEmptyAbilityModule(page);
 });
 
+const v5Evidence = 'src/ability/docs/evidence/2026-08-15-ui-v5-redesign/screenshots';
+
 test('同一节点的 3、5 个分支和多层分支共享对齐母线', async ({ page }) => {
   await createStarterTree(page);
   await page.getByRole('group', { name: '内容定位 可开始', exact: true }).click();
@@ -100,6 +102,75 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
   await page.getByRole('button', { name: 'Fit View' }).click();
   await expectPrimaryEdgesReady(page, 7);
   await expect(canvas).toHaveScreenshot('aligned-multi-level.png', { animations: 'disabled', maxDiffPixels: 100 });
+});
+
+test('V5 平静指挥中心在三档视口保留按需分支与阶段归属', async ({ page }) => {
+  await createStarterTree(page);
+  const root = page.getByRole('group', { name: '内容定位 可开始', exact: true });
+  const branchPort = page.getByRole('button', { name: '为 内容定位 添加子节点' });
+
+  const branchIcon = branchPort.locator('svg');
+  await expect(branchIcon).toHaveCSS('opacity', '0');
+  await branchPort.hover();
+  await expect(branchIcon).toHaveCSS('opacity', '1');
+  await page.screenshot({ path: `${v5Evidence}/1440-canvas-branch-port.png`, animations: 'disabled' });
+  await branchPort.click();
+  await branchPort.click();
+  await branchPort.click();
+  await expect(page.getByRole('group', { name: '新技能 可开始', exact: true })).toHaveCount(3);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await page.screenshot({ path: `${v5Evidence}/1440-canvas-branches.png`, animations: 'disabled' });
+
+  const phase = page.getByRole('group', { name: '阶段 定位与基本功' });
+  const phaseBefore = await phase.boundingBox();
+  const rootBefore = await root.boundingBox();
+  const membershipBefore = await page.evaluate(() => {
+    const state = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { nodes?: Array<{ name: string; phaseId: string }> };
+    return state.nodes?.find((node) => node.name === '内容定位')?.phaseId;
+  });
+  expect(phaseBefore).not.toBeNull();
+  expect(rootBefore).not.toBeNull();
+  await page.mouse.move((rootBefore?.x ?? 0) + (rootBefore?.width ?? 0) / 2, (rootBefore?.y ?? 0) + 35);
+  await page.mouse.down();
+  await page.mouse.move((phaseBefore?.x ?? 0) + (phaseBefore?.width ?? 0) + 110, (rootBefore?.y ?? 0) + 35, { steps: 10 });
+  await page.mouse.up();
+  const savedMembership = await page.evaluate(() => {
+    const state = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { nodes?: Array<{ name: string; phaseId: string }> };
+    return state.nodes?.find((node) => node.name === '内容定位')?.phaseId;
+  });
+  expect(savedMembership).toBe(membershipBefore);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  const phaseAfter = await phase.boundingBox();
+  const rootAfter = await root.boundingBox();
+  expect(phaseAfter).not.toBeNull();
+  expect(rootAfter).not.toBeNull();
+  expect((phaseAfter?.width ?? 0)).toBeGreaterThan(phaseBefore?.width ?? 0);
+  expect((rootAfter?.x ?? 0) + (rootAfter?.width ?? 0)).toBeLessThanOrEqual((phaseAfter?.x ?? 0) + (phaseAfter?.width ?? 0) + 1);
+  await page.screenshot({ path: `${v5Evidence}/1440-stage-expanded.png`, animations: 'disabled' });
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await root.click();
+  await expect(page.getByRole('complementary', { name: '技能节点详情' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: `${v5Evidence}/1024-detail-overlay.png`, animations: 'disabled' });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const linearRoot = page.getByTestId('linear-skill-node').filter({ hasText: '内容定位' });
+  await linearRoot.click();
+  await expect(page.locator('.ability-workbench-main')).toHaveAttribute('inert', '');
+  await expect(page.locator('.ability-hero')).toHaveAttribute('inert', '');
+  await expect(page.locator('.ability-library-rail')).toHaveAttribute('inert', '');
+  const mobileDetail = page.getByRole('complementary', { name: '技能节点详情' });
+  await expect(mobileDetail).toBeVisible();
+  const closeBox = await mobileDetail.getByRole('button', { name: '关闭技能详情' }).boundingBox();
+  expect(closeBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(closeBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: `${v5Evidence}/390-linear-bottom-detail.png`, animations: 'disabled' });
+  await mobileDetail.getByRole('button', { name: '关闭技能详情' }).click();
+  await expect(page.locator('.ability-hero')).not.toHaveAttribute('inert', '');
+  await expect(linearRoot).toBeFocused();
 });
 
 test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async ({ page }) => {

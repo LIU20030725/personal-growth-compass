@@ -138,8 +138,6 @@ export function consumeAbilityFocusRequest(
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label);
-  const [branchPortHovered, setBranchPortHovered] = useState(false);
-  const [branchPortFocused, setBranchPortFocused] = useState(false);
   useEffect(() => setDraft(data.label), [data.label]);
   useEffect(() => {
     if (data.renameRequest > 0) setEditing(true);
@@ -150,7 +148,6 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
     else setDraft(data.label);
     setEditing(false);
   };
-  const branchPortRevealed = branchPortHovered || branchPortFocused;
   const addChild = () => data.onAddChild();
 
   return <div
@@ -190,11 +187,7 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
       tabIndex={0}
       aria-label={`为 ${data.label} 添加子节点`}
       aria-keyshortcuts="Enter Space"
-      data-revealed={branchPortRevealed}
-      onMouseEnter={() => setBranchPortHovered(true)}
-      onMouseLeave={() => setBranchPortHovered(false)}
-      onFocus={() => setBranchPortFocused(true)}
-      onBlur={() => setBranchPortFocused(false)}
+      data-reveal-on="hover focus"
       onClick={(event) => { event.stopPropagation(); addChild(); }}
       onKeyDown={(event: ReactKeyboardEvent) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -202,7 +195,7 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
         event.stopPropagation();
         addChild();
       }}
-    >{branchPortRevealed ? <Plus aria-hidden="true" size={16} /> : null}</Handle>
+    ><Plus aria-hidden="true" size={16} /></Handle>
   </div>;
 }
 

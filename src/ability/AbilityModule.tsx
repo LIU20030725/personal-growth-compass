@@ -42,6 +42,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const linearNodeRefs = useRef(new Map<string, HTMLButtonElement>());
+  const moduleRef = useRef<HTMLElement>(null);
   const workbenchMainRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<TreeNodeFilter>('all');
   const [form, setForm] = useState<FormName>(null);
@@ -99,6 +100,28 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     if (detailOpen && compactViewport) main.setAttribute('inert', '');
     else main.removeAttribute('inert');
   }, [compactViewport, detailOpen]);
+
+  useEffect(() => {
+    const module = moduleRef.current;
+    if (!module) return;
+    module.querySelectorAll<HTMLElement>(':scope > [data-ability-detail-inert]').forEach((element) => {
+      element.removeAttribute('inert');
+      element.removeAttribute('data-ability-detail-inert');
+    });
+    if (!detailOpen || !compactViewport || form) return;
+    const workbench = workbenchMainRef.current?.parentElement;
+    [...module.children].forEach((child) => {
+      if (!(child instanceof HTMLElement) || child === workbench || child.classList.contains('ability-dialog-backdrop')) return;
+      child.setAttribute('inert', '');
+      child.setAttribute('data-ability-detail-inert', '');
+    });
+    return () => {
+      module.querySelectorAll<HTMLElement>(':scope > [data-ability-detail-inert]').forEach((element) => {
+        element.removeAttribute('inert');
+        element.removeAttribute('data-ability-detail-inert');
+      });
+    };
+  }, [compactViewport, detailOpen, form]);
 
   const currentTree = ability.state.trees.find((tree) => tree.id === currentTreeId && tree.status === 'active') ?? null;
   const currentCanvasHistory = currentTreeId
@@ -249,11 +272,12 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
       ? [...document.querySelectorAll<HTMLElement>('.react-flow__node[data-id]')]
         .find((element) => element.dataset.id === selectedNodeId)
       : null;
-    (linearNode ?? canvasNode ?? document.querySelector<HTMLElement>('.ability-flow-shell'))?.focus();
+    const focusTarget = linearNode ?? canvasNode ?? document.querySelector<HTMLElement>('.ability-flow-shell');
     setDetailOpen(false);
+    window.setTimeout(() => focusTarget?.focus(), 0);
   };
 
-  return <section className="ability-module" aria-label="能力属性模块">
+  return <section ref={moduleRef} className="ability-module" aria-label="能力属性模块">
     <header className="ability-hero">
       <div><p className="eyebrow"><Sparkles size={17} /> Ability Tree · Manual First</p><h1>能力技能树</h1><p>把主技能与副技能变成可以持续生长的路线，用阶段、掌握标准和真实成果证明进步。</p></div>
       <button className={currentTree ? 'ability-secondary ability-create-tree' : 'ability-primary'} type="button" onClick={() => setForm('tree')}><Plus size={18} />新建技能树</button>
