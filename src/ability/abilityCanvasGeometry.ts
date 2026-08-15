@@ -21,20 +21,22 @@ export function buildAlignedOrthogonalPath({
   cornerRadius = 9,
   targetGap = 12
 }: AlignedEdgeInput): string {
-  const endX = Math.max(branchX, targetX - targetGap);
+  const endX = targetX - targetGap;
   if (sourceY === targetY) return `M ${number(sourceX)} ${number(sourceY)} L ${number(targetX)} ${number(targetY)}`;
 
   const direction = targetY > sourceY ? 1 : -1;
   const radius = Math.min(
     cornerRadius,
     Math.abs(targetY - sourceY) / 2,
-    Math.max(0, branchX - sourceX),
-    Math.max(0, endX - branchX)
+    Math.abs(branchX - sourceX),
+    Math.abs(endX - branchX)
   );
-  const beforeBranch = branchX - radius;
+  const sourceDirection = branchX >= sourceX ? 1 : -1;
+  const targetDirection = endX >= branchX ? 1 : -1;
+  const beforeBranch = branchX - sourceDirection * radius;
   const branchStartY = sourceY + direction * radius;
   const branchEndY = targetY - direction * radius;
-  const afterBranch = branchX + radius;
+  const afterBranch = branchX + targetDirection * radius;
 
   return [
     `M ${number(sourceX)} ${number(sourceY)}`,

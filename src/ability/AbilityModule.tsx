@@ -42,6 +42,8 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const linearNodeRefs = useRef(new Map<string, HTMLButtonElement>());
+  const moduleRef = useRef<HTMLElement>(null);
+  const workbenchMainRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<TreeNodeFilter>('all');
   const [form, setForm] = useState<FormName>(null);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -52,12 +54,14 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   const [nodePhaseId, setNodePhaseId] = useState<string | undefined>(undefined);
   const [editingPhaseId, setEditingPhaseId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'canvas' | 'linear'>(() => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 680px)').matches ? 'linear' : 'canvas');
+  const [compactViewport, setCompactViewport] = useState(() => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(max-width: 680px)').matches));
   const [canvasHistories, setCanvasHistories] = useState<Record<string, CanvasPreferenceHistory>>({});
   const canvasHistoriesRef = useRef<Record<string, CanvasPreferenceHistory>>({});
   const [canvasPersistenceError, setCanvasPersistenceError] = useState('');
   const handledRouteTreeId = useRef<string | null | undefined>(undefined);
   const focusSequenceRef = useRef(0);
   const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const moreItemRef = useRef<HTMLButtonElement>(null);
   const [routeNotice, setRouteNotice] = useState(() => {
     if (!initialTreeId) return '';
@@ -69,11 +73,55 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
   useEffect(() => {
     if (!window.matchMedia) return;
     const compact = window.matchMedia('(max-width: 680px)');
-    const syncView = (event: MediaQueryListEvent | MediaQueryList) => setViewMode(event.matches ? 'linear' : 'canvas');
+    const syncView = (event: MediaQueryListEvent | MediaQueryList) => {
+      setCompactViewport(event.matches);
+      setViewMode(event.matches ? 'linear' : 'canvas');
+    };
     syncView(compact);
     compact.addEventListener?.('change', syncView);
     return () => compact.removeEventListener?.('change', syncView);
   }, []);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (moreTriggerRef.current?.contains(target) || moreMenuRef.current?.contains(target)) return;
+      setMoreOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [moreOpen]);
+
+  useEffect(() => {
+    const main = workbenchMainRef.current;
+    if (!main) return;
+    if (detailOpen && compactViewport) main.setAttribute('inert', '');
+    else main.removeAttribute('inert');
+  }, [compactViewport, detailOpen]);
+
+  useEffect(() => {
+    const module = moduleRef.current;
+    if (!module) return;
+    module.querySelectorAll<HTMLElement>(':scope > [data-ability-detail-inert]').forEach((element) => {
+      element.removeAttribute('inert');
+      element.removeAttribute('data-ability-detail-inert');
+    });
+    if (!detailOpen || !compactViewport || form) return;
+    const workbench = workbenchMainRef.current?.parentElement;
+    [...module.children].forEach((child) => {
+      if (!(child instanceof HTMLElement) || child === workbench || child.classList.contains('ability-dialog-backdrop')) return;
+      child.setAttribute('inert', '');
+      child.setAttribute('data-ability-detail-inert', '');
+    });
+    return () => {
+      module.querySelectorAll<HTMLElement>(':scope > [data-ability-detail-inert]').forEach((element) => {
+        element.removeAttribute('inert');
+        element.removeAttribute('data-ability-detail-inert');
+      });
+    };
+  }, [compactViewport, detailOpen, form]);
 
   const currentTree = ability.state.trees.find((tree) => tree.id === currentTreeId && tree.status === 'active') ?? null;
   const currentCanvasHistory = currentTreeId
@@ -224,50 +272,69 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
       ? [...document.querySelectorAll<HTMLElement>('.react-flow__node[data-id]')]
         .find((element) => element.dataset.id === selectedNodeId)
       : null;
-    (linearNode ?? canvasNode ?? document.querySelector<HTMLElement>('.ability-flow-shell'))?.focus();
+    const focusTarget = linearNode ?? canvasNode ?? document.querySelector<HTMLElement>('.ability-flow-shell');
     setDetailOpen(false);
+    window.setTimeout(() => focusTarget?.focus(), 0);
   };
 
-  return <section className="ability-module" aria-label="能力属性模块">
-    <header className="ability-hero">
+  const skillLibrary = <SkillLibrary
+    state={ability.state}
+    currentTreeId={currentTreeId}
+    onOpenTree={openTree}
+    onCreateTree={() => setForm('tree')}
+    onArchiveTree={ability.archiveTree}
+    onRestoreTree={ability.restoreTree}
+    onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))}
+    onReorderFocused={ability.reorderFocusedTrees}
+  />;
+
+  return <section ref={moduleRef} className={`ability-module ${currentTree ? 'has-current-tree' : ''}`} aria-label="能力属性模块">
+    {!currentTree ? <header className="ability-hero">
       <div><p className="eyebrow"><Sparkles size={17} /> Ability Tree · Manual First</p><h1>能力技能树</h1><p>把主技能与副技能变成可以持续生长的路线，用阶段、掌握标准和真实成果证明进步。</p></div>
       <button className="ability-primary" type="button" onClick={() => setForm('tree')}><Plus size={18} />新建技能树</button>
-    </header>
+    </header> : null}
 
     {ability.persistenceError ? <div className="ability-error-banner" role="alert"><span>{ability.persistenceError}</span><button type="button" onClick={ability.clearPersistenceError}>关闭</button></div> : null}
     {canvasPersistenceError ? <div className="ability-error-banner" role="alert"><span>{canvasPersistenceError}</span><button type="button" onClick={() => setCanvasPersistenceError('')}>关闭</button></div> : null}
     {routeNotice ? <div className="ability-route-notice" role="status">{routeNotice}</div> : null}
 
-    <SkillLibrary state={ability.state} currentTreeId={currentTreeId} onOpenTree={openTree} onCreateTree={() => setForm('tree')} onArchiveTree={ability.archiveTree} onRestoreTree={ability.restoreTree} onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))} onReorderFocused={ability.reorderFocusedTrees} />
-
-    {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准与学习资源。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
-      <section className="ability-current-header" aria-label="当前技能树概览">
-        <div><span>{SKILL_ROLE_LABELS[currentTree.role]}</span><h2>{currentTree.name}</h2><p>{currentTree.description || '为这棵技能树补充一句成长方向。'}</p></div>
-        <div className="ability-current-stats"><strong>{progress?.percent ?? 0}%</strong><span>{progress?.mastered ?? 0}/{progress?.total ?? 0} 已掌握</span><small>当前：{currentPhase?.name ?? '等待添加阶段'}</small></div>
-        <div className="ability-current-actions">
-          <button type="button" onClick={() => setForm('edit-tree')}><Pencil size={16} />修改技能树资料</button>
+    {!currentTree ? <>{skillLibrary}<section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准与学习资源。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section></> : <>
+      <section className="ability-current-header ability-command-header" aria-label="当前技能树概览">
+        <div className="ability-command-header-content" aria-label="当前技能树指挥栏">
+          <div className="ability-current-identity"><p className="eyebrow"><Sparkles size={15} /> 能力技能树 · {SKILL_ROLE_LABELS[currentTree.role]}</p><h1>{currentTree.name}</h1><p>{currentTree.description || '为这棵技能树补充一句成长方向。'}</p></div>
+          <div className="ability-current-stats"><strong>{progress?.percent ?? 0}%</strong><span>{progress?.mastered ?? 0}/{progress?.total ?? 0} 已掌握</span><small>当前：{currentPhase?.name ?? '等待添加阶段'}</small></div>
+          <div className="ability-current-actions">
+          <button className="ability-next-action" type="button" onClick={runNextAction}>下一步 · {nextCandidates.length}</button>
           <button type="button" onClick={() => setForm('phase')}><Plus size={16} />添加阶段</button>
           <div className="ability-more-actions">
             <button ref={moreTriggerRef} type="button" aria-haspopup="menu" aria-expanded={moreOpen} aria-label="更多技能树操作" onClick={() => setMoreOpen((value) => { const next = !value; if (next) queueMicrotask(() => moreItemRef.current?.focus()); return next; })}><Ellipsis size={18} /></button>
-            {moreOpen ? <div className="ability-tree-action-menu" role="menu" onKeyDown={(event) => {
+            {moreOpen ? <div ref={moreMenuRef} className="ability-tree-action-menu" role="menu" onKeyDown={(event) => {
               if (event.key === 'Escape') { event.preventDefault(); setMoreOpen(false); window.setTimeout(() => moreTriggerRef.current?.focus(), 0); }
-              if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') { event.preventDefault(); moreItemRef.current?.focus(); }
-            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { resetCanvasLayout(); setMoreOpen(false); }}>重新自动布局</button></div> : null}
+              const items = [...(moreMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+              if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !items.length) return;
+              event.preventDefault();
+              const current = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+                : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+              items[next].focus();
+            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { setForm('edit-tree'); setMoreOpen(false); }}><Pencil size={15} />修改技能树资料</button><button role="menuitem" type="button" onClick={() => { resetCanvasLayout(); setMoreOpen(false); }}><Route size={15} />重新自动布局</button></div> : null}
+          </div>
           </div>
         </div>
       </section>
 
+      {skillLibrary}
+
       <div className="ability-tree-toolbar-row">
         <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div>
-        <button className="ability-next-action" type="button" onClick={runNextAction}>下一步 · {nextCandidates.length}</button>
+        <div className="ability-stage-view-switch" aria-label="技能路线视图">
+          <button type="button" aria-pressed={viewMode === 'linear'} onClick={() => setViewMode(viewMode === 'canvas' ? 'linear' : 'canvas')}>{viewMode === 'canvas' ? '切换到线性路线' : '切换到技能树画布'}</button>
+        </div>
       </div>
       <div className="ability-next-status" role={nextStatus ? 'status' : undefined} aria-live="polite">{nextStatus}</div>
 
-      <div className="ability-stage-view-switch" aria-label="技能路线视图">
-        <button type="button" aria-pressed={viewMode === 'linear'} onClick={() => setViewMode(viewMode === 'canvas' ? 'linear' : 'canvas')}>{viewMode === 'canvas' ? '切换到线性路线' : '切换到技能树画布'}</button>
-      </div>
-
       <div className={`ability-workbench ${detailOpen ? 'has-detail' : ''}`}>
+        <div ref={workbenchMainRef} className="ability-workbench-main">
         {viewMode === 'canvas' ? <AbilityTreeStage
           state={ability.state}
           tree={currentTree}
@@ -326,6 +393,7 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
           })}
           {!visibleLinearNodes.length ? <p className="ability-muted">当前筛选下没有技能节点。</p> : null}
         </section>}
+        </div>
         {detailOpen ? <AbilityNodePanel node={selectedNode} displayState={displayState} prerequisiteWarning={selectedNode ? hasPrerequisiteWarning(selectedNode, ability.state) : false} criteria={selectedCriteria} resources={ability.state.resources} resourceLinks={ability.state.resourceLinks} outcomes={selectedOutcomes} onClose={closeDetails} onStart={() => selectedNode && ability.startNode(selectedNode.id)} onAddCriterion={(description) => selectedNode && ability.addCriterion(selectedNode.id, description)} onToggleCriterion={ability.toggleCriterion} onConfirmMastery={() => selectedNode && ability.masterNode(selectedNode.id, '')} onDemote={() => selectedNode && ability.demoteNode(selectedNode.id)} onAddResource={(input) => selectedNode && ability.addOrLinkResource(selectedNode.id, input)} onLinkResource={(resourceId) => selectedNode && ability.linkExistingResource(selectedNode.id, resourceId)} onUpdateResource={ability.updateResource} onUnlinkResource={ability.unlinkResource} onDeleteResource={ability.deleteResource} onRequestOutcome={() => selectedNode && setForm('outcome')} onToggleOutcomeVisibility={ability.setOutcomeTreeVisibility} onEdit={() => setForm('edit-node')} /> : null}
       </div>
     </>}

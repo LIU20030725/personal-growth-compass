@@ -31,4 +31,14 @@ describe('aligned orthogonal edge geometry', () => {
       branchX: 224
     })).toBe('M 176 40 L 272 40');
   });
+
+  it('returns from an outer branch bus to a target dragged left of its parent', () => {
+    expect(buildAlignedOrthogonalPath({
+      sourceX: 1160,
+      sourceY: 520,
+      targetX: 800,
+      targetY: 372,
+      branchX: 1384
+    })).toBe('M 1160 520 H 1375 Q 1384 520 1384 511 V 381 Q 1384 372 1375 372 H 788');
+  });
 });

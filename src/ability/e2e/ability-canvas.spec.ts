@@ -14,7 +14,7 @@ async function createStarterTree(page: Page): Promise<void> {
   await page.getByRole('textbox', { name: '技能说明' }).fill('从内容定位到稳定增长');
   await page.getByRole('button', { name: '保存技能树' }).click();
 
-  await page.getByRole('button', { name: '添加下一阶段' }).click();
+  await page.getByRole('button', { name: '添加阶段' }).click();
   await page.getByRole('textbox', { name: '阶段名称' }).fill('定位与基本功');
   await page.getByRole('button', { name: '保存阶段' }).click();
 
@@ -37,6 +37,8 @@ async function expectPrimaryEdgesReady(page: Page, count: number): Promise<void>
 test.beforeEach(async ({ page }) => {
   await openEmptyAbilityModule(page);
 });
+
+const v5Evidence = 'src/ability/docs/evidence/2026-08-15-ui-v5-redesign/screenshots';
 
 test('同一节点的 3、5 个分支和多层分支共享对齐母线', async ({ page }) => {
   await createStarterTree(page);
@@ -95,6 +97,7 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
   await movedChild.click();
   const addGrandchild = page.getByRole('button', { name: '为 手动拖拽分支 添加子节点' });
   await addGrandchild.click();
+  await expect(children).toHaveCount(5);
   await addGrandchild.click();
   await expect(children).toHaveCount(6);
   await page.getByRole('button', { name: 'Fit View' }).click();
@@ -102,15 +105,88 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
   await expect(canvas).toHaveScreenshot('aligned-multi-level.png', { animations: 'disabled', maxDiffPixels: 100 });
 });
 
+test('V5 平静指挥中心在三档视口保留按需分支与阶段归属', async ({ page }) => {
+  await createStarterTree(page);
+  const root = page.getByRole('group', { name: '内容定位 可开始', exact: true });
+  const branchPort = page.getByRole('button', { name: '为 内容定位 添加子节点' });
+
+  const branchIcon = branchPort.locator('svg');
+  await expect(branchIcon).toHaveCSS('opacity', '0');
+  await branchPort.hover();
+  await expect(branchIcon).toHaveCSS('opacity', '1');
+  await page.screenshot({ path: `${v5Evidence}/1440-canvas-branch-port.png`, animations: 'disabled' });
+  await branchPort.click();
+  await branchPort.click();
+  await branchPort.click();
+  await expect(page.getByRole('group', { name: '新技能 可开始', exact: true })).toHaveCount(3);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await page.screenshot({ path: `${v5Evidence}/1440-canvas-branches.png`, animations: 'disabled' });
+
+  const phase = page.getByRole('group', { name: '阶段 定位与基本功' });
+  const phaseBefore = await phase.boundingBox();
+  const rootBefore = await root.boundingBox();
+  const membershipBefore = await page.evaluate(() => {
+    const state = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { nodes?: Array<{ name: string; phaseId: string }> };
+    return state.nodes?.find((node) => node.name === '内容定位')?.phaseId;
+  });
+  expect(phaseBefore).not.toBeNull();
+  expect(rootBefore).not.toBeNull();
+  await page.mouse.move((rootBefore?.x ?? 0) + (rootBefore?.width ?? 0) / 2, (rootBefore?.y ?? 0) + 35);
+  await page.mouse.down();
+  await page.mouse.move((phaseBefore?.x ?? 0) + (phaseBefore?.width ?? 0) + 110, (rootBefore?.y ?? 0) + 35, { steps: 10 });
+  await page.mouse.up();
+  const savedMembership = await page.evaluate(() => {
+    const state = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { nodes?: Array<{ name: string; phaseId: string }> };
+    return state.nodes?.find((node) => node.name === '内容定位')?.phaseId;
+  });
+  expect(savedMembership).toBe(membershipBefore);
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  const phaseAfter = await phase.boundingBox();
+  const rootAfter = await root.boundingBox();
+  expect(phaseAfter).not.toBeNull();
+  expect(rootAfter).not.toBeNull();
+  expect((phaseAfter?.width ?? 0)).toBeGreaterThan(phaseBefore?.width ?? 0);
+  expect((rootAfter?.x ?? 0) + (rootAfter?.width ?? 0)).toBeLessThanOrEqual((phaseAfter?.x ?? 0) + (phaseAfter?.width ?? 0) + 1);
+  await page.screenshot({ path: `${v5Evidence}/1440-stage-expanded.png`, animations: 'disabled' });
+
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await root.click();
+  await expect(page.getByRole('complementary', { name: '技能节点详情' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: `${v5Evidence}/1024-detail-overlay.png`, animations: 'disabled' });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const linearRoot = page.getByTestId('linear-skill-node').filter({ hasText: '内容定位' });
+  await linearRoot.click();
+  await expect(page.locator('.ability-workbench-main')).toHaveAttribute('inert', '');
+  await expect(page.locator('.ability-command-header')).toHaveAttribute('inert', '');
+  await expect(page.locator('.ability-library-rail')).toHaveAttribute('inert', '');
+  const mobileDetail = page.getByRole('complementary', { name: '技能节点详情' });
+  await expect(mobileDetail).toBeVisible();
+  const closeBox = await mobileDetail.getByRole('button', { name: '关闭技能详情' }).boundingBox();
+  expect(closeBox?.width ?? 0).toBeGreaterThanOrEqual(44);
+  expect(closeBox?.height ?? 0).toBeGreaterThanOrEqual(44);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.screenshot({ path: `${v5Evidence}/390-linear-bottom-detail.png`, animations: 'disabled' });
+  await mobileDetail.getByRole('button', { name: '关闭技能详情' }).click();
+  await expect(page.locator('.ability-command-header')).not.toHaveAttribute('inert', '');
+  await expect(linearRoot).toBeFocused();
+});
+
 test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async ({ page }) => {
   await createStarterTree(page);
   const phase = page.getByRole('group', { name: '阶段 定位与基本功' });
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await phase.scrollIntoViewIfNeeded();
   const box = await phase.boundingBox();
   expect(box).not.toBeNull();
   await page.mouse.move((box?.x ?? 0) + 40, (box?.y ?? 0) + 30);
   await page.mouse.down();
   await page.mouse.move((box?.x ?? 0) + 91, (box?.y ?? 0) + 73, { steps: 6 });
   await page.mouse.up();
+
+  await expect.poll(async () => page.evaluate(() => Boolean(window.localStorage.getItem('dice-life.ability-canvas.v1')))).toBe(true);
 
   const saved = await page.evaluate(() => {
     const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
@@ -131,7 +207,8 @@ test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async
   });
   expect(persisted).toEqual(saved);
 
-  await page.getByRole('button', { name: '重新自动布局' }).click();
+  await page.getByRole('button', { name: '更多画布工具' }).click();
+  await page.getByRole('menuitem', { name: '重新自动布局' }).click();
   const phasePositionsAfterReset = await page.evaluate(() => {
     const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
     const canvasStore = JSON.parse(window.localStorage.getItem('dice-life.ability-canvas.v1') ?? '{}') as { trees: Record<string, { phasePositions: Record<string, { x: number; y: number }> }> };
@@ -151,7 +228,7 @@ test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async
 test('键盘快捷键只在画布聚焦时生效，弹窗会困住并恢复焦点', async ({ page }) => {
   await createStarterTree(page);
   const node = page.getByRole('group', { name: '内容定位 可开始', exact: true });
-  const createTree = page.getByRole('button', { name: '新建技能树' }).first();
+  const createTree = page.getByRole('button', { name: '新建' }).first();
 
   await createTree.focus();
   await page.keyboard.press('Delete');
@@ -279,7 +356,7 @@ test('@a11y 能力模块没有 critical/serious 级自动可访问性问题', as
     contentType: 'application/json'
   });
 
-  await page.getByRole('button', { name: '新建技能树' }).first().click();
+  await page.getByRole('button', { name: '新建' }).first().click();
   const dialogResults = await new AxeBuilder({ page }).analyze();
   await testInfo.attach('axe-dialog-results', {
     body: JSON.stringify(dialogResults, null, 2),

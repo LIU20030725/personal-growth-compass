@@ -80,6 +80,18 @@ function snapCoordinate(value: number): number {
   return Math.round(value / CANVAS_GRID) * CANVAS_GRID;
 }
 
+function floorToGrid(value: number): number {
+  return Math.floor(value / CANVAS_GRID) * CANVAS_GRID;
+}
+
+function ceilToGrid(value: number): number {
+  return Math.ceil(value / CANVAS_GRID) * CANVAS_GRID;
+}
+
+function ceilPhaseHeight(value: number): number {
+  return Math.ceil(value / (CANVAS_GRID * 2)) * CANVAS_GRID * 2;
+}
+
 function isFiniteCanvasPoint(point: CanvasPoint): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y);
 }
@@ -216,13 +228,27 @@ export function layoutAbilityCanvas(
     });
   });
   phases.forEach((phase) => {
-    const memberBottom = visibleNodes
+    const memberPoints = visibleNodes
       .filter((node) => node.phaseId === phase.id)
-      .map((node) => positions.get(node.id)?.y)
-      .filter((y): y is number => y !== undefined)
-      .reduce((bottom, y) => Math.max(bottom, y + NODE_HEIGHT + PHASE_BOTTOM_SPACE), phase.y + phase.height);
-    const requiredHeight = memberBottom - phase.y;
-    phase.height = Math.ceil(Math.max(phase.height, requiredHeight) / (CANVAS_GRID * 2)) * CANVAS_GRID * 2;
+      .map((node) => positions.get(node.id))
+      .filter((point): point is CanvasPoint => !!point && isFiniteCanvasPoint(point));
+    if (!memberPoints.length) return;
+
+    const baseRight = phase.x + phase.width;
+    const baseBottom = phase.y + phase.height;
+    const memberLeft = Math.min(...memberPoints.map((point) => point.x)) - PHASE_PADDING_X;
+    const memberTop = Math.min(...memberPoints.map((point) => point.y)) - PHASE_HEADER_SPACE;
+    const memberRight = Math.max(...memberPoints.map((point) => point.x + NODE_WIDTH)) + PHASE_PADDING_X;
+    const memberBottom = Math.max(...memberPoints.map((point) => point.y + NODE_HEIGHT)) + PHASE_BOTTOM_SPACE;
+    const nextX = floorToGrid(Math.min(phase.x, memberLeft));
+    const nextY = floorToGrid(Math.min(phase.y, memberTop));
+    const nextRight = ceilToGrid(Math.max(baseRight, memberRight));
+    const nextBottom = ceilToGrid(Math.max(baseBottom, memberBottom));
+
+    phase.x = nextX;
+    phase.y = nextY;
+    phase.width = ceilToGrid(Math.max(PHASE_MIN_WIDTH, nextRight - nextX));
+    phase.height = ceilPhaseHeight(Math.max(PHASE_MIN_HEIGHT, nextBottom - nextY));
   });
   const phaseEdges: AbilityCanvasPhaseEdge[] = phases.slice(0, -1).map((phase, index) => {
     const nextPhase = phases[index + 1];
