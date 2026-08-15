@@ -1,8 +1,17 @@
 .health-module {
+  --health-canvas: #f7faf8;
+  --health-surface: #ffffff;
+  --health-soft: #f1f7f4;
+  --health-sage: #6f9587;
+  --health-sage-light: #d9ece5;
+  --health-yellow: #f2d66b;
+  --health-text: #26332f;
+  --health-muted: #60706a;
+  --health-line: #dde8e2;
   max-width: 1180px;
   margin: 0 auto;
   padding: 34px;
-  color: #26332f;
+  color: var(--health-text);
 }
 .health-hero {
   margin-bottom: 22px;
@@ -18,7 +27,10 @@
 }
 .health-hero h1 {
   margin: 7px 0;
-  font-size: 38px;
+  max-width: 720px;
+  font-size: clamp(32px, 4vw, 44px);
+  line-height: 1.14;
+  letter-spacing: -0.035em;
 }
 .health-hero p,
 .health-today p,
@@ -41,16 +53,18 @@
 .health-review,
 .health-panel,
 .health-entry-card {
-  border: 1px solid #dce9e3;
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: 0 12px 30px rgba(54, 86, 74, 0.07);
+  border: 1px solid var(--health-line);
+  border-radius: 16px;
+  background: var(--health-surface);
+  box-shadow: 0 10px 28px rgba(54, 86, 74, 0.055);
 }
 .health-today {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 24px;
+  gap: 28px;
+  padding: 26px 28px;
+  background: linear-gradient(110deg, #ffffff 0%, #f7fbf9 100%);
 }
 .health-today span {
   display: block;
@@ -60,8 +74,9 @@
 }
 .health-today strong {
   display: block;
-  margin: 5px 0;
-  font-size: 24px;
+  margin: 8px 0 6px;
+  font-size: clamp(21px, 2.4vw, 28px);
+  line-height: 1.25;
 }
 .health-today button,
 .health-panel > button {
@@ -72,22 +87,81 @@
   background: #f2d66b;
   font-weight: 800;
 }
+.health-primary-action {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 142px;
+  box-shadow: 0 8px 20px rgba(171, 135, 20, 0.16);
+}
+.health-quick-section {
+  margin: 30px 0 22px;
+}
+.health-section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.health-section-heading h2 {
+  margin: 4px 0 0;
+  font-size: 21px;
+}
+.health-section-heading p {
+  margin: 0;
+  color: var(--health-muted);
+  font-size: 14px;
+}
+.health-section-kicker {
+  color: var(--health-sage);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
 .health-card-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
-  margin: 18px 0;
+  margin: 14px 0 0;
 }
 .health-entry-card {
   display: flex;
-  min-height: 128px;
-  padding: 18px;
+  min-height: 104px;
+  padding: 16px;
   text-align: left;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
+  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
-.health-entry-card svg {
+.health-entry-card:hover {
+  border-color: #b8cfc5;
+  box-shadow: 0 12px 28px rgba(54, 86, 74, 0.09);
+  transform: translateY(-1px);
+}
+.health-entry-card:focus-visible,
+.health-module button:focus-visible,
+.health-module input:focus-visible,
+.health-module select:focus-visible,
+.health-module textarea:focus-visible {
+  outline: 3px solid rgba(111, 149, 135, 0.3);
+  outline-offset: 2px;
+}
+.health-entry-icon {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--health-sage-light);
   color: #557767;
+}
+.health-entry-icon svg {
+  width: 21px;
+  height: 21px;
 }
 .health-entry-card span {
   display: grid;
@@ -96,19 +170,51 @@
 .health-entry-card small {
   color: #60706a;
 }
-.health-entry-card b {
-  margin-left: auto;
-  color: #88731b;
-  font-size: 12px;
-}
 .health-review {
   display: flex;
   gap: 14px;
   padding: 20px;
-  background: #f2f8f5;
+  background: var(--health-soft);
+}
+.health-review > svg,
+.health-management-card > svg {
+  flex: 0 0 auto;
+  color: var(--health-sage);
+}
+.health-review strong,
+.health-management-card strong {
+  display: block;
+  margin-top: 3px;
 }
 .health-review p {
   margin-top: 5px;
+}
+.health-home-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 14px;
+}
+.health-management-card {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--health-line);
+  border-radius: 16px;
+  background: var(--health-surface);
+}
+.health-management-card p {
+  margin: 5px 0 12px;
+  color: var(--health-muted);
+  font-size: 14px;
+}
+.health-management-card button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #bfd1c8;
+  border-radius: 11px;
+  background: var(--health-soft);
+  color: var(--health-text);
+  font-weight: 750;
 }
 .health-two-column {
   display: grid;
@@ -139,6 +245,28 @@
   border-radius: 11px;
   background: #fff;
   color: #26332f;
+}
+.health-panel input[type="file"] {
+  min-height: 48px;
+  padding: 7px;
+}
+.health-panel input[type="file"]::file-selector-button {
+  min-height: 34px;
+  margin-right: 10px;
+  padding: 0 12px;
+  border: 1px solid #bfd1c8;
+  border-radius: 9px;
+  background: var(--health-soft);
+  color: var(--health-text);
+}
+.health-file-picker > span {
+  color: var(--health-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.health-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
 }
 .health-panel textarea {
   min-height: 100px;
@@ -283,11 +411,85 @@
   background: #f2f8f5;
   color: #60706a;
 }
+.health-dialog-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(27, 42, 36, 0.34);
+}
+.health-dialog {
+  width: min(560px, 100%);
+  max-height: min(720px, calc(100vh - 40px));
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--health-line);
+  border-radius: 16px;
+  background: var(--health-surface);
+  box-shadow: 0 24px 70px rgba(32, 49, 43, 0.2);
+}
+.health-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.health-dialog-header h2 {
+  margin: 4px 0 0;
+  font-size: 25px;
+}
+.health-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--health-line);
+  border-radius: 11px;
+  background: var(--health-soft);
+}
+.health-dialog-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 20px;
+}
+.health-dialog-actions > button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid var(--health-line);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+}
+.health-dialog-actions > button span:last-child {
+  display: grid;
+  gap: 3px;
+}
+.health-dialog-actions small {
+  color: var(--health-muted);
+}
+.health-dialog-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+  color: var(--health-muted);
+  font-size: 13px;
+}
 @media (max-width: 900px) {
   .health-card-grid {
     grid-template-columns: repeat(2, 1fr);
   }
   .health-two-column {
+    grid-template-columns: 1fr;
+  }
+  .health-home-lower {
     grid-template-columns: 1fr;
   }
 }
@@ -299,13 +501,13 @@
     margin-top: 76px;
   }
   .health-module {
-    padding: 22px 16px;
+    padding: 22px 16px 34px;
   }
   .health-hero h1 {
     font-size: 32px;
   }
   .health-card-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
   }
   .health-today {
     align-items: flex-start;
@@ -314,6 +516,31 @@
   }
   .health-today button {
     width: 100%;
+  }
+  .health-section-heading {
+    display: block;
+  }
+  .health-section-heading p {
+    margin-top: 8px;
+  }
+  .health-entry-card {
+    min-width: 0;
+    min-height: 118px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .health-dialog-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+  .health-dialog {
+    width: 100%;
+    max-height: min(760px, 92vh);
+    border-radius: 16px 16px 0 0;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  .health-dialog-actions {
+    grid-template-columns: 1fr;
   }
   .health-set {
     grid-template-columns: 1fr;

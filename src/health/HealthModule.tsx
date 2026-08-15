@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   Apple,
   ChevronLeft,
+  Clock3,
   Dumbbell,
+  GlassWater,
   HeartPulse,
   Moon,
   Plus,
   Scale,
+  ShieldCheck,
   Utensils,
   Waves,
+  X,
 } from "lucide-react";
 import { useHealthSystem } from "./useHealthSystem";
 import { deriveBodyTrend } from "./healthEngine";
@@ -44,6 +48,7 @@ const cards: Array<{
 export function HealthModule() {
   const health = useHealthSystem();
   const [view, setView] = useState<View>("home");
+  const [quickOpen, setQuickOpen] = useState(false);
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [fat, setFat] = useState("");
@@ -96,7 +101,7 @@ export function HealthModule() {
   };
   const title =
     view === "home"
-      ? "健康状况"
+      ? "今天，记录一点真实变化"
       : view === "data"
         ? "数据与隐私"
         : cards.find((c) => c.id === view)!.title;
@@ -129,54 +134,81 @@ export function HealthModule() {
       )}
       {view === "home" && (
         <>
-          <div className="health-today">
-            <div>
-              <span>今日状态</span>
+          <section className="health-today" aria-labelledby="today-overview">
+            <div className="health-today-copy">
+              <span id="today-overview">今日概览</span>
               <strong>
                 {health.todayWaterMl
-                  ? `饮水 ${health.todayWaterMl} ml`
-                  : "等待你的第一条记录"}
+                  ? `今天已记录饮水 ${health.todayWaterMl} ml`
+                  : "今天还没有记录，从一件小事开始"}
               </strong>
               <p>
-                {health.meals.length} 条餐食 · {health.workouts.length} 次训练
+                已有 {health.meals.length} 条餐食记录 · {health.workouts.length} 次训练记录
               </p>
             </div>
-            <button onClick={() => setView("daily")}>
-              <Plus size={18} />
-              快速记录
+            <button className="health-primary-action" onClick={() => setQuickOpen(true)}>
+              <Plus size={18} aria-hidden="true" />
+              一键记录
             </button>
-          </div>
-          <div className="health-card-grid">
+          </section>
+          <section className="health-quick-section" aria-labelledby="quick-entrances">
+            <div className="health-section-heading">
+              <div>
+                <span className="health-section-kicker">快速入口</span>
+                <h2 id="quick-entrances">选择想记录的内容</h2>
+              </div>
+              <p>只填写已经发生的事实，缺少记录不代表失败。</p>
+            </div>
+            <div className="health-card-grid">
             {cards.map(({ id, title, subtitle, icon: Icon }) => (
               <button
                 key={id}
                 className="health-entry-card"
                 onClick={() => setView(id)}
+                aria-label={`${title}，${subtitle}`}
               >
-                <Icon />
+                <span className="health-entry-icon"><Icon aria-hidden="true" /></span>
                 <span>
                   <strong>{title}</strong>
                   <small>{subtitle}</small>
                 </span>
-                <b>进入</b>
               </button>
             ))}
-          </div>
-          <aside className="health-review">
-            <Waves />
-            <div>
-              <strong>周 / 月记录趋势</strong>
-              <p>
-                近 7 天 {recentCount(7)} 条 · 近 30 天 {recentCount(30)} 条。
-                {health.bodyRecords.length + health.daily.length < 2
-                  ? "再留下几条同类记录后，才会描述可比较的变化。"
-                  : "你的健康档案正在形成，可进入各模块查看同类数据变化。"}
-              </p>
             </div>
-          </aside>
-          <button className="health-data-link" onClick={() => setView("data")}>
-            数据导出、导入与垃圾箱
-          </button>
+          </section>
+          <div className="health-home-lower">
+            <aside className="health-review">
+              <Waves aria-hidden="true" />
+              <div>
+                <span className="health-section-kicker">回看变化</span>
+                <strong>周 / 月记录趋势</strong>
+                <p>
+                  近 7 天 {recentCount(7)} 条 · 近 30 天 {recentCount(30)} 条。
+                  {health.bodyRecords.length + health.daily.length < 2
+                    ? "再留下几条同类记录后，才会描述可比较的变化。"
+                    : "你的健康档案正在形成，可进入各模块查看同类数据变化。"}
+                </p>
+              </div>
+            </aside>
+            <aside className="health-management-card">
+              <ShieldCheck aria-hidden="true" />
+              <div>
+                <span className="health-section-kicker">本地优先</span>
+                <strong>历史与数据管理</strong>
+                <p>导出、导入、垃圾箱与恢复都集中在这里。</p>
+                <button onClick={() => setView("data")}>数据与隐私</button>
+              </div>
+            </aside>
+          </div>
+          {quickOpen && (
+            <QuickRecordDialog
+              onClose={() => setQuickOpen(false)}
+              onSelect={(nextView) => {
+                setQuickOpen(false);
+                setView(nextView);
+              }}
+            />
+          )}
         </>
       )}
       {view === "body" && (
@@ -789,18 +821,30 @@ export function HealthModule() {
             >
               导出完整健康备份
             </button>
-            <label>
-              导入备份内容
-              <textarea
-                aria-label="导入备份内容"
-                value={importText}
-                onChange={(e) => {
-                  setImportText(e.target.value);
+            <label className="health-file-picker">
+              选择健康备份文件
+              <input
+                aria-label="选择健康备份文件"
+                type="file"
+                accept=".json,application/json"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
                   setImportPreview(undefined);
+                  try {
+                    const content = await file.text();
+                    setImportText(content);
+                    setStatus(`已选择 ${file.name}，请先预检备份`);
+                  } catch {
+                    setImportText("");
+                    setStatus("无法读取该文件，当前数据未改变");
+                  }
                 }}
               />
+              <span>{importText ? "文件已读取，等待预检" : "仅支持本应用导出的 JSON bundle"}</span>
             </label>
             <button
+              disabled={!importText}
               onClick={() => setImportPreview(health.previewBundle(importText))}
             >
               预检备份
@@ -891,6 +935,95 @@ export function HealthModule() {
     </section>
   );
 }
+
+function QuickRecordDialog({
+  onClose,
+  onSelect,
+}: {
+  onClose: () => void;
+  onSelect: (view: Exclude<View, "home" | "data">) => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [onClose]);
+
+  const actions: Array<{
+    label: string;
+    detail: string;
+    view: Exclude<View, "home" | "data">;
+    icon: typeof Scale;
+  }> = [
+    { label: "记录饮水", detail: "快捷杯量或自定义毫升", view: "daily", icon: GlassWater },
+    { label: "记录睡眠", detail: "时长与可选质量", view: "daily", icon: Moon },
+    { label: "记录餐食", detail: "文字、照片与饱腹感", view: "meals", icon: Apple },
+    { label: "记录身体", detail: "体重、体脂与身高", view: "body", icon: Scale },
+    { label: "开始训练", detail: "继续项目或逐组记录", view: "workouts", icon: Dumbbell },
+  ];
+
+  return (
+    <div className="health-dialog-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <div
+        className="health-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-record-title"
+        ref={dialogRef}
+      >
+        <div className="health-dialog-header">
+          <div>
+            <span className="health-section-kicker">只选一项就好</span>
+            <h2 id="quick-record-title">一键记录</h2>
+          </div>
+          <button ref={closeRef} className="health-icon-button" onClick={onClose} aria-label="关闭一键记录">
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <div className="health-dialog-actions">
+          {actions.map(({ label, detail, view, icon: Icon }) => (
+            <button key={label} aria-label={label} onClick={() => onSelect(view)}>
+              <span className="health-entry-icon"><Icon aria-hidden="true" /></span>
+              <span><strong>{label}</strong><small>{detail}</small></span>
+            </button>
+          ))}
+        </div>
+        <p className="health-dialog-note"><Clock3 aria-hidden="true" /> 常用记录通常只需几十秒。</p>
+      </div>
+    </div>
+  );
+}
+
 function Empty({ text }: { text: string }) {
   return <div className="health-empty">{text}</div>;
 }

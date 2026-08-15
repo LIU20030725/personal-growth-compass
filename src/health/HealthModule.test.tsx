@@ -4,10 +4,41 @@ import { HealthModule } from "./HealthModule";
 
 describe("HealthModule", () => {
   beforeEach(() => window.localStorage.clear());
+  it("uses a today-first home and one accessible quick-record chooser", () => {
+    render(<HealthModule />);
+
+    expect(
+      screen.getByRole("heading", { name: "今天，记录一点真实变化" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("今日概览")).toBeInTheDocument();
+    expect(screen.queryByText("进入")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "一键记录" }));
+    const chooser = screen.getByRole("dialog", { name: "一键记录" });
+    expect(chooser).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "记录身体" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "记录身体" }));
+    expect(chooser).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "身体状态" })).toBeInTheDocument();
+  });
+
+  it("imports a backup from a file instead of requiring pasted JSON", () => {
+    render(<HealthModule />);
+    fireEvent.click(screen.getByRole("button", { name: "数据与隐私" }));
+
+    expect(screen.getByLabelText("选择健康备份文件")).toHaveAttribute(
+      "type",
+      "file",
+    );
+    expect(screen.queryByLabelText("导入备份内容")).not.toBeInTheDocument();
+  });
   it("presents one calm dashboard with progressively disclosed sections", () => {
     render(<HealthModule />);
     expect(
-      screen.getByRole("heading", { name: "健康状况" }),
+      screen.getByRole("heading", { name: "今天，记录一点真实变化" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/随便从一项开始/)).toBeInTheDocument();
     expect(
