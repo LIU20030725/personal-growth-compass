@@ -67,6 +67,8 @@
 .ability-branch-port::before { width: 9px; height: 9px; border: 2px solid #fffefa; border-radius: 50%; background: #69727c; content: ""; transition: width 140ms ease, height 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
 .ability-branch-port:hover::before, .ability-branch-port:focus-visible::before { position: absolute; width: 28px; height: 28px; border-color: #d4b84b; background: #fff8d6; box-shadow: 0 3px 10px rgba(38,51,47,.14); }
 .ability-branch-port svg { position: relative; z-index: 1; opacity: 0; pointer-events: none; transform: scale(.72); transition: opacity 120ms ease, transform 120ms ease; }
+.ability-branch-port::before,
+.ability-branch-port svg { grid-area: 1 / 1; }
 .ability-branch-port:hover svg, .ability-branch-port:focus-visible svg { opacity: 1; transform: scale(1); }
 .ability-branch-port:focus-visible { outline: 3px solid rgba(242,214,107,.9); outline-offset: 1px; }
 .ability-collapse-branch { position: absolute; top: 50%; left: -31px; display: flex; min-width: 24px; height: 24px; min-height: 24px !important; align-items: center; justify-content: center; gap: 1px; padding: 0 4px !important; border: 1px solid #a5a8ab; border-radius: 999px; color: #5e646b; background: #fff; font-size: 9px; font-weight: 800; transform: translateY(-50%); }
@@ -1073,7 +1075,7 @@
 }
 
 .ability-collapse-branch {
-  left: -48px;
+  left: -41px;
   width: 44px;
   min-width: 44px;
   height: 44px;
@@ -1081,6 +1083,22 @@
   padding: 0 !important;
   border-color: transparent;
   background: transparent;
+}
+
+.ability-collapse-branch::before {
+  position: absolute;
+  z-index: 0;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #c6d5cf;
+  border-radius: 999px;
+  background: var(--ability-surface);
+  content: "";
+}
+
+.ability-collapse-branch svg {
+  position: relative;
+  z-index: 1;
 }
 
 .ability-collapse-branch:hover,
