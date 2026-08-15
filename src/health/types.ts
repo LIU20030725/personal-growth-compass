@@ -22,11 +22,39 @@ export interface BodyRecord {
   bodyFatMethod?: string;
   heightMmSnapshot?: number;
   bmiHundredths?: number;
+  circumferencesMm?: Partial<Record<BodyCircumferenceKey, number>>;
   note?: string;
   status: RecordStatus;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
   deletedAt?: ISODateTime;
+}
+export type BodyCircumferenceKey =
+  | "neck"
+  | "arm"
+  | "chest"
+  | "waist"
+  | "hips"
+  | "thigh"
+  | "calf";
+export interface MealFoodItem {
+  id: string;
+  name: string;
+  grams: number;
+  calories: number;
+  proteinGrams?: number;
+  carbsGrams?: number;
+  fatGrams?: number;
+}
+export interface FoodCatalogItem {
+  id: string;
+  name: string;
+  kind: "public" | "mine" | "recipe";
+  caloriesPer100g: number;
+  proteinPer100g?: number;
+  carbsPer100g?: number;
+  fatPer100g?: number;
+  createdAt: ISODateTime;
 }
 export interface MealRecord {
   id: string;
@@ -36,6 +64,7 @@ export interface MealRecord {
   mediaIds: string[];
   satiety?: "low" | "comfortable" | "full" | "very-full";
   note?: string;
+  foods?: MealFoodItem[];
   status: RecordStatus;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
@@ -52,6 +81,7 @@ export type DailyPayload =
   | { kind: "water"; milliliters: number }
   | { kind: "steps"; count: number }
   | { kind: "activity-minutes"; minutes: number }
+  | { kind: "sedentary-break"; durationMinutes: number }
   | { kind: "energy"; level: 1 | 2 | 3 | 4 | 5 };
 export interface DailyHealthRecord {
   id: string;
@@ -71,6 +101,7 @@ export interface ExerciseDefinition {
   defaultRestSeconds?: number;
   archivedAt?: ISODateTime;
   createdAt: ISODateTime;
+  category?: "warmup" | "strength" | "cardio" | "mobility" | "stretch";
 }
 export interface WorkoutSet {
   id: string;
@@ -130,6 +161,14 @@ export interface HealthPreferences {
   distanceUnit: "km" | "mi";
   waterQuickAmountsMl: number[];
   reducedMotion: boolean;
+  dailyCalorieTarget?: number;
+  basalMetabolismKcal?: number;
+  activityExpenditureKcal?: number;
+  fatLossDeficitKcal?: number;
+  waterGoalMl?: number;
+  waterReminderTimes?: string[];
+  sedentaryReminderMinutes?: number;
+  sedentaryReminderEnabled?: boolean;
 }
 export interface HealthState {
   schemaVersion: 1;
@@ -139,6 +178,7 @@ export interface HealthState {
   dailyRecords: DailyHealthRecord[];
   exerciseDefinitions: ExerciseDefinition[];
   workoutSessions: WorkoutSession[];
+  foodCatalog?: FoodCatalogItem[];
   revisions: HealthRevision[];
   preferences: HealthPreferences;
   meta: {
@@ -167,6 +207,15 @@ export const emptyHealthState = (
     distanceUnit: "km",
     waterQuickAmountsMl: [250, 350, 500],
     reducedMotion: false,
+    dailyCalorieTarget: 2000,
+    basalMetabolismKcal: 1500,
+    activityExpenditureKcal: 350,
+    fatLossDeficitKcal: 300,
+    waterGoalMl: 1800,
+    waterReminderTimes: ["09:00", "14:00", "18:00"],
+    sedentaryReminderMinutes: 60,
+    sedentaryReminderEnabled: false,
   },
+  foodCatalog: [],
   meta: { createdAt: now, updatedAt: now },
 });

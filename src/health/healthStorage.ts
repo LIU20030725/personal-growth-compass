@@ -111,11 +111,12 @@ function validateState(state: HealthState) {
         throw new Error("训练记录引用了不存在的项目");
 }
 export function exportHealthState(state: HealthState) {
+  const serializedState = JSON.parse(JSON.stringify(state)) as HealthState;
   const payload = {
     format: "dice-life-health" as const,
     version: 1 as const,
     exportedAt: new Date().toISOString(),
-    state,
+    state: serializedState,
   };
   return JSON.stringify({ ...payload, checksum: checksum(payload.state) });
 }

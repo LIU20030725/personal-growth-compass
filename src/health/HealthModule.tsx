@@ -22,6 +22,12 @@ import type { BodyRecord, ExerciseMode, MealRecord } from "./types";
 import type { WorkoutSession, WorkoutSet } from "./types";
 import "./healthModule.css";
 import { useRestTimer } from "./useRestTimer";
+import {
+  BodyWorkspace,
+  DailyWorkspace,
+  MealsWorkspace,
+  WorkoutWorkspace,
+} from "./Revision2083Workspaces";
 
 type View = "home" | "body" | "meals" | "daily" | "workouts" | "data";
 const cards: Array<{
@@ -276,6 +282,11 @@ export function HealthModule() {
         </>
       )}
       {view === "body" && (
+        <BodyWorkspace health={health} onStatus={setStatus} />
+      )}
+      {view === "body" && (
+        <details className="health-support-details">
+          <summary>完整身体记录与历史趋势</summary>
         <div className="health-two-column">
           <form
             className="health-panel health-record-form"
@@ -381,8 +392,14 @@ export function HealthModule() {
             )}
           </div>
         </div>
+        </details>
       )}
       {view === "meals" && (
+        <MealsWorkspace health={health} onStatus={setStatus} />
+      )}
+      {view === "meals" && (
+        <details className="health-support-details">
+          <summary>文字、照片与餐次时间线</summary>
         <div className="health-two-column">
           <form
             className="health-panel health-record-form"
@@ -497,8 +514,14 @@ export function HealthModule() {
             )}
           </div>
         </div>
+        </details>
       )}
       {view === "daily" && (
+        <DailyWorkspace health={health} onStatus={setStatus} />
+      )}
+      {view === "daily" && (
+        <details className="health-support-details">
+          <summary>活动量、精力与历史指标管理</summary>
         <div className="health-two-column health-daily-layout">
           <div className="health-panel health-daily-recorder">
             <h2>今日快速记录</h2>
@@ -687,8 +710,14 @@ export function HealthModule() {
               ))}
           </div>
         </div>
+        </details>
       )}
       {view === "workouts" && (
+        <WorkoutWorkspace health={health} onSelectExercise={setSelectedExercise} onStatus={setStatus} />
+      )}
+      {view === "workouts" && (
+        <details className="health-support-details" open={Boolean(selectedExercise)}>
+          <summary>逐组记录、休息计时与训练历史</summary>
         <div className="health-two-column health-workout-layout">
           <form
             className="health-panel health-setup-panel"
@@ -878,6 +907,7 @@ export function HealthModule() {
             <strong>已完成 {health.workouts.length} 次训练</strong>
           </div>
         </div>
+        </details>
       )}
       {view === "data" && (
         <div className="health-two-column">

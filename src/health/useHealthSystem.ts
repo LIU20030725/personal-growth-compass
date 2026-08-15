@@ -23,6 +23,8 @@ import {
 import type {
   DailyMetric,
   ExerciseMode,
+  FoodCatalogItem,
+  HealthPreferences,
   HealthState,
   MealRecord,
   RecordStatus,
@@ -104,6 +106,9 @@ export function useHealthSystem(options: Options = {}) {
     bodyFatPercent?: number;
     bodyFatMethod?: string;
     note?: string;
+    circumferencesCm?: Partial<
+      Record<"neck" | "arm" | "chest" | "waist" | "hips" | "thigh" | "calf", number>
+    >;
   }) => {
     const submissionKey = JSON.stringify(input);
     const timestampMs = Date.now();
@@ -113,7 +118,10 @@ export function useHealthSystem(options: Options = {}) {
       if (
         input.heightCm === undefined &&
         input.weightKg === undefined &&
-        input.bodyFatPercent === undefined
+        input.bodyFatPercent === undefined &&
+        !Object.values(input.circumferencesCm ?? {}).some(
+          (value) => value !== undefined,
+        )
       )
         throw new Error("请至少填写身高、体重或体脂率中的一项");
       if (
@@ -146,6 +154,16 @@ export function useHealthSystem(options: Options = {}) {
           ? height?.heightMm
           : Math.round(input.heightCm * 10);
       const timestamp = now();
+      const circumferencesMm = Object.fromEntries(
+        Object.entries(input.circumferencesCm ?? {})
+          .filter(([, value]) => value !== undefined)
+          .map(([key, value]) => {
+            const centimeters = Number(value);
+            if (!Number.isFinite(centimeters) || centimeters <= 0 || centimeters > 300)
+              throw new Error("围度需填写 0–300 cm 之间的数值");
+            return [key, Math.round(centimeters * 10)];
+          }),
+      );
       const heightHistory =
         input.heightCm === undefined
           ? s.heightHistory
@@ -176,6 +194,7 @@ export function useHealthSystem(options: Options = {}) {
               weightGrams,
               heightMmSnapshot,
             ),
+            circumferencesMm,
             note: input.note,
             status: "active",
             createdAt: timestamp,
@@ -339,9 +358,10 @@ export function useHealthSystem(options: Options = {}) {
     mediaIds?: string[];
     satiety?: MealRecord["satiety"];
     note?: string;
+    foods?: MealRecord["foods"];
   }) =>
     mutate((s) => {
-      if (!input.description?.trim() && !input.mediaIds?.length)
+      if (!input.description?.trim() && !input.mediaIds?.length && !input.foods?.length)
         throw new Error("请填写餐食内容或添加照片");
       if ((input.mediaIds?.length ?? 0) > 3)
         throw new Error("每餐最多保存 3 张照片");
@@ -360,6 +380,7 @@ export function useHealthSystem(options: Options = {}) {
             mediaIds: input.mediaIds ?? [],
             satiety: input.satiety,
             note: input.note,
+            foods: input.foods,
             status: "active",
             createdAt: t,
             updatedAt: t,
@@ -373,6 +394,7 @@ export function useHealthSystem(options: Options = {}) {
     description?: string;
     photos: Blob[];
     satiety?: MealRecord["satiety"];
+    foods?: MealRecord["foods"];
   }) => {
     if (input.photos.length > 3) {
       setError("每餐最多保存 3 张照片");
@@ -414,6 +436,7 @@ export function useHealthSystem(options: Options = {}) {
     mode: ExerciseMode;
     displayUnit: string;
     defaultRestSeconds?: number;
+    category?: "warmup" | "strength" | "cardio" | "mobility" | "stretch";
   }) => {
     const id = idFactory();
     mutate((s) => ({
@@ -426,12 +449,56 @@ export function useHealthSystem(options: Options = {}) {
           mode: input.mode,
           displayUnit: input.displayUnit,
           defaultRestSeconds: input.defaultRestSeconds,
+          category: input.category,
           createdAt: now(),
         },
       ],
     }));
     return id;
   };
+  const updatePreferences = (patch: Partial<HealthPreferences>) =>
+    mutate((s) => ({
+      ...s,
+      preferences: { ...s.preferences, ...patch },
+      meta: { ...s.meta, updatedAt: now() },
+    }));
+  const addFoodCatalogItem = (
+    input: Omit<FoodCatalogItem, "id" | "createdAt">,
+  ) => {
+    if (!input.name.trim()) {
+      setError("请填写食物名称");
+      return "";
+    }
+    if (!Number.isFinite(input.caloriesPer100g) || input.caloriesPer100g < 0 || input.caloriesPer100g > 2000) {
+      setError("每 100 克热量需在 0–2000 kcal 之间");
+      return "";
+    }
+    const id = idFactory();
+    mutate((s) => ({
+      ...s,
+      foodCatalog: [
+        ...(s.foodCatalog ?? []),
+        { ...input, id, name: input.name.trim(), createdAt: now() },
+      ],
+      meta: { ...s.meta, updatedAt: now() },
+    }));
+    return id;
+  };
+  const addSedentaryBreak = (durationMinutes: number) =>
+    mutate((s) => {
+      if (!Number.isFinite(durationMinutes) || durationMinutes <= 0 || durationMinutes > 240)
+        throw new Error("活动时长需在 1–240 分钟之间");
+      const t = now();
+      return {
+        ...s,
+        dailyRecords: [{
+          id: idFactory(), occurredAt: t,
+          payload: { kind: "sedentary-break", durationMinutes },
+          status: "active", createdAt: t, updatedAt: t,
+        }, ...s.dailyRecords],
+        meta: { ...s.meta, updatedAt: t },
+      };
+    });
   const saveQuickWorkout = (
     input: {
       exerciseDefinitionId: string;
@@ -779,10 +846,13 @@ export function useHealthSystem(options: Options = {}) {
     addSleep,
     addActivity,
     addEnergy,
+    addSedentaryBreak,
     toggleMetric,
     setActivityMode,
     addMeal,
     addMealWithPhotos,
+    addFoodCatalogItem,
+    updatePreferences,
     addExercise,
     saveQuickWorkout,
     copyLastWorkout,
