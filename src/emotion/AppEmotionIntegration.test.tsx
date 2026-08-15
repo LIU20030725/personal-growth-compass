@@ -16,7 +16,7 @@ describe('Dice Life emotion navigation', () => {
 
   it('opens the emotion composer directly from Today quick record', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /记录情绪/ }));
     expect(screen.getByRole('dialog', { name: '记录此刻感受' })).toBeInTheDocument();
   });

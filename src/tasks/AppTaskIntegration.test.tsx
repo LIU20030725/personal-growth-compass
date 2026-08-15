@@ -17,7 +17,7 @@ describe('Dice Life task navigation', () => {
 
   it('opens a new task dialog directly from Today quick record', () => {
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /添加今日任务/ }));
     expect(screen.getByRole('dialog', { name: '新建短期任务' })).toBeInTheDocument();
   });

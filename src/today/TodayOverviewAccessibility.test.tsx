@@ -27,7 +27,7 @@ describe('TodayOverview accessibility gate', () => {
     );
 
     await expectNoBlocking(container);
-    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     await expectNoBlocking(container);
   });
 });

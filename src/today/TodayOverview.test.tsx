@@ -14,7 +14,9 @@ describe('TodayOverview', () => {
     render(<TodayOverview model={emptyTodayOverviewModel} {...callbacks()} />);
 
     expect(screen.getByRole('heading', { name: '今日总览' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: '今日状态' })).toBeInTheDocument();
+    const status = screen.getByRole('region', { name: '今日状态' });
+    expect(status).toBeInTheDocument();
+    expect(within(status).queryAllByRole('button')).toHaveLength(0);
     expect(screen.getAllByRole('article')).toHaveLength(3);
     expect(screen.getByText('今天还没有微行动')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '记录此刻' })).toBeInTheDocument();
@@ -65,15 +67,31 @@ describe('TodayOverview', () => {
     };
 
     render(<TodayOverview model={model} {...handlers} />);
-    fireEvent.click(screen.getByRole('button', { name: '继续成长' }));
+    fireEvent.click(screen.getByRole('button', { name: '进入能力模块' }));
     expect(handlers.onOpenModule).toHaveBeenCalledWith('ability', null);
     fireEvent.click(screen.getByRole('button', { name: '记录完成：整理案例' }));
     expect(handlers.onCompleteTask).toHaveBeenCalledWith('task-1');
   });
 
+  it('uses each whole module card as its only module entry', () => {
+    const handlers = callbacks();
+    render(<TodayOverview model={emptyTodayOverviewModel} {...handlers} />);
+
+    const cards = screen.getAllByRole('article');
+    expect(cards).toHaveLength(3);
+    cards.forEach((card) => expect(within(card).getAllByRole('button')).toHaveLength(1));
+
+    fireEvent.click(screen.getByRole('button', { name: '进入情绪模块' }));
+    fireEvent.click(screen.getByRole('button', { name: '进入身体健康模块' }));
+
+    expect(handlers.onOpenModule).toHaveBeenCalledWith('emotion');
+    expect(handlers.onOpenModule).toHaveBeenCalledWith('body');
+    expect(handlers.onQuickAction).not.toHaveBeenCalled();
+  });
+
   it('opens an accessible quick menu and restores focus after Escape', () => {
     render(<TodayOverview model={emptyTodayOverviewModel} {...callbacks()} />);
-    const trigger = screen.getByRole('button', { name: '打开快捷记录' });
+    const trigger = screen.getByRole('button', { name: '记录此刻' });
 
     fireEvent.click(trigger);
     const menu = screen.getByRole('menu', { name: '快捷记录' });
@@ -86,7 +104,7 @@ describe('TodayOverview', () => {
 
   it('supports arrow navigation and dismisses the quick menu outside', () => {
     render(<TodayOverview model={emptyTodayOverviewModel} {...callbacks()} />);
-    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     const items = screen.getAllByRole('menuitem');
 
     fireEvent.keyDown(items[0], { key: 'ArrowDown' });
@@ -102,7 +120,7 @@ describe('TodayOverview', () => {
     const handlers = callbacks();
     render(<TodayOverview model={emptyTodayOverviewModel} {...handlers} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     fireEvent.click(screen.getByRole('menuitem', { name: /添加今日任务/ }));
 
     expect(handlers.onQuickAction).toHaveBeenCalledWith('tasks.create');
