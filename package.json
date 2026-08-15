@@ -1,7 +1,7 @@
 {
   "name": "personal-growth-compass",
-  "version": "2.1.0",
-  "releaseDate": "2026-08-14",
+  "version": "2.2.0",
+  "releaseDate": "2026-08-15",
   "private": true,
   "type": "module",
   "scripts": {
