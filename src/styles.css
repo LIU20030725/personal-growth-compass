@@ -120,6 +120,7 @@ p {
   align-items: center;
   gap: 10px;
   width: max-content;
+  min-height: 44px;
   padding: 0;
   border: 0;
   color: var(--gold-dark);
@@ -174,7 +175,8 @@ p {
 }
 
 .top-nav button {
-  min-height: 40px;
+  min-height: 44px;
+  min-width: 44px;
   padding: 0 14px;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -1954,7 +1956,7 @@ p {
   }
 
   .top-nav button {
-    min-height: 38px;
+    min-height: 44px;
     padding-inline: 7px;
     border-radius: 10px;
     font-size: 12px;
