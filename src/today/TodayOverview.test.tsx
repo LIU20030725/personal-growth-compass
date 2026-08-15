@@ -84,6 +84,20 @@ describe('TodayOverview', () => {
     expect(trigger).toHaveFocus();
   });
 
+  it('supports arrow navigation and dismisses the quick menu outside', () => {
+    render(<TodayOverview model={emptyTodayOverviewModel} {...callbacks()} />);
+    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    const items = screen.getAllByRole('menuitem');
+
+    fireEvent.keyDown(items[0], { key: 'ArrowDown' });
+    expect(items[1]).toHaveFocus();
+    fireEvent.keyDown(items[1], { key: 'ArrowUp' });
+    expect(items[0]).toHaveFocus();
+
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole('menu', { name: '快捷记录' })).not.toBeInTheDocument();
+  });
+
   it('dispatches the selected quick action', () => {
     const handlers = callbacks();
     render(<TodayOverview model={emptyTodayOverviewModel} {...handlers} />);

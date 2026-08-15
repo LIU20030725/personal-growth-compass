@@ -4,10 +4,12 @@ import {
   Check,
   ChevronRight,
   Heart,
+  Leaf,
   Network,
   PenLine,
   Plus,
   Smile,
+  Sprout,
   Waves,
 } from 'lucide-react';
 import { EmotionIcon } from '../emotion/components/EmotionIcon';
@@ -41,7 +43,7 @@ function ModuleArtwork({ kind, moodId }: Pick<ModuleCardProps, 'kind' | 'moodId'
       <div className="today-art today-art-emotion" aria-hidden="true">
         <span className="today-art-cloud" />
         <span className="today-art-sun" />
-        <span className="today-art-hill"><span>♧</span><span>♧</span></span>
+        <span className="today-art-hill"><Leaf /><Sprout /></span>
         {moodId && <EmotionIcon moodId={moodId} size="small" />}
       </div>
     );
@@ -92,6 +94,14 @@ export function TodayOverview({ model, onOpenModule, onQuickAction, onCompleteTa
   useEffect(() => {
     if (!quickMenuOpen) return;
     quickMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    const closeOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!quickMenuRef.current?.contains(target) && !quickTriggerRef.current?.contains(target)) {
+        setQuickMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', closeOutside);
+    return () => document.removeEventListener('mousedown', closeOutside);
   }, [quickMenuOpen]);
 
   const closeQuickMenu = (restoreFocus = false) => {
@@ -110,6 +120,17 @@ export function TodayOverview({ model, onOpenModule, onQuickAction, onCompleteTa
     if (event.key === 'Escape') {
       event.preventDefault();
       closeQuickMenu(true);
+      return;
+    }
+    if (items.length === 0) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const next = event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? items.length - 1
+          : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next].focus();
       return;
     }
     if (event.key !== 'Tab' || items.length === 0) return;

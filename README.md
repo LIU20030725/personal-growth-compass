@@ -12,12 +12,13 @@ Dice Life 是一个本地优先、游戏化表达的个人成长仪表盘，把�
 | 发布标签 | `V2.2.0` |
 | 技术栈 | React 18、TypeScript、Vite、Vitest、Playwright、axe-core |
 
-本次发布将“今日总览”与身体健康、能力、情绪三个子模块的最新 UI/UX 改造合入主线。完整版本说明见 [CHANGELOG.md](./CHANGELOG.md)，发布快照见 [spec/releases/v2.2.0/README.md](./spec/releases/v2.2.0/README.md)。
+当前开发分支在 V2.2.0 基础上新增全局“今日总览”首页；它与身体健康模块内部的“健康今日总览”是两个不同层级。完整版本说明见 [CHANGELOG.md](./CHANGELOG.md)，发布快照见 [spec/releases/v2.2.0/README.md](./spec/releases/v2.2.0/README.md)。
 
 ## 已实现模块
 
 | 模块 | 当前能力 | 主要目录 |
 | --- | --- | --- |
+| 今日总览 | 全局默认首页，汇总情绪、能力、健康和今日任务；快捷入口直达各模块新增/完成流程 | `src/today/` |
 | 财富 | 账户、流水、转账、月度账单、储蓄日历与支出分析 | `src/finance/` |
 | 能力 | V5.1 平静指挥中心、首屏技能图、阶段与节点拖拽、按需连接点、学习资源、成果、下一步与工具收纳 | `src/ability/` |
 | 身体健康 | 今日总览、训练动作库、饮食营养与食物库、日常提醒、身体围度、历史更正、回收站与备份恢复 | `src/health/` |
@@ -66,6 +67,7 @@ npm run test:a11y
 │  ├─ emotion/                  # 情绪模块
 │  ├─ finance/                  # 财富模块
 │  ├─ health/                   # 身体健康模块
+│  ├─ today/                    # 全局今日总览与跨模块摘要
 │  └─ tasks/                    # 任务模块
 ├─ CHANGELOG.md                 # 整站版本时间线
 ├─ PROJECT_CONTEXT.md           # 产品上下文
