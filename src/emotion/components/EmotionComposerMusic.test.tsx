@@ -18,6 +18,7 @@ describe('EmotionComposer quick music flow', () => {
     expect(screen.queryByLabelText('音乐分享链接')).not.toBeInTheDocument();
     expect(screen.getByText('晴天')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: '平稳' }));
     fireEvent.click(screen.getByRole('radio', { name: '平静' }));
     fireEvent.click(screen.getByRole('button', { name: '保存这一刻' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.objectContaining({

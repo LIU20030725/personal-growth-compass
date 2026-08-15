@@ -79,10 +79,11 @@ describe('0811 emotion component acceptance', () => {
 
   it('selects an activity icon, saves it and restores a fresh library filter after navigation', async () => {
     render(<EmotionModule />);
-    fireEvent.click(screen.getByRole('button', { name: '记录感受' }));
     fireEvent.click(screen.getByRole('button', { name: '记录此刻' }));
     const dialog = screen.getByRole('dialog', { name: '记录此刻感受' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '平稳' }));
     fireEvent.click(within(dialog).getByRole('radio', { name: '平静' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '日常生活' }));
     const travel = within(dialog).getByRole('checkbox', { name: '旅行' });
     expect(travel.querySelector('svg')).not.toBeNull();
     fireEvent.click(travel);

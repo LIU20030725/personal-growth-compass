@@ -32,12 +32,29 @@ describe('EmotionComposer media lifecycle', () => {
 
   it('keeps the selected state on the mood button rather than the artwork', () => {
     render(<EmotionComposer onClose={vi.fn()} onSave={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '平稳' }));
     const calm = screen.getByRole('radio', { name: '平静' });
     fireEvent.click(calm);
     expect(calm).toHaveAttribute('aria-checked', 'true');
     expect(calm).toHaveClass('is-selected');
     expect(calm.querySelector('.emotion-face')).not.toHaveClass('is-selected');
     expect(calm.querySelector('svg[data-reference-face="calm"]')).not.toHaveClass('is-selected');
+  });
+
+  it('shows one mood and activity category at a time without losing selections', () => {
+    render(<EmotionComposer onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.getByRole('radio', { name: '开心' })).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: '平静' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '平稳' }));
+    fireEvent.click(screen.getByRole('radio', { name: '平静' }));
+    fireEvent.click(screen.getByRole('button', { name: '愉悦' }));
+    fireEvent.click(screen.getByRole('button', { name: '平稳' }));
+    expect(screen.getByRole('radio', { name: '平静' })).toHaveAttribute('aria-checked', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: '兴趣放松' }));
+    expect(screen.getByRole('checkbox', { name: '阅读' })).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: '旅行' })).not.toBeInTheDocument();
   });
 
   it('录音中关闭编辑器会停止 recorder 与全部 tracks', async () => {
@@ -66,6 +83,7 @@ describe('EmotionComposer media lifecycle', () => {
     let resolveSave!: (value: string) => void;
     const save = new Promise<string>((resolve) => { resolveSave = resolve; });
     render(<EmotionComposer onClose={vi.fn()} onSave={() => save} />);
+    fireEvent.click(screen.getByRole('button', { name: '平稳' }));
     fireEvent.click(screen.getByRole('radio', { name: '平静' }));
     fireEvent.click(screen.getByRole('button', { name: '保存这一刻' }));
     await waitFor(() => expect(screen.getByRole('button', { name: '关闭记录' })).toBeDisabled());
@@ -84,6 +102,7 @@ describe('EmotionComposer media lifecycle', () => {
     fireEvent.keyDown(document, { key: 'Tab' });
     expect(closeButton).toHaveFocus();
 
+    fireEvent.click(screen.getByRole('button', { name: '平稳' }));
     fireEvent.click(screen.getByRole('radio', { name: '平静' }));
     const note = screen.getByLabelText('文字日记');
     note.focus();
@@ -116,6 +135,7 @@ describe('EmotionComposer media lifecycle', () => {
 
   it('为每个活动提供可辨识的图标', () => {
     render(<EmotionComposer onClose={vi.fn()} onSave={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: '日常生活' }));
     expect(screen.getByRole('checkbox', { name: '旅行' }).querySelector('svg')).not.toBeNull();
   });
 });

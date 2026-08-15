@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookOpenText, CalendarDays, Images, Plus } from 'lucide-react';
+import { BookOpenText, CalendarDays, Images, LockKeyhole, Plus, Sparkles, Star } from 'lucide-react';
 import { getEntriesByLocalDate, getImportantDaysForDate } from './emotionEngine';
 import { useEmotionSystem } from './useEmotionSystem';
 import type { EmotionDraft } from './types';
@@ -36,6 +36,7 @@ export function EmotionModule() {
   const [composer, setComposer] = useState<{ mode: 'create' } | { mode: 'edit'; entryId: string } | null>(null);
   const [createMenu, setCreateMenu] = useState(false);
   const [importantComposer, setImportantComposer] = useState(false);
+  const [notice, setNotice] = useState('');
   const composerTriggerRef = useRef<HTMLElement | null>(null);
   const moduleRef = useRef<HTMLElement | null>(null);
 
@@ -93,6 +94,19 @@ export function EmotionModule() {
     window.setTimeout(() => composerTriggerRef.current?.focus(), 0);
   }
 
+  function openImportantDay() {
+    composerTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setImportantComposer(true);
+  }
+
+  async function saveMoment(draft: EmotionDraft, attachments: Parameters<typeof system.createEntry>[1]) {
+    const result = composer?.mode === 'edit'
+      ? await system.updateEntry(composer.entryId, draft, attachments)
+      : await system.createEntry(draft, attachments);
+    if (result) setNotice(composer?.mode === 'edit' ? '记录已更新' : '这一刻已收好');
+    return result;
+  }
+
   let content;
   if (route.name === 'journal') {
     content = <EmotionJournalView entries={system.entries} latestToday={system.latestTodayEntry} upcomingImportantDays={system.upcomingImportantDays} onOpen={openDetail} onFavorite={system.toggleEntryFavorite} />;
@@ -101,7 +115,7 @@ export function EmotionModule() {
   } else if (route.name === 'calendar') {
     content = <EmotionCalendarView entries={system.entries} importantDays={system.importantDays} month={route.month} onMonth={(month) => setRoute({ name: 'calendar', month })} onOpenDay={(dateKey) => setRoute({ name: 'day', dateKey, returnTo: route })} onOpenEntry={(entryId) => openDetail(entryId, route)} />;
   } else if (route.name === 'day') {
-    content = <EmotionDayView dateKey={route.dateKey} entries={getEntriesByLocalDate(system.entries, route.dateKey)} importantDays={getImportantDaysForDate(system.importantDays, route.dateKey)} onBack={() => setRoute(route.returnTo)} onOpen={(id) => openDetail(id, route)} />;
+    content = <EmotionDayView dateKey={route.dateKey} entries={getEntriesByLocalDate(system.entries, route.dateKey)} importantDays={getImportantDaysForDate(system.importantDays, route.dateKey)} onBack={() => setRoute(route.returnTo)} onOpen={(id) => openDetail(id, route)} onCreate={() => openComposer({ mode: 'create' })} />;
   } else {
     const entry = system.entries.find((item) => item.id === route.entryId);
     content = entry ? <EmotionEntryDetail
@@ -126,24 +140,43 @@ export function EmotionModule() {
     music: editingEntry.music ?? []
   } : undefined;
 
+  const viewCopy = activeTab === 'library'
+    ? { eyebrow: '心情收纳箱', title: '我的收藏库', description: '文字与媒体都按发生的那一天安静归档。' }
+    : activeTab === 'calendar'
+      ? { eyebrow: '回看时间', title: '心情日历', description: '看见变化，不把任何一天定义成好或坏。' }
+      : { eyebrow: '私人时刻', title: '我的心情', description: '不需要评价，只需要诚实地留下一刻。' };
+
   return <section ref={moduleRef} className="emotion-module" aria-label="情绪记录">
-    <div className="emotion-module__canvas">{content}</div>
-    {system.error && <div className="emotion-error-toast" aria-live="polite">{system.error}<button type="button" onClick={system.clearError}>知道了</button></div>}
-    <div className="emotion-dock">
-      <nav className="emotion-bottom-nav" aria-label="情绪模块导航">
-        <button type="button" aria-current={activeTab === 'journal' ? 'page' : undefined} onClick={() => switchTab('journal')}><BookOpenText /><span>日记</span></button>
-        <button type="button" aria-current={activeTab === 'library' ? 'page' : undefined} onClick={() => switchTab('library')}><Images /><span>内容库</span></button>
-        <button type="button" aria-current={activeTab === 'calendar' ? 'page' : undefined} onClick={() => switchTab('calendar')}><CalendarDays /><span>心情日历</span></button>
-      </nav>
-      <button className="emotion-fab" type="button" aria-label="记录感受" onClick={openCreateMenu}><Plus /><span>记录感受</span></button>
+    <div className="emotion-module__canvas">
+      {(route.name === 'journal' || route.name === 'library' || route.name === 'calendar') && <header className="emotion-workspace-header">
+        <div className="emotion-workspace-header__copy">
+          <span className="emotion-eyebrow"><Sparkles />{viewCopy.eyebrow}</span>
+          <h1>{viewCopy.title}</h1>
+          <p>{viewCopy.description}</p>
+        </div>
+        <div className="emotion-workspace-header__actions">
+          <span className="emotion-private-badge"><LockKeyhole />仅自己可见</span>
+          <button className="emotion-secondary-action" type="button" onClick={openImportantDay}><Star />添加重要日</button>
+          <button className="emotion-workspace-primary" type="button" onClick={() => openComposer({ mode: 'create' })}><Plus />记录此刻</button>
+        </div>
+      </header>}
+      <div className="emotion-dock">
+        <nav className="emotion-bottom-nav" aria-label="情绪模块导航">
+          <button type="button" aria-current={activeTab === 'journal' ? 'page' : undefined} onClick={() => switchTab('journal')}><BookOpenText /><span>日记</span></button>
+          <button type="button" aria-current={activeTab === 'library' ? 'page' : undefined} onClick={() => switchTab('library')}><Images /><span>内容库</span></button>
+          <button type="button" aria-current={activeTab === 'calendar' ? 'page' : undefined} onClick={() => switchTab('calendar')}><CalendarDays /><span>心情日历</span></button>
+        </nav>
+        <button className="emotion-fab" type="button" aria-label="记录感受" onClick={openCreateMenu}><Plus /><span>记录感受</span></button>
+      </div>
+      {content}
     </div>
+    {notice && <div className="emotion-feedback" role="status">{notice}<button type="button" aria-label="关闭提示" onClick={() => setNotice('')}>×</button></div>}
+    {system.error && <div className="emotion-error-toast" role="alert">{system.error}<button type="button" onClick={system.clearError}>知道了</button></div>}
     {composer && <EmotionComposer
       initial={initialDraft}
       getBlob={system.getAttachmentBlob}
       onClose={closeComposer}
-      onSave={(draft, attachments) => composer.mode === 'edit'
-        ? system.updateEntry(composer.entryId, draft, attachments)
-        : system.createEntry(draft, attachments)}
+      onSave={saveMoment}
     />}
     {createMenu && <EmotionCreateMenu onClose={closeAuxiliary} onRecord={() => { setCreateMenu(false); setComposer({ mode: 'create' }); }} onImportantDay={() => { setCreateMenu(false); setImportantComposer(true); }} />}
     {importantComposer && <EmotionImportantDayComposer onClose={closeAuxiliary} onSave={system.createImportantDay} />}

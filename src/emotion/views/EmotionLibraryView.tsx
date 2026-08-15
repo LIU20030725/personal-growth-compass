@@ -14,9 +14,8 @@ export function EmotionLibraryView({ items, onOpen }: { items: EmotionLibraryIte
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const visible = useMemo(() => filterLibraryItems(items, tab).filter((item) => !favoritesOnly || item.isFavorite), [favoritesOnly, items, tab]);
   return <div className="emotion-view">
-    <header className="emotion-view-header"><div><span className="emotion-eyebrow"><Bookmark /> MEMORY BOX</span><h1>我的收藏库</h1><p>文字、图片、视频、语音和音乐都会回到它发生的那一天。</p></div></header>
     <div className="emotion-library-toolbar">
-      <div className="emotion-segmented" role="group" aria-label="筛选内容类型">{tabs.map((item) => <button key={item.id} type="button" style={{ minHeight: 44 }} aria-pressed={tab === item.id} onClick={() => setTab(item.id)}>{item.id === 'diary' && <NotebookText />}{item.id === 'media' && <Images />}{item.label}</button>)}</div>
+      <div className="emotion-segmented" role="group" aria-label="筛选内容类型">{tabs.map((item) => <button className="emotion-segmented__button" key={item.id} type="button" aria-pressed={tab === item.id} onClick={() => setTab(item.id)}>{item.id === 'diary' && <NotebookText />}{item.id === 'media' && <Images />}{item.label}</button>)}</div>
       <button className={`emotion-filter-button${favoritesOnly ? ' is-active' : ''}`} type="button" aria-pressed={favoritesOnly} onClick={() => setFavoritesOnly((value) => !value)}><Bookmark />只看收藏</button>
     </div>
     {!visible.length ? <div className="emotion-empty-state emotion-empty-state--compact"><EmotionGardenIllustration compact /><h2>这里还空空的</h2><p>保存或收藏记录后，内容会自动出现在这里。</p></div> :
