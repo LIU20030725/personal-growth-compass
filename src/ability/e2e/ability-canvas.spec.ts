@@ -14,7 +14,7 @@ async function createStarterTree(page: Page): Promise<void> {
   await page.getByRole('textbox', { name: '技能说明' }).fill('从内容定位到稳定增长');
   await page.getByRole('button', { name: '保存技能树' }).click();
 
-  await page.getByRole('button', { name: '添加下一阶段' }).click();
+  await page.getByRole('button', { name: '添加阶段' }).click();
   await page.getByRole('textbox', { name: '阶段名称' }).fill('定位与基本功');
   await page.getByRole('button', { name: '保存阶段' }).click();
 
@@ -97,6 +97,7 @@ test('同一节点的 3、5 个分支和多层分支共享对齐母线', async (
   await movedChild.click();
   const addGrandchild = page.getByRole('button', { name: '为 手动拖拽分支 添加子节点' });
   await addGrandchild.click();
+  await expect(children).toHaveCount(5);
   await addGrandchild.click();
   await expect(children).toHaveCount(6);
   await page.getByRole('button', { name: 'Fit View' }).click();
@@ -159,7 +160,7 @@ test('V5 平静指挥中心在三档视口保留按需分支与阶段归属', as
   const linearRoot = page.getByTestId('linear-skill-node').filter({ hasText: '内容定位' });
   await linearRoot.click();
   await expect(page.locator('.ability-workbench-main')).toHaveAttribute('inert', '');
-  await expect(page.locator('.ability-hero')).toHaveAttribute('inert', '');
+  await expect(page.locator('.ability-command-header')).toHaveAttribute('inert', '');
   await expect(page.locator('.ability-library-rail')).toHaveAttribute('inert', '');
   const mobileDetail = page.getByRole('complementary', { name: '技能节点详情' });
   await expect(mobileDetail).toBeVisible();
@@ -169,19 +170,23 @@ test('V5 平静指挥中心在三档视口保留按需分支与阶段归属', as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await page.screenshot({ path: `${v5Evidence}/390-linear-bottom-detail.png`, animations: 'disabled' });
   await mobileDetail.getByRole('button', { name: '关闭技能详情' }).click();
-  await expect(page.locator('.ability-hero')).not.toHaveAttribute('inert', '');
+  await expect(page.locator('.ability-command-header')).not.toHaveAttribute('inert', '');
   await expect(linearRoot).toBeFocused();
 });
 
 test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async ({ page }) => {
   await createStarterTree(page);
   const phase = page.getByRole('group', { name: '阶段 定位与基本功' });
+  await page.getByRole('button', { name: 'Fit View' }).click();
+  await phase.scrollIntoViewIfNeeded();
   const box = await phase.boundingBox();
   expect(box).not.toBeNull();
   await page.mouse.move((box?.x ?? 0) + 40, (box?.y ?? 0) + 30);
   await page.mouse.down();
   await page.mouse.move((box?.x ?? 0) + 91, (box?.y ?? 0) + 73, { steps: 6 });
   await page.mouse.up();
+
+  await expect.poll(async () => page.evaluate(() => Boolean(window.localStorage.getItem('dice-life.ability-canvas.v1')))).toBe(true);
 
   const saved = await page.evaluate(() => {
     const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
@@ -202,7 +207,8 @@ test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async
   });
   expect(persisted).toEqual(saved);
 
-  await page.getByRole('button', { name: '重新自动布局' }).click();
+  await page.getByRole('button', { name: '更多画布工具' }).click();
+  await page.getByRole('menuitem', { name: '重新自动布局' }).click();
   const phasePositionsAfterReset = await page.evaluate(() => {
     const ability = JSON.parse(window.localStorage.getItem('dice-life.ability.v1') ?? '{}') as { lastVisitedTreeId: string };
     const canvasStore = JSON.parse(window.localStorage.getItem('dice-life.ability-canvas.v1') ?? '{}') as { trees: Record<string, { phasePositions: Record<string, { x: number; y: number }> }> };
@@ -222,7 +228,7 @@ test('阶段拖拽吸附网格，刷新后保持，并可复位和撤销', async
 test('键盘快捷键只在画布聚焦时生效，弹窗会困住并恢复焦点', async ({ page }) => {
   await createStarterTree(page);
   const node = page.getByRole('group', { name: '内容定位 可开始', exact: true });
-  const createTree = page.getByRole('button', { name: '新建技能树' }).first();
+  const createTree = page.getByRole('button', { name: '新建' }).first();
 
   await createTree.focus();
   await page.keyboard.press('Delete');
@@ -350,7 +356,7 @@ test('@a11y 能力模块没有 critical/serious 级自动可访问性问题', as
     contentType: 'application/json'
   });
 
-  await page.getByRole('button', { name: '新建技能树' }).first().click();
+  await page.getByRole('button', { name: '新建' }).first().click();
   const dialogResults = await new AxeBuilder({ page }).analyze();
   await testInfo.attach('axe-dialog-results', {
     body: JSON.stringify(dialogResults, null, 2),

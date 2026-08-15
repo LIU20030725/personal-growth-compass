@@ -22,6 +22,7 @@ import '@xyflow/react/dist/style.css';
 import {
   ChevronLeft,
   ChevronRight,
+  Ellipsis,
   GitMerge,
   Info,
   Keyboard,
@@ -316,6 +317,9 @@ export function AbilityTreeStage(props: Props) {
   const copiedNameRef = useRef('');
   const [renameRequest, setRenameRequest] = useState({ nodeId: '', sequence: 0 });
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [canvasToolsOpen, setCanvasToolsOpen] = useState(false);
+  const canvasToolsTriggerRef = useRef<HTMLButtonElement>(null);
+  const canvasToolsMenuRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<ReactFlowInstance<FlowNode, Edge> | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const previousSkillCountRef = useRef(
@@ -329,6 +333,18 @@ export function AbilityTreeStage(props: Props) {
   useEffect(() => {
     selectedIdsRef.current = selectedIds;
   }, [selectedIds]);
+
+  useEffect(() => {
+    if (!canvasToolsOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (canvasToolsTriggerRef.current?.contains(target) || canvasToolsMenuRef.current?.contains(target)) return;
+      setCanvasToolsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [canvasToolsOpen]);
 
   useEffect(() => {
     const requestedNode = props.selectedNodeId
@@ -826,13 +842,49 @@ export function AbilityTreeStage(props: Props) {
           maskColor="rgba(247, 250, 248, .78)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
-          <button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>
-          <button type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} />添加技能节点</button>
-          <button type="button" onClick={props.onResetLayout}><RotateCcw size={15} />重新自动布局</button>
-          <button type="button" onClick={locateSelected}><LocateFixed size={15} />定位</button>
-          <button type="button" disabled={!props.canvasHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} />撤销</button>
-          <button type="button" disabled={!props.canvasHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} />重做</button>
-          <button type="button" aria-label="键盘快捷键" onClick={() => setShortcutsOpen(true)}><Keyboard size={15} />快捷键</button>
+          <button className="ability-canvas-add-node" type="button" disabled={!props.state.phases.some((phase) => phase.skillTreeId === props.tree.id)} onClick={() => props.onAddNode()}><Plus size={15} /><span>添加技能节点</span></button>
+          <button type="button" onClick={locateSelected}><LocateFixed size={15} /><span>定位</span></button>
+          <button type="button" disabled={!props.canvasHistory.past.length && !props.canUndo} onClick={undoAction}><Undo2 size={15} /><span>撤销</span></button>
+          <button type="button" disabled={!props.canvasHistory.future.length && !props.canRedo} onClick={redoAction}><Redo2 size={15} /><span>重做</span></button>
+          <div className="ability-canvas-more-tools">
+            <button
+              ref={canvasToolsTriggerRef}
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={canvasToolsOpen}
+              aria-label="更多画布工具"
+              onClick={() => setCanvasToolsOpen((value) => {
+                const next = !value;
+                if (next) queueMicrotask(() => canvasToolsMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus());
+                return next;
+              })}
+            ><Ellipsis size={17} /><span>工具</span></button>
+            {canvasToolsOpen ? <div
+              ref={canvasToolsMenuRef}
+              className="ability-canvas-tools-menu"
+              role="menu"
+              aria-label="画布工具"
+              onKeyDown={(event) => {
+                const items = [...(canvasToolsMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setCanvasToolsOpen(false);
+                  window.setTimeout(() => canvasToolsTriggerRef.current?.focus(), 0);
+                  return;
+                }
+                if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !items.length) return;
+                event.preventDefault();
+                const current = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+                const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+                  : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+                items[next].focus();
+              }}
+            >
+              <button role="menuitem" type="button" onClick={() => { props.onAddPhase(); setCanvasToolsOpen(false); }}><Plus size={15} />添加下一阶段</button>
+              <button role="menuitem" type="button" onClick={() => { props.onResetLayout(); setCanvasToolsOpen(false); }}><RotateCcw size={15} />重新自动布局</button>
+              <button role="menuitem" type="button" onClick={() => { canvasToolsTriggerRef.current?.focus(); setCanvasToolsOpen(false); setShortcutsOpen(true); }}><Keyboard size={15} />键盘快捷键</button>
+            </div> : null}
+          </div>
         </Panel>
         {selectedIds.size >= 2 ? <Panel position="top-center" className="ability-merge-toolbar">
           <span>已选择 {selectedIds.size} 个节点</span>

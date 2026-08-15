@@ -1106,3 +1106,349 @@
   border-color: #c6d5cf;
   background: var(--ability-surface);
 }
+
+/* V5.1 visible-reality pass: task-led command header and progressive canvas tools. */
+.ability-module.has-current-tree {
+  gap: 12px;
+}
+
+.ability-command-header {
+  display: block;
+  padding: 0;
+  overflow: visible;
+}
+
+.ability-command-header-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 148px auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px 18px 16px;
+}
+
+.ability-current-identity {
+  min-width: 0;
+}
+
+.ability-current-identity .eyebrow {
+  margin: 0 0 5px;
+  color: #47665b;
+  font-size: 11px;
+  letter-spacing: .07em;
+}
+
+.ability-current-identity h1 {
+  margin: 0;
+  overflow: hidden;
+  color: var(--ability-text);
+  font-family: inherit;
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: 850;
+  line-height: 1.06;
+  letter-spacing: -.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ability-current-identity > p:last-child {
+  max-width: 68ch;
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--ability-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ability-command-header .ability-current-stats {
+  min-width: 0;
+  padding: 0 0 0 18px;
+  border-left: 1px solid var(--ability-border);
+}
+
+.ability-command-header .ability-current-stats strong {
+  font-size: 28px;
+}
+
+.ability-command-header .ability-current-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.ability-command-header .ability-current-actions > button:not(.ability-next-action),
+.ability-command-header .ability-more-actions > button {
+  border-color: var(--ability-border);
+  color: var(--ability-text-muted);
+  background: var(--ability-surface);
+}
+
+.ability-command-header .ability-next-action {
+  min-width: 126px;
+  border-color: #d1b43f;
+  color: #3d3514;
+  background: var(--ability-yellow);
+  box-shadow: 0 5px 14px rgba(174, 141, 25, .16);
+}
+
+.ability-command-header .ability-tree-action-menu {
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+  width: 220px;
+}
+
+.ability-command-header .ability-tree-action-menu button {
+  justify-content: flex-start;
+}
+
+.ability-module.has-current-tree .ability-library-rail {
+  display: grid;
+  grid-template-columns: auto minmax(190px, 1fr) minmax(210px, 280px) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  overflow: visible;
+}
+
+.ability-module.has-current-tree .ability-library-rail-header {
+  display: contents;
+}
+
+.ability-module.has-current-tree .ability-library-rail-header > div:first-child {
+  grid-column: 1;
+}
+
+.ability-module.has-current-tree .ability-library-rail-header > div:first-child small {
+  display: none;
+}
+
+.ability-module.has-current-tree .ability-library-rail-header > div:first-child strong {
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.ability-module.has-current-tree .ability-library-search {
+  grid-column: 2;
+  min-height: 44px;
+}
+
+.ability-module.has-current-tree .ability-library-strip {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 0;
+  padding: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.ability-module.has-current-tree .ability-library-compact {
+  min-width: 210px;
+  max-width: 280px;
+  flex: 1 0 210px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--ability-surface-subtle);
+}
+
+.ability-module.has-current-tree .ability-library-compact.current {
+  border: 1px solid #9bbcaf;
+  box-shadow: none;
+}
+
+.ability-module.has-current-tree .ability-library-compact-card {
+  min-height: 54px !important;
+  gap: 3px !important;
+  padding: 6px 32px 6px 10px !important;
+}
+
+.ability-module.has-current-tree .ability-library-compact-card > i {
+  height: 3px;
+}
+
+.ability-module.has-current-tree .ability-library-rail-actions {
+  grid-column: 4;
+  grid-row: 1;
+  flex-wrap: nowrap;
+}
+
+.ability-module.has-current-tree .ability-library-filters {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+.ability-module.has-current-tree .ability-library-rail.is-expanded .ability-library-strip {
+  grid-column: 1 / -1;
+  grid-row: 3;
+  flex-wrap: wrap;
+  padding-top: 8px;
+}
+
+.ability-module.has-current-tree .ability-tree-toolbar-row {
+  min-height: 48px;
+  padding: 4px 6px 4px 9px;
+}
+
+.ability-module.has-current-tree .ability-flow-shell {
+  height: min(74vh, 780px);
+  min-height: 560px;
+}
+
+.ability-canvas-toolbar {
+  align-items: center;
+}
+
+.ability-canvas-toolbar > button,
+.ability-canvas-more-tools > button {
+  min-height: 44px;
+  border-color: transparent;
+  color: var(--ability-text-muted);
+  background: transparent;
+}
+
+.ability-canvas-toolbar .ability-canvas-add-node {
+  border-color: #b8d1c7;
+  color: #38574c;
+  background: var(--ability-sage-soft);
+}
+
+.ability-canvas-more-tools {
+  position: relative;
+}
+
+.ability-canvas-more-tools > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 11px;
+}
+
+.ability-canvas-tools-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 90;
+  display: grid;
+  width: 218px;
+  padding: 6px;
+  border: 1px solid var(--ability-border);
+  border-radius: 12px;
+  background: var(--ability-surface);
+  box-shadow: var(--ability-shadow-float);
+}
+
+.ability-canvas-tools-menu button {
+  width: 100%;
+  min-height: 44px;
+  justify-content: flex-start;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ability-text);
+  background: transparent;
+  box-shadow: none;
+}
+
+.ability-canvas-tools-menu button:hover,
+.ability-canvas-tools-menu button:focus-visible {
+  background: var(--ability-surface-subtle);
+}
+
+@media (max-width: 1180px) {
+  .ability-command-header-content {
+    grid-template-columns: minmax(0, 1fr) 126px auto;
+    gap: 12px;
+  }
+
+  .ability-current-identity > p:last-child {
+    display: none;
+  }
+
+  .ability-module.has-current-tree .ability-library-rail {
+    grid-template-columns: auto minmax(180px, 1fr) auto;
+  }
+
+  .ability-module.has-current-tree .ability-library-strip {
+    display: none;
+  }
+
+  .ability-module.has-current-tree .ability-library-rail-actions {
+    grid-column: 3;
+  }
+
+  .ability-canvas-toolbar > button:not(.ability-canvas-add-node) {
+    width: 44px;
+    padding-inline: 0;
+  }
+
+  .ability-canvas-toolbar > button:not(.ability-canvas-add-node) span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 680px) {
+  .ability-module.has-current-tree {
+    gap: 10px;
+  }
+
+  .ability-command-header-content {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .ability-current-identity h1 {
+    font-size: 24px;
+    white-space: normal;
+  }
+
+  .ability-command-header .ability-current-stats {
+    padding-left: 12px;
+  }
+
+  .ability-command-header .ability-current-stats small {
+    display: none;
+  }
+
+  .ability-command-header .ability-current-actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .ability-command-header .ability-current-actions > button:not(.ability-next-action) {
+    flex: 1;
+  }
+
+  .ability-command-header .ability-next-action {
+    flex: 2;
+  }
+
+  .ability-module.has-current-tree .ability-library-rail {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 8px;
+  }
+
+  .ability-module.has-current-tree .ability-library-rail-header > div:first-child {
+    display: none;
+  }
+
+  .ability-module.has-current-tree .ability-library-search {
+    grid-column: 1;
+  }
+
+  .ability-module.has-current-tree .ability-library-rail-actions {
+    grid-column: 2;
+  }
+
+  .ability-module.has-current-tree .ability-library-rail-actions > button:first-child {
+    display: none;
+  }
+}

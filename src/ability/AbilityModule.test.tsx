@@ -41,7 +41,7 @@ describe('AbilityModule', () => {
   it('renders a visible tree stage and opens node details on demand', async () => {
     saveAbilityState(localStorage, seededState());
     const { container } = render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
-    expect(screen.getByRole('heading', { name: '能力技能树' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'React 全栈' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'React 全栈交互画布' })).toBeInTheDocument();
     expect(await screen.findByRole('group', { name: /HTML 基础 已掌握/ })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: /React 状态管理 成长中/ })).toBeInTheDocument();
@@ -81,8 +81,10 @@ describe('AbilityModule', () => {
     const summary = screen.getByLabelText('当前技能树概览');
     expect(within(summary).queryByRole('button', { name: '记录成果' })).not.toBeInTheDocument();
     expect(within(summary).queryByRole('button', { name: '编辑技能树' })).not.toBeInTheDocument();
-    expect(within(summary).getByRole('button', { name: '修改技能树资料' })).toBeInTheDocument();
     expect(within(summary).getByRole('button', { name: '添加阶段' })).toBeInTheDocument();
+    fireEvent.click(within(summary).getByRole('button', { name: '更多技能树操作' }));
+    expect(screen.getByRole('menuitem', { name: '修改技能树资料' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: '修改技能树资料' }), { key: 'Escape' });
 
     fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
     expect(screen.getByRole('button', { name: '为 HTML 基础 添加子节点' })).toBeInTheDocument();
@@ -213,7 +215,7 @@ describe('AbilityModule', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存技能树' }));
     expect(within(screen.getByLabelText('当前技能树概览')).getByRole('heading', { name: '摄影' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: '添加下一阶段' }));
+    fireEvent.click(screen.getByRole('button', { name: '添加阶段' }));
     fireEvent.change(screen.getByLabelText('阶段名称'), { target: { value: '基础认知' } });
     fireEvent.click(screen.getByRole('button', { name: '保存阶段' }));
     expect(screen.getByRole('group', { name: '阶段 基础认知' })).toBeInTheDocument();
@@ -377,9 +379,9 @@ describe('AbilityModule', () => {
     fireEvent.click(await screen.findByRole('group', { name: /HTML 基础/ }));
     const initialNodes = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.length;
 
-    const hero = screen.getByRole('heading', { name: '能力技能树' }).closest('header');
-    expect(hero).not.toBeNull();
-    const createTree = within(hero as HTMLElement).getByRole('button', { name: '新建技能树' });
+    const command = screen.getByLabelText('当前技能树指挥栏');
+    const createTree = screen.getByRole('button', { name: '新建' });
+    expect(command).toBeInTheDocument();
     createTree.focus();
     fireEvent.keyDown(createTree, { key: 'Tab' });
     fireEvent.keyDown(createTree, { key: 'Enter' });
@@ -391,7 +393,7 @@ describe('AbilityModule', () => {
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'html').archivedAt).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: '更多技能树操作' }));
-    fireEvent.click(screen.getByRole('button', { name: '修改技能树资料' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '修改技能树资料' }));
     const dialog = screen.getByRole('dialog', { name: '编辑技能树' });
     const cancel = within(dialog).getByRole('button', { name: '取消' });
     cancel.focus();
@@ -485,9 +487,9 @@ describe('AbilityModule', () => {
     expect(fireEvent.keyDown(canvas, { key: 'Tab' })).toBe(true);
     expect(fireEvent.keyDown(canvas, { key: 'Tab', shiftKey: true })).toBe(true);
 
-    const addPhase = within(canvas).getByRole('button', { name: '添加下一阶段' });
-    addPhase.focus();
-    expect(fireEvent.keyDown(addPhase, { key: 'Delete' })).toBe(true);
+    const canvasTools = within(canvas).getByRole('button', { name: '更多画布工具' });
+    canvasTools.focus();
+    expect(fireEvent.keyDown(canvasTools, { key: 'Delete' })).toBe(true);
     expect(JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}').nodes.find((node: { id: string }) => node.id === 'html').archivedAt).toBeNull();
   });
 
@@ -523,9 +525,10 @@ describe('AbilityModule', () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
     const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
-    const trigger = within(canvas).getByRole('button', { name: '键盘快捷键' });
+    const trigger = within(canvas).getByRole('button', { name: '更多画布工具' });
     trigger.focus();
     fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('menuitem', { name: '键盘快捷键' }));
 
     const dialog = screen.getByRole('dialog', { name: '画布快捷键' });
     const close = within(dialog).getByRole('button', { name: '知道了' });
@@ -633,19 +636,53 @@ describe('AbilityModule', () => {
     const { container } = render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
     const library = screen.getByLabelText('技能库');
     const summary = screen.getByLabelText('当前技能树概览');
-    expect(library.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(summary.compareDocumentPosition(library) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(library).getAllByTestId('compact-skill-card').length).toBeLessThanOrEqual(6);
     expect(screen.queryByText('重点技能')).not.toBeInTheDocument();
     expect(within(summary).queryByRole('button', { name: '记录成果' })).not.toBeInTheDocument();
     expect(within(summary).queryByRole('button', { name: '编辑技能树' })).not.toBeInTheDocument();
-    expect(within(summary).getByRole('button', { name: '修改技能树资料' })).toBeInTheDocument();
     expect(within(summary).getByRole('button', { name: '添加阶段' })).toBeInTheDocument();
+    fireEvent.click(within(summary).getByRole('button', { name: '更多技能树操作' }));
+    expect(screen.getByRole('menuitem', { name: '修改技能树资料' })).toBeInTheDocument();
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: '修改技能树资料' }), { key: 'Escape' });
     expect(within(summary).getByRole('button', { name: '下一步 · 1' })).toHaveClass('ability-next-action');
-    expect(screen.getByRole('button', { name: '新建技能树' })).not.toHaveClass('ability-primary');
+    expect(screen.getByRole('button', { name: '新建' })).not.toHaveClass('ability-primary');
     expect(screen.getByRole('button', { name: '更多技能树操作' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '设置并行组' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '专注当前阶段' })).not.toBeInTheDocument();
     expect(within(container.querySelector('.ability-tree-toolbar') as HTMLElement).getAllByRole('button').map((button) => button.textContent)).toEqual(['全部', '已掌握']);
+  });
+
+  it('uses one task-led command header instead of stacked page and tree heroes', () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    const command = screen.getByLabelText('当前技能树指挥栏');
+    expect(within(command).getByRole('heading', { level: 1, name: 'React 全栈' })).toBeInTheDocument();
+    expect(within(command).getByRole('button', { name: '下一步 · 1' })).toHaveClass('ability-next-action');
+    expect(screen.queryByRole('heading', { level: 1, name: '能力技能树' })).not.toBeInTheDocument();
+  });
+
+  it('keeps daily canvas actions visible and places low-frequency tools in a discoverable menu', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    const canvas = screen.getByRole('group', { name: 'React 全栈交互画布' });
+    expect(within(canvas).getByRole('button', { name: '添加技能节点' })).toBeVisible();
+    expect(within(canvas).getByRole('button', { name: '定位' })).toBeVisible();
+    expect(within(canvas).queryByRole('button', { name: '添加下一阶段' })).not.toBeInTheDocument();
+    expect(within(canvas).queryByRole('button', { name: '重新自动布局' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(canvas).getByRole('button', { name: '更多画布工具' }));
+    const menu = await screen.findByRole('menu', { name: '画布工具' });
+    const firstItem = within(menu).getByRole('menuitem', { name: '添加下一阶段' });
+    expect(firstItem).toHaveFocus();
+    expect(firstItem).toBeInTheDocument();
+    const resetItem = within(menu).getByRole('menuitem', { name: '重新自动布局' });
+    expect(resetItem).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '键盘快捷键' })).toBeInTheDocument();
+    fireEvent.keyDown(firstItem, { key: 'ArrowDown' });
+    expect(resetItem).toHaveFocus();
   });
 
   it('keeps empty stages visible in the linear route', async () => {
@@ -728,14 +765,18 @@ describe('AbilityModule', () => {
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
     const trigger = screen.getByRole('button', { name: '更多技能树操作' });
     fireEvent.click(trigger);
-    const item = screen.getByRole('menuitem', { name: '重新自动布局' });
+    const item = screen.getByRole('menuitem', { name: '修改技能树资料' });
     await waitFor(() => expect(item).toHaveFocus());
+    fireEvent.keyDown(item, { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: '重新自动布局' })).toHaveFocus();
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: '重新自动布局' }), { key: 'ArrowUp' });
+    expect(item).toHaveFocus();
     fireEvent.keyDown(item, { key: 'Escape' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     await waitFor(() => expect(trigger).toHaveFocus());
 
     fireEvent.click(trigger);
-    await waitFor(() => expect(screen.getByRole('menuitem', { name: '重新自动布局' })).toHaveFocus());
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: '修改技能树资料' })).toHaveFocus());
     fireEvent.pointerDown(screen.getByRole('heading', { name: 'React 全栈' }));
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
@@ -795,7 +836,8 @@ describe('AbilityModule', () => {
   it('edits the current tree and archives a related skill node without deleting history', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
-    fireEvent.click(screen.getByRole('button', { name: '修改技能树资料' }));
+    fireEvent.click(screen.getByRole('button', { name: '更多技能树操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '修改技能树资料' }));
     fireEvent.change(screen.getByLabelText('技能树名称'), { target: { value: 'React 产品开发' } });
     fireEvent.click(screen.getByRole('button', { name: '保存技能树' }));
     expect(within(screen.getByLabelText('当前技能树概览')).getByRole('heading', { name: 'React 产品开发' })).toBeInTheDocument();

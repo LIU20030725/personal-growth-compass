@@ -98,7 +98,7 @@ test('A：全新数据完成结构、成长、证据、资源与视图闭环且�
   await page.getByRole('button', { name: '创建第一棵技能树' }).click();
   await page.getByRole('textbox', { name: '技能树名称' }).fill('独立产品设计');
   await page.getByRole('button', { name: '保存技能树' }).click();
-  await page.getByRole('button', { name: '添加下一阶段' }).click();
+  await page.getByRole('button', { name: '添加阶段' }).click();
   await page.getByRole('textbox', { name: '阶段名称' }).fill('需求与原型');
   await page.getByRole('button', { name: '保存阶段' }).click();
   await page.getByRole('button', { name: '在 需求与原型 添加第一个节点' }).click();
@@ -112,7 +112,9 @@ test('A：全新数据完成结构、成长、证据、资源与视图闭环且�
   await addChild.click();
   await addChild.click();
   await expect(page.getByRole('group', { name: '新技能 可开始', exact: true })).toHaveCount(3);
-  await expect(page.getByRole('button', { name: '添加下一阶段' })).toBeVisible();
+  await page.getByRole('button', { name: '更多画布工具' }).click();
+  await expect(page.getByRole('menuitem', { name: '添加下一阶段' })).toBeVisible();
+  await page.keyboard.press('Escape');
 
   await root.click();
   const detail = page.getByRole('complementary', { name: '技能节点详情' });
@@ -234,6 +236,7 @@ test('重新生成桌面、窄屏、资源、线性、移动详情与 40 节点�
   await page.getByRole('complementary', { name: '技能节点详情' }).getByRole('button', { name: '查看全部' }).click();
   await page.screenshot({ path: `${EVIDENCE}/03-1024-resource-expanded.png`, animations: 'disabled' });
 
+  await page.getByRole('complementary', { name: '技能节点详情' }).getByRole('button', { name: '关闭技能详情' }).click();
   await page.getByRole('button', { name: '切换到线性路线' }).click();
   await page.screenshot({ path: `${EVIDENCE}/04-1024-linear-route.png`, animations: 'disabled' });
 

@@ -277,35 +277,53 @@ export function AbilityModule({ abilityStorage, initialTreeId = null, onTreeChan
     window.setTimeout(() => focusTarget?.focus(), 0);
   };
 
-  return <section ref={moduleRef} className="ability-module" aria-label="能力属性模块">
-    <header className="ability-hero">
+  const skillLibrary = <SkillLibrary
+    state={ability.state}
+    currentTreeId={currentTreeId}
+    onOpenTree={openTree}
+    onCreateTree={() => setForm('tree')}
+    onArchiveTree={ability.archiveTree}
+    onRestoreTree={ability.restoreTree}
+    onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))}
+    onReorderFocused={ability.reorderFocusedTrees}
+  />;
+
+  return <section ref={moduleRef} className={`ability-module ${currentTree ? 'has-current-tree' : ''}`} aria-label="能力属性模块">
+    {!currentTree ? <header className="ability-hero">
       <div><p className="eyebrow"><Sparkles size={17} /> Ability Tree · Manual First</p><h1>能力技能树</h1><p>把主技能与副技能变成可以持续生长的路线，用阶段、掌握标准和真实成果证明进步。</p></div>
-      <button className={currentTree ? 'ability-secondary ability-create-tree' : 'ability-primary'} type="button" onClick={() => setForm('tree')}><Plus size={18} />新建技能树</button>
-    </header>
+      <button className="ability-primary" type="button" onClick={() => setForm('tree')}><Plus size={18} />新建技能树</button>
+    </header> : null}
 
     {ability.persistenceError ? <div className="ability-error-banner" role="alert"><span>{ability.persistenceError}</span><button type="button" onClick={ability.clearPersistenceError}>关闭</button></div> : null}
     {canvasPersistenceError ? <div className="ability-error-banner" role="alert"><span>{canvasPersistenceError}</span><button type="button" onClick={() => setCanvasPersistenceError('')}>关闭</button></div> : null}
     {routeNotice ? <div className="ability-route-notice" role="status">{routeNotice}</div> : null}
 
-    <SkillLibrary state={ability.state} currentTreeId={currentTreeId} onOpenTree={openTree} onCreateTree={() => setForm('tree')} onArchiveTree={ability.archiveTree} onRestoreTree={ability.restoreTree} onChangeFocus={(treeId, focused) => ability.reorderFocusedTrees(focused ? [...focusedIds, treeId] : focusedIds.filter((id) => id !== treeId))} onReorderFocused={ability.reorderFocusedTrees} />
-
-    {!currentTree ? <section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准与学习资源。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section> : <>
-      <section className="ability-current-header" aria-label="当前技能树概览">
-        <div><span>{SKILL_ROLE_LABELS[currentTree.role]}</span><h2>{currentTree.name}</h2><p>{currentTree.description || '为这棵技能树补充一句成长方向。'}</p></div>
-        <div className="ability-current-stats"><strong>{progress?.percent ?? 0}%</strong><span>{progress?.mastered ?? 0}/{progress?.total ?? 0} 已掌握</span><small>当前：{currentPhase?.name ?? '等待添加阶段'}</small></div>
-        <div className="ability-current-actions">
+    {!currentTree ? <>{skillLibrary}<section className="ability-empty-state"><Route size={48} /><small>YOUR FIRST SKILL TREE</small><h2>从一项真正想成长的技能开始</h2><p>先创建技能树，再逐步补充阶段、技能节点、掌握标准与学习资源。</p><button className="ability-primary" type="button" onClick={() => setForm('tree')}>创建第一棵技能树</button></section></> : <>
+      <section className="ability-current-header ability-command-header" aria-label="当前技能树概览">
+        <div className="ability-command-header-content" aria-label="当前技能树指挥栏">
+          <div className="ability-current-identity"><p className="eyebrow"><Sparkles size={15} /> 能力技能树 · {SKILL_ROLE_LABELS[currentTree.role]}</p><h1>{currentTree.name}</h1><p>{currentTree.description || '为这棵技能树补充一句成长方向。'}</p></div>
+          <div className="ability-current-stats"><strong>{progress?.percent ?? 0}%</strong><span>{progress?.mastered ?? 0}/{progress?.total ?? 0} 已掌握</span><small>当前：{currentPhase?.name ?? '等待添加阶段'}</small></div>
+          <div className="ability-current-actions">
           <button className="ability-next-action" type="button" onClick={runNextAction}>下一步 · {nextCandidates.length}</button>
-          <button type="button" onClick={() => setForm('edit-tree')}><Pencil size={16} />修改技能树资料</button>
           <button type="button" onClick={() => setForm('phase')}><Plus size={16} />添加阶段</button>
           <div className="ability-more-actions">
             <button ref={moreTriggerRef} type="button" aria-haspopup="menu" aria-expanded={moreOpen} aria-label="更多技能树操作" onClick={() => setMoreOpen((value) => { const next = !value; if (next) queueMicrotask(() => moreItemRef.current?.focus()); return next; })}><Ellipsis size={18} /></button>
             {moreOpen ? <div ref={moreMenuRef} className="ability-tree-action-menu" role="menu" onKeyDown={(event) => {
               if (event.key === 'Escape') { event.preventDefault(); setMoreOpen(false); window.setTimeout(() => moreTriggerRef.current?.focus(), 0); }
-              if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') { event.preventDefault(); moreItemRef.current?.focus(); }
-            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { resetCanvasLayout(); setMoreOpen(false); }}>重新自动布局</button></div> : null}
+              const items = [...(moreMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+              if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || !items.length) return;
+              event.preventDefault();
+              const current = Math.max(0, items.indexOf(document.activeElement as HTMLButtonElement));
+              const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+                : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+              items[next].focus();
+            }}><button ref={moreItemRef} role="menuitem" type="button" onClick={() => { setForm('edit-tree'); setMoreOpen(false); }}><Pencil size={15} />修改技能树资料</button><button role="menuitem" type="button" onClick={() => { resetCanvasLayout(); setMoreOpen(false); }}><Route size={15} />重新自动布局</button></div> : null}
+          </div>
           </div>
         </div>
       </section>
+
+      {skillLibrary}
 
       <div className="ability-tree-toolbar-row">
         <div className="ability-tree-toolbar" aria-label="技能树显示筛选">{filterOptions.map((option) => <button className={filter === option.value ? 'active' : ''} type="button" onClick={() => setFilter(option.value)} key={option.value}>{option.label}</button>)}</div>
