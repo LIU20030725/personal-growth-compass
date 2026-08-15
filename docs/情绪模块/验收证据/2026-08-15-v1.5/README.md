@@ -37,24 +37,47 @@
 - 控制台 error / warning = 0。
 - 触控目标：主/次动作、分类、活动、收藏、日历翻页与附件删除均不小于 44px。
 
+## 同数据前后对比方法
+
+为避免“基线与候选使用不同数据”造成视觉误判，本轮使用同一个浏览器、同一个 origin `http://127.0.0.1:4176` 和同一批 11 条 V1 历史记录：
+
+1. 先运行候选分支，确认日记可见 `V1 historical record 11` 至 `V1 historical record 2`。
+2. 停止候选服务，在相同端口启动 `origin/main` 基线 `e82e31b`，不清除或改写浏览器数据，生成 `before-origin-main-*`。
+3. 停止基线服务，在相同端口恢复候选分支并刷新，生成 `after-candidate-*`。
+4. 恢复候选后再次断言首条 `V1 historical record 11` 与第十条 `V1 historical record 2` 均各出现 1 次，证明跨版本重启后可见数据未缩水。
+
+数据与功能边界证明：
+
+- 实现提交没有修改 `types.ts`、`emotionStorage.ts`、`emotionMediaStore.ts`、`emotionEngine.ts` 或 `useEmotionSystem.ts`，存储 schema、迁移、媒体事务与领域规则保持不变。
+- 全仓 443 项测试继续覆盖 V1→V2 迁移、V2 往返、损坏数据降级、媒体事务、附件编辑、音乐降级、日历、重要日与最近 10 条规则。
+- 本轮只改变页面组织、编辑器渐进展开、成功反馈和空状态；图片、视频、语音、音乐、收藏、日历、重要日、编辑、删除和本地优先能力均有原测试回归。
+
+## 关键旅程与弹层证据
+
+| 旅程 | origin/main | 候选 | 结果 |
+|---|---:|---:|---|
+| 桌面从日记进入普通记录编辑器 | 2 次操作：记录感受 → 记录此刻 | 1 次操作：记录此刻 | 减少 1 层高频模态 |
+| 选择情绪 | 同屏 18 项长列表中选择 | 情绪分类 → 当前组内选择 | 首屏从 18 项降至 4–5 项，所有情绪保留 |
+| 选择活动 | 同屏 25 项长列表中选择 | 活动分类 → 当前组内选择 | 首屏从 25 项降至 5 项，所有活动保留 |
+| 保存 | 顶部与底部两个保存入口 | 底部唯一「保存这一刻」 | 主动作唯一，保存后出现「这一刻已收好」 |
+| 移动端创建 | 创建菜单选择记录/重要日 | 仍保留创建菜单 | 双入口信息架构不缩水 |
+
+焦点实测：点击桌面「记录此刻」后，活动焦点为 `关闭记录`；按 Escape 关闭后，焦点返回 `记录此刻`。组件测试继续覆盖 Tab/Shift+Tab 圈定、未保存确认与录音中关闭释放全部 track。
+
 ## 截图
 
-当前版本：
+严格配对截图（每组使用上述同一批数据）：
 
-- `emotion-journal-1440x900.png`
-- `emotion-library-1440x900.png`
-- `emotion-calendar-1440x900.png`
-- `emotion-composer-1440x900.png`
-- `emotion-journal-1024x768.png`
-- `emotion-library-1024x768.png`
-- `emotion-calendar-1024x768.png`
-- `emotion-journal-390x844.png`
-- `emotion-library-390x844.png`
-- `emotion-calendar-390x844.png`
-- `emotion-create-menu-390x844.png`
-- `emotion-composer-390x844.png`
-
-改造前证据沿用 `docs/情绪模块/screenshots/shared-shell-2026-08-03/` 和 `visual-refresh-2026-08-02/`，避免复制既有二进制文件。
+| 视图 | 1440×900 | 1024×768 | 390×844 |
+|---|---|---|---|
+| 日记基线 | `before-origin-main-journal-1440x900.png` | `before-origin-main-journal-1024x768.png` | `before-origin-main-journal-390x844.png` |
+| 日记候选 | `after-candidate-journal-1440x900.png` | `after-candidate-journal-1024x768.png` | `after-candidate-journal-390x844.png` |
+| 内容库基线 | `before-origin-main-library-1440x900.png` | `before-origin-main-library-1024x768.png` | `before-origin-main-library-390x844.png` |
+| 内容库候选 | `after-candidate-library-1440x900.png` | `after-candidate-library-1024x768.png` | `after-candidate-library-390x844.png` |
+| 日历基线 | `before-origin-main-calendar-1440x900.png` | `before-origin-main-calendar-1024x768.png` | `before-origin-main-calendar-390x844.png` |
+| 日历候选 | `after-candidate-calendar-1440x900.png` | `after-candidate-calendar-1024x768.png` | `after-candidate-calendar-390x844.png` |
+| 编辑器基线 | `before-origin-main-composer-1440x900.png` | — | `before-origin-main-composer-390x844.png` |
+| 编辑器候选 | `after-candidate-composer-1440x900.png` | — | `after-candidate-composer-390x844.png` |
 
 ## 已知限制与接受理由
 
