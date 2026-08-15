@@ -1,22 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   Apple,
+  ArrowRight,
   ChevronLeft,
+  Clock3,
   Dumbbell,
+  GlassWater,
   HeartPulse,
   Moon,
   Plus,
   Scale,
+  ShieldCheck,
   Utensils,
   Waves,
+  X,
 } from "lucide-react";
 import { useHealthSystem } from "./useHealthSystem";
 import { deriveBodyTrend } from "./healthEngine";
-import type { ExerciseMode, MealRecord } from "./types";
+import type { BodyRecord, ExerciseMode, MealRecord } from "./types";
 import type { WorkoutSession, WorkoutSet } from "./types";
 import "./healthModule.css";
 import { useRestTimer } from "./useRestTimer";
+import {
+  BodyWorkspace,
+  DailyWorkspace,
+  MealsWorkspace,
+  WorkoutWorkspace,
+} from "./Revision2083Workspaces";
 
 type View = "home" | "body" | "meals" | "daily" | "workouts" | "data";
 const cards: Array<{
@@ -43,7 +54,15 @@ const cards: Array<{
 
 export function HealthModule() {
   const health = useHealthSystem();
+  const moduleRef = useRef<HTMLElement>(null);
   const [view, setView] = useState<View>("home");
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [dailySettingsOpen, setDailySettingsOpen] = useState(false);
+  const [bodyCorrection, setBodyCorrection] = useState<BodyRecord>();
+  const [confirmation, setConfirmation] = useState<
+    | { kind: "archive"; exerciseId: string; name: string }
+    | { kind: "import" }
+  >();
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [fat, setFat] = useState("");
@@ -73,7 +92,18 @@ export function HealthModule() {
   const [status, setStatus] = useState("");
   const [mealPhotos, setMealPhotos] = useState<File[]>([]);
   const latest = health.bodyRecords[0];
+  const todayMealCount = health.meals.filter((record) => isLocalToday(record.eatenAt)).length;
+  const todayWorkoutCount = health.workouts.filter((record) => isLocalToday(record.startedAt)).length;
+  const todayDailyCount = health.daily.filter((record) => isLocalToday(record.occurredAt)).length;
+  const bmiPreview = calculateBmiPreview(
+    height ? Number(height) : latest?.heightMmSnapshot ? latest.heightMmSnapshot / 10 : undefined,
+    weight ? Number(weight) : undefined,
+  );
   const bodyTrend = deriveBodyTrend(health.bodyRecords, 30);
+  const selectedDefinition = health.exercises.find((item) => item.id === selectedExercise);
+  useEffect(() => {
+    moduleRef.current?.scrollIntoView?.({ block: "start" });
+  }, [view]);
   const recentCount = (days: number) => {
     const cutoff = Date.now() - days * 86_400_000;
     return [
@@ -96,12 +126,16 @@ export function HealthModule() {
   };
   const title =
     view === "home"
-      ? "健康状况"
+      ? "今天，记录一点真实变化"
       : view === "data"
         ? "数据与隐私"
         : cards.find((c) => c.id === view)!.title;
   return (
-    <section className="health-module" aria-labelledby="health-title">
+    <section
+      ref={moduleRef}
+      className={`health-module health-view-${view}`}
+      aria-labelledby="health-title"
+    >
       <p className="sr-only" role="status" aria-live="polite">
         {status}
       </p>
@@ -113,7 +147,7 @@ export function HealthModule() {
           </button>
         )}
         <div className="health-eyebrow">
-          <HeartPulse size={16} /> HEALTH JOURNAL
+          <HeartPulse size={16} /> 健康记录 · 本地保存
         </div>
         <h1 id="health-title">{title}</h1>
         <p>
@@ -129,60 +163,133 @@ export function HealthModule() {
       )}
       {view === "home" && (
         <>
-          <div className="health-today">
-            <div>
-              <span>今日状态</span>
+          <div className="health-command-grid">
+            <section className="health-today" aria-labelledby="today-overview">
+              <div className="health-today-copy">
+                <span id="today-overview">今日概览</span>
+                <strong>
+                  {todayDailyCount + todayMealCount + todayWorkoutCount > 0
+                    ? "今天的记录正在慢慢形成"
+                    : "先记下一件已经发生的小事"}
+                </strong>
+                <p>不用补齐所有项目，真实留下一个数据就有价值。</p>
+              </div>
+              <div className="health-today-metrics" aria-label="今日记录摘要">
+                <div>
+                  <GlassWater aria-hidden="true" />
+                  <span>饮水</span>
+                  <strong>{health.todayWaterMl ? `${health.todayWaterMl} ml` : "未记录"}</strong>
+                </div>
+                <div>
+                  <Utensils aria-hidden="true" />
+                  <span>餐食</span>
+                  <strong>{todayMealCount ? `${todayMealCount} 餐` : "未记录"}</strong>
+                </div>
+                <div>
+                  <Dumbbell aria-hidden="true" />
+                  <span>训练</span>
+                  <strong>{todayWorkoutCount ? `${todayWorkoutCount} 次` : "未记录"}</strong>
+                </div>
+              </div>
+              <button className="health-primary-action" onClick={() => setQuickOpen(true)}>
+                <Plus size={18} aria-hidden="true" />
+                一键记录
+              </button>
+            </section>
+            <aside className="health-next-card">
+              <span className="health-section-kicker">
+                {health.draftWorkout ? "继续上次" : "最近状态"}
+              </span>
               <strong>
-                {health.todayWaterMl
-                  ? `饮水 ${health.todayWaterMl} ml`
-                  : "等待你的第一条记录"}
+                {health.draftWorkout
+                  ? "有一份未完成的训练"
+                  : latest?.weightGrams
+                    ? `最近体重 ${(latest.weightGrams / 1000).toFixed(1)} kg`
+                    : "还没有身体记录"}
               </strong>
               <p>
-                {health.meals.length} 条餐食 · {health.workouts.length} 次训练
+                {health.draftWorkout
+                  ? "草稿已保存在本地，可以回到训练页继续。"
+                  : latest
+                    ? "进入身体状态查看原始记录与变化。"
+                    : "体重、体脂和 BMI 会按记录时间保留。"}
               </p>
-            </div>
-            <button onClick={() => setView("daily")}>
-              <Plus size={18} />
-              快速记录
-            </button>
+              <button onClick={() => setView(health.draftWorkout ? "workouts" : "body")}>
+                {health.draftWorkout ? "继续训练" : latest ? "查看身体趋势" : "添加首条身体记录"}
+                <ArrowRight size={17} aria-hidden="true" />
+              </button>
+            </aside>
           </div>
-          <div className="health-card-grid">
+          <section className="health-quick-section" aria-labelledby="quick-entrances">
+            <div className="health-section-heading">
+              <div>
+                <span className="health-section-kicker">全部记录</span>
+                <h2 id="quick-entrances">按内容进入</h2>
+              </div>
+              <p>查看历史、趋势，或补充更完整的数据。</p>
+            </div>
+            <div className="health-card-grid">
             {cards.map(({ id, title, subtitle, icon: Icon }) => (
               <button
                 key={id}
                 className="health-entry-card"
                 onClick={() => setView(id)}
+                aria-label={`${title}，${subtitle}`}
               >
-                <Icon />
+                <span className="health-entry-icon"><Icon aria-hidden="true" /></span>
                 <span>
                   <strong>{title}</strong>
                   <small>{subtitle}</small>
                 </span>
-                <b>进入</b>
+                <ArrowRight className="health-entry-arrow" aria-hidden="true" />
               </button>
             ))}
-          </div>
-          <aside className="health-review">
-            <Waves />
-            <div>
-              <strong>周 / 月记录趋势</strong>
-              <p>
-                近 7 天 {recentCount(7)} 条 · 近 30 天 {recentCount(30)} 条。
-                {health.bodyRecords.length + health.daily.length < 2
-                  ? "再留下几条同类记录后，才会描述可比较的变化。"
-                  : "你的健康档案正在形成，可进入各模块查看同类数据变化。"}
-              </p>
             </div>
-          </aside>
-          <button className="health-data-link" onClick={() => setView("data")}>
-            数据导出、导入与垃圾箱
-          </button>
+          </section>
+          <div className="health-home-lower">
+            <aside className="health-review">
+              <Waves aria-hidden="true" />
+              <div>
+                <span className="health-section-kicker">回看变化</span>
+                <strong>周 / 月记录回看</strong>
+                <p>
+                  近 7 天 {recentCount(7)} 条 · 近 30 天 {recentCount(30)} 条。
+                  {health.bodyRecords.length + health.daily.length < 2
+                    ? "再留下几条同类记录后，才会描述可比较的变化。"
+                    : "你的健康档案正在形成，可进入各模块查看同类数据变化。"}
+                </p>
+              </div>
+            </aside>
+            <aside className="health-management-card">
+              <ShieldCheck aria-hidden="true" />
+              <div>
+                <span className="health-section-kicker">本地优先</span>
+                <strong>历史与数据管理</strong>
+                <p>导出、导入、垃圾箱与恢复。</p>
+                <button onClick={() => setView("data")}>数据与隐私</button>
+              </div>
+            </aside>
+          </div>
+          {quickOpen && (
+            <QuickRecordDialog
+              onClose={() => setQuickOpen(false)}
+              onSelect={(nextView) => {
+                setQuickOpen(false);
+                setView(nextView);
+              }}
+            />
+          )}
         </>
       )}
       {view === "body" && (
+        <BodyWorkspace health={health} onStatus={setStatus} />
+      )}
+      {view === "body" && (
+        <details className="health-support-details">
+          <summary>完整身体记录与历史趋势</summary>
         <div className="health-two-column">
           <form
-            className="health-panel"
+            className="health-panel health-record-form"
             onSubmit={(e) => {
               e.preventDefault();
               const saved = health.addBodyRecord({
@@ -240,15 +347,15 @@ export function HealthModule() {
                 aria-label="BMI（自动计算）"
                 disabled
                 value={
-                  latest?.bmiHundredths
-                    ? (latest.bmiHundredths / 100).toFixed(2)
-                    : "保存后自动计算"
+                  bmiPreview === undefined
+                    ? "填写身高与体重后预览"
+                    : bmiPreview.toFixed(2)
                 }
               />
             </label>
             <button type="submit">保存身体记录</button>
           </form>
-          <div className="health-panel">
+          <div className="health-panel health-history-panel">
             <h2>历史与趋势</h2>
             <p className="health-trend" aria-live="polite">
               {bodyTrend.comparable
@@ -270,20 +377,7 @@ export function HealthModule() {
                     {r.bodyFatMethod ? ` · ${r.bodyFatMethod}` : ""}
                   </span>
                   <button
-                    onClick={() => {
-                      const next = window.prompt(
-                        "更正体重（kg）",
-                        r.weightGrams ? String(r.weightGrams / 1000) : "",
-                      );
-                      if (next) {
-                        const reason =
-                          window.prompt("更正原因（可选）", "") ?? undefined;
-                        health.reviseBodyRecord(r.id, {
-                          weightKg: Number(next),
-                          reason,
-                        });
-                      }
-                    }}
+                    onClick={() => setBodyCorrection(r)}
                   >
                     更正
                   </button>
@@ -298,11 +392,17 @@ export function HealthModule() {
             )}
           </div>
         </div>
+        </details>
       )}
       {view === "meals" && (
+        <MealsWorkspace health={health} onStatus={setStatus} />
+      )}
+      {view === "meals" && (
+        <details className="health-support-details">
+          <summary>文字、照片与餐次时间线</summary>
         <div className="health-two-column">
           <form
-            className="health-panel"
+            className="health-panel health-record-form"
             onSubmit={async (e) => {
               e.preventDefault();
               const ok = await health.addMealWithPhotos({
@@ -378,7 +478,7 @@ export function HealthModule() {
             </p>
             <button type="submit">保存餐食</button>
           </form>
-          <div className="health-panel">
+          <div className="health-panel health-history-panel">
             <h2>餐次时间线</h2>
             {health.meals.length ? (
               health.meals.map((m) => (
@@ -414,13 +514,20 @@ export function HealthModule() {
             )}
           </div>
         </div>
+        </details>
       )}
       {view === "daily" && (
-        <div className="health-two-column">
-          <div className="health-panel">
+        <DailyWorkspace health={health} onStatus={setStatus} />
+      )}
+      {view === "daily" && (
+        <details className="health-support-details">
+          <summary>活动量、精力与历史指标管理</summary>
+        <div className="health-two-column health-daily-layout">
+          <div className="health-panel health-daily-recorder">
             <h2>今日快速记录</h2>
             {health.preferences.enabledDailyMetrics.includes("water") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-water-title">
+                <span className="health-section-kicker" id="daily-water-title">饮水</span>
                 <div className="water-actions">
                   {health.preferences.waterQuickAmountsMl.map((n) => (
                     <button key={n} onClick={() => health.addWater(n)}>
@@ -449,10 +556,11 @@ export function HealthModule() {
                 >
                   保存自定义饮水
                 </button>
-              </>
+              </section>
             )}
             {health.preferences.enabledDailyMetrics.includes("sleep") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-sleep-title">
+                <span className="health-section-kicker" id="daily-sleep-title">睡眠</span>
                 <label>
                   睡眠时长（小时）
                   <input
@@ -494,10 +602,11 @@ export function HealthModule() {
                 >
                   保存睡眠
                 </button>
-              </>
+              </section>
             )}
             {health.preferences.enabledDailyMetrics.includes("activity") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-activity-title">
+                <span className="health-section-kicker" id="daily-activity-title">活动</span>
                 <label>
                   活动记录方式
                   <select
@@ -537,10 +646,11 @@ export function HealthModule() {
                 >
                   保存活动
                 </button>
-              </>
+              </section>
             )}
             {health.preferences.enabledDailyMetrics.includes("energy") && (
-              <>
+              <section className="health-daily-metric-card" aria-labelledby="daily-energy-title">
+                <span className="health-section-kicker" id="daily-energy-title">精力</span>
                 <label>
                   主观精力（1–5）
                   <input
@@ -561,44 +671,56 @@ export function HealthModule() {
                 >
                   保存精力
                 </button>
-              </>
+              </section>
             )}
             <p className="health-hint">
               没有记录不等于 0，也不会显示未达标警报。
             </p>
-            <strong>今天已有 {health.daily.length} 条日常记录</strong>
+            <strong>今天已有 {todayDailyCount} 条日常记录</strong>
           </div>
-          <div className="health-panel">
-            <h2>启用的指标</h2>
-            {(["sleep", "water", "activity", "energy"] as const).map((m) => (
-              <label className="health-row" key={m}>
-                <input
-                  type="checkbox"
-                  checked={health.preferences.enabledDailyMetrics.includes(m)}
-                  onChange={() => health.toggleMetric(m)}
-                />
-                <strong>
-                  {
-                    (
-                      {
-                        sleep: "睡眠",
-                        water: "饮水",
-                        activity: "活动",
-                        energy: "精力",
-                      } as const
-                    )[m]
-                  }
-                </strong>
-                <span>显示此指标</span>
-              </label>
-            ))}
+          <div className="health-panel health-settings-panel">
+            <div className="health-panel-heading">
+              <div><span className="health-section-kicker">低频设置</span><h2>管理日常指标</h2></div>
+              <button className="health-secondary-action" aria-expanded={dailySettingsOpen} onClick={() => setDailySettingsOpen((open) => !open)}>
+                {dailySettingsOpen ? "收起设置" : "管理指标"}
+              </button>
+            </div>
+            <p>关闭指标只会隐藏快捷入口，已经保存的历史仍会保留。</p>
+            {dailySettingsOpen && (["sleep", "water", "activity", "energy"] as const).map((m) => (
+                <label className="health-row health-metric-toggle" key={m}>
+                  <input
+                    type="checkbox"
+                    checked={health.preferences.enabledDailyMetrics.includes(m)}
+                    onChange={() => health.toggleMetric(m)}
+                  />
+                  <strong>
+                    {
+                      (
+                        {
+                          sleep: "睡眠",
+                          water: "饮水",
+                          activity: "活动",
+                          energy: "精力",
+                        } as const
+                      )[m]
+                    }
+                  </strong>
+                  <span>显示此指标</span>
+                </label>
+              ))}
           </div>
         </div>
+        </details>
       )}
       {view === "workouts" && (
-        <div className="health-two-column">
+        <WorkoutWorkspace health={health} onSelectExercise={setSelectedExercise} onStatus={setStatus} />
+      )}
+      {view === "workouts" && (
+        <details className="health-support-details" open={Boolean(selectedExercise)}>
+          <summary>逐组记录、休息计时与训练历史</summary>
+        <div className="health-two-column health-workout-layout">
           <form
-            className="health-panel"
+            className="health-panel health-setup-panel"
             onSubmit={(e) => {
               e.preventDefault();
               if (exercise.trim()) {
@@ -644,8 +766,19 @@ export function HealthModule() {
             </label>
             <button type="submit">创建训练项目</button>
           </form>
-          <div className="health-panel">
-            <h2>我的训练项目</h2>
+          <div className="health-panel health-training-workspace">
+            <div className="health-panel-heading">
+              <div>
+                <span className="health-section-kicker">{selectedDefinition ? "正在记录" : "准备训练"}</span>
+                <h2>{selectedDefinition ? selectedDefinition.name : "我的训练项目"}</h2>
+              </div>
+              {selectedDefinition && <span className="health-current-badge">训练进行中</span>}
+            </div>
+            <ol className="health-workout-steps" aria-label="训练记录步骤">
+              <li className={!selectedDefinition ? "is-current" : "is-done"}>选择项目</li>
+              <li className={selectedDefinition ? "is-current" : ""}>逐组记录</li>
+              <li>结束摘要</li>
+            </ol>
             {restTimer.seconds > 0 && (
               <div className="health-trend" aria-live="polite">
                 <strong>休息 {restTimer.seconds} 秒</strong>
@@ -695,28 +828,26 @@ export function HealthModule() {
               </div>
             )}
             {health.exercises.length ? (
-              health.exercises.map((x) => (
+              <div className="health-exercise-list" aria-label="训练项目列表">{health.exercises.map((x) => (
                 <article className="health-row" key={x.id}>
                   <Dumbbell size={18} />
                   <strong>{x.name}</strong>
                   <button onClick={() => setSelectedExercise(x.id)}>
-                    记录
+                    {selectedExercise === x.id ? "继续记录" : "开始记录"}
                   </button>
                   <button
-                    onClick={() => {
-                      if (
-                        window.confirm("归档项目后历史训练仍会保留，确定继续？")
-                      ) {
-                        health.archiveExercise(x.id);
-                        if (selectedExercise === x.id) setSelectedExercise("");
-                        setStatus("训练项目已归档，历史记录仍保留");
-                      }
-                    }}
+                    onClick={() =>
+                      setConfirmation({
+                        kind: "archive",
+                        exerciseId: x.id,
+                        name: x.name,
+                      })
+                    }
                   >
                     归档
                   </button>
                 </article>
-              ))
+              ))}</div>
             ) : (
               <Empty text="创建项目后可逐组记录，并复用上一次的数据。" />
             )}
@@ -747,6 +878,7 @@ export function HealthModule() {
                   setWorkoutMinutes("");
                   setEditingWorkoutId(undefined);
                   setWorkoutSeed(undefined);
+                  setSelectedExercise("");
                 }}
                 saveLabel={editingWorkoutId ? "保存训练修改" : "保存本次训练"}
               />
@@ -775,6 +907,7 @@ export function HealthModule() {
             <strong>已完成 {health.workouts.length} 次训练</strong>
           </div>
         </div>
+        </details>
       )}
       {view === "data" && (
         <div className="health-two-column">
@@ -789,18 +922,30 @@ export function HealthModule() {
             >
               导出完整健康备份
             </button>
-            <label>
-              导入备份内容
-              <textarea
-                aria-label="导入备份内容"
-                value={importText}
-                onChange={(e) => {
-                  setImportText(e.target.value);
+            <label className="health-file-picker">
+              选择健康备份文件
+              <input
+                aria-label="选择健康备份文件"
+                type="file"
+                accept=".json,application/json"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
                   setImportPreview(undefined);
+                  try {
+                    const content = await file.text();
+                    setImportText(content);
+                    setStatus(`已选择 ${file.name}，请先预检备份`);
+                  } catch {
+                    setImportText("");
+                    setStatus("无法读取该文件，当前数据未改变");
+                  }
                 }}
               />
+              <span>{importText ? "文件已读取，等待预检" : "仅支持本应用导出的 JSON bundle"}</span>
             </label>
             <button
+              disabled={!importText}
               onClick={() => setImportPreview(health.previewBundle(importText))}
             >
               预检备份
@@ -818,12 +963,7 @@ export function HealthModule() {
                   与 updatedAt 分叉合并延后到 V1.1。
                 </p>
                 <button
-                  onClick={async () => {
-                    if (window.confirm("确认用此备份替换当前健康数据？")) {
-                      const ok = await health.importBundle(importText);
-                      setStatus(ok ? "备份导入完成" : "导入失败，原数据已保留");
-                    }
-                  }}
+                  onClick={() => setConfirmation({ kind: "import" })}
                 >
                   确认替换并导入
                 </button>
@@ -885,12 +1025,256 @@ export function HealthModule() {
           </div>
         </div>
       )}
+      {bodyCorrection && (
+        <BodyCorrectionDialog
+          record={bodyCorrection}
+          onClose={() => setBodyCorrection(undefined)}
+          onSave={(weightKg, reason) => {
+            const saved = health.reviseBodyRecord(bodyCorrection.id, {
+              weightKg,
+              reason,
+            });
+            if (saved) {
+              setBodyCorrection(undefined);
+              setStatus("身体记录已更正，原始版本仍保留在修订链中");
+            }
+          }}
+        />
+      )}
+      {confirmation && (
+        <ConfirmActionDialog
+          title={confirmation.kind === "archive" ? "归档训练项目" : "整体替换健康数据"}
+          description={
+            confirmation.kind === "archive"
+              ? `归档“${confirmation.name}”后，项目会从可记录列表隐藏，已有训练历史仍然保留。`
+              : `将使用已通过预检的备份整体替换当前健康数据。导入失败会回滚，当前数据不会被静默覆盖。`
+          }
+          confirmLabel={confirmation.kind === "archive" ? "确认归档" : "确认替换并导入"}
+          onClose={() => setConfirmation(undefined)}
+          onConfirm={async () => {
+            if (confirmation.kind === "archive") {
+              health.archiveExercise(confirmation.exerciseId);
+              if (selectedExercise === confirmation.exerciseId) setSelectedExercise("");
+              setStatus("训练项目已归档，历史记录仍保留");
+            } else {
+              const ok = await health.importBundle(importText);
+              setStatus(ok ? "备份导入完成" : "导入失败，原数据已保留");
+            }
+            setConfirmation(undefined);
+          }}
+        />
+      )}
       <footer className="health-boundary">
         本模块用于个人记录与复盘，不提供诊断、治疗或医疗风险判断。明显不适请联系专业人员。
       </footer>
     </section>
   );
 }
+
+function BodyCorrectionDialog({
+  record,
+  onClose,
+  onSave,
+}: {
+  record: BodyRecord;
+  onClose: () => void;
+  onSave: (weightKg: number, reason?: string) => void;
+}) {
+  const [nextWeight, setNextWeight] = useState(
+    record.weightGrams ? String(record.weightGrams / 1000) : "",
+  );
+  const [reason, setReason] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
+    inputRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [onClose]);
+
+  return (
+    <div className="health-dialog-backdrop">
+      <form
+        className="health-dialog health-dialog-form"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="body-correction-title"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (nextWeight) onSave(Number(nextWeight), reason || undefined);
+        }}
+      >
+        <div className="health-dialog-header">
+          <div>
+            <span className="health-section-kicker">保留原始版本</span>
+            <h2 id="body-correction-title">更正身体记录</h2>
+          </div>
+          <button type="button" className="health-icon-button" onClick={onClose} aria-label="关闭更正">
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <p>原体重：{record.weightGrams ? `${record.weightGrams / 1000} kg` : "未记录"}。保存后会生成可追踪的修订版本。</p>
+        <label>
+          更正后的体重（kg）
+          <input ref={inputRef} aria-label="更正后的体重（kg）" type="number" step="0.01" value={nextWeight} onChange={(event) => setNextWeight(event.target.value)} />
+        </label>
+        <label>
+          更正原因（可选）
+          <textarea aria-label="更正原因（可选）" value={reason} onChange={(event) => setReason(event.target.value)} />
+        </label>
+        <div className="health-dialog-footer">
+          <button type="button" onClick={onClose}>取消</button>
+          <button type="submit">保存更正</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ConfirmActionDialog({
+  title,
+  description,
+  confirmLabel,
+  onClose,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
+    cancelRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [onClose]);
+  const titleId = `confirm-${confirmLabel}`;
+  return (
+    <div className="health-dialog-backdrop">
+      <div className="health-dialog health-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <div className="health-dialog-header">
+          <div>
+            <span className="health-section-kicker">请确认影响</span>
+            <h2 id={titleId}>{title}</h2>
+          </div>
+          <button type="button" className="health-icon-button" onClick={onClose} aria-label={`关闭${title}`}>
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <p>{description}</p>
+        <div className="health-dialog-footer">
+          <button ref={cancelRef} type="button" onClick={onClose}>取消</button>
+          <button type="button" className="health-danger-action" onClick={() => void onConfirm()}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickRecordDialog({
+  onClose,
+  onSelect,
+}: {
+  onClose: () => void;
+  onSelect: (view: Exclude<View, "home" | "data">) => void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const trigger = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      trigger?.focus();
+    };
+  }, [onClose]);
+
+  const actions: Array<{
+    label: string;
+    detail: string;
+    view: Exclude<View, "home" | "data">;
+    icon: typeof Scale;
+  }> = [
+    { label: "记录饮水", detail: "快捷杯量或自定义毫升", view: "daily", icon: GlassWater },
+    { label: "记录睡眠", detail: "时长与可选质量", view: "daily", icon: Moon },
+    { label: "记录餐食", detail: "文字、照片与饱腹感", view: "meals", icon: Apple },
+    { label: "记录身体", detail: "体重、体脂与身高", view: "body", icon: Scale },
+    { label: "开始训练", detail: "继续项目或逐组记录", view: "workouts", icon: Dumbbell },
+  ];
+
+  return (
+    <div className="health-dialog-backdrop" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) onClose();
+    }}>
+      <div
+        className="health-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-record-title"
+        ref={dialogRef}
+      >
+        <div className="health-dialog-header">
+          <div>
+            <span className="health-section-kicker">只选一项就好</span>
+            <h2 id="quick-record-title">一键记录</h2>
+          </div>
+          <button ref={closeRef} className="health-icon-button" onClick={onClose} aria-label="关闭一键记录">
+            <X aria-hidden="true" />
+          </button>
+        </div>
+        <div className="health-dialog-actions">
+          {actions.map(({ label, detail, view, icon: Icon }) => (
+            <button key={label} aria-label={label} onClick={() => onSelect(view)}>
+              <span className="health-entry-icon"><Icon aria-hidden="true" /></span>
+              <span><strong>{label}</strong><small>{detail}</small></span>
+            </button>
+          ))}
+        </div>
+        <p className="health-dialog-note"><Clock3 aria-hidden="true" /> 常用记录通常只需几十秒。</p>
+      </div>
+    </div>
+  );
+}
+
 function Empty({ text }: { text: string }) {
   return <div className="health-empty">{text}</div>;
 }
@@ -916,14 +1300,23 @@ function PermanentDeleteButton({
 }: {
   onDelete: () => Promise<boolean>;
 }) {
+  const [confirming, setConfirming] = useState(false);
   return (
-    <button
-      onClick={async () => {
-        if (window.confirm("永久删除后无法恢复，确定继续？")) await onDelete();
-      }}
-    >
-      永久删除
-    </button>
+    <>
+      <button onClick={() => setConfirming(true)}>永久删除</button>
+      {confirming && (
+        <ConfirmActionDialog
+          title="永久删除记录"
+          description="永久删除后无法恢复。其他仍在垃圾箱中的记录不会受影响。"
+          confirmLabel="确认永久删除"
+          onClose={() => setConfirming(false)}
+          onConfirm={async () => {
+            await onDelete();
+            setConfirming(false);
+          }}
+        />
+      )}
+    </>
   );
 }
 function MealPhoto({
@@ -965,7 +1358,7 @@ function WorkoutRecorder({
   onSave,
   saveLabel,
 }: {
-  definition: { mode: ExerciseMode; defaultRestSeconds?: number };
+  definition: { name: string; mode: ExerciseMode; defaultRestSeconds?: number };
   initialEntry?: WorkoutSession["entries"][number];
   distance: string;
   minutes: string;
@@ -1060,7 +1453,11 @@ function WorkoutRecorder({
     );
   return (
     <>
-      <h2>本次训练</h2>
+      <div className="health-recorder-heading">
+        <span className="health-section-kicker">当前动作</span>
+        <h3>本次训练 · {definition.name}</h3>
+        <p>按实际完成情况逐组填写；进阶字段默认收起。</p>
+      </div>
       {definition.mode === "distance-time" && (
         <>
           <label>
@@ -1082,7 +1479,10 @@ function WorkoutRecorder({
         </>
       )}
       {definition.mode !== "duration" && (
-        <button onClick={() => setAdvanced((value) => !value)}>
+        <button
+          className="health-progressive-action"
+          onClick={() => setAdvanced((value) => !value)}
+        >
           {advanced ? "收起进阶记录" : "展开进阶记录"}
         </button>
       )}
@@ -1230,7 +1630,10 @@ function WorkoutRecorder({
           </div>
         ))}
       {grouped && (
-        <button onClick={() => setSets((current) => [...current, toSet()])}>
+        <button
+          className="health-add-set-action"
+          onClick={() => setSets((current) => [...current, toSet()])}
+        >
           添加一组
         </button>
       )}
@@ -1264,6 +1667,7 @@ function WorkoutRecorder({
         </div>
       )}
       <button
+        className="health-save-action"
         onClick={() =>
           onSave({
             distanceMeters: distance ? Number(distance) * 1000 : undefined,
@@ -1346,4 +1750,22 @@ function downloadBackup(content: string) {
   anchor.download = "dice-life-health-backup.json";
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+function isLocalToday(value: string, now = new Date()) {
+  const date = new Date(value);
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
+function calculateBmiPreview(heightCm?: number, weightKg?: number) {
+  if (!heightCm || !weightKg || !Number.isFinite(heightCm) || !Number.isFinite(weightKg)) {
+    return undefined;
+  }
+  const meters = heightCm / 100;
+  if (meters <= 0 || weightKg <= 0) return undefined;
+  return weightKg / (meters * meters);
 }

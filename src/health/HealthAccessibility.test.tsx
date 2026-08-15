@@ -22,7 +22,16 @@ describe("HealthModule accessibility gate", () => {
       </main>,
     );
     await expectNoBlocking(container);
-    for (const name of ["身体状态", "饮食记录", "日常健康", "运动健身"]) {
+    fireEvent.click(screen.getByRole("button", { name: "一键记录" }));
+    await expectNoBlocking(container);
+    fireEvent.click(screen.getByRole("button", { name: "关闭一键记录" }));
+    for (const name of [
+      "身体状态",
+      "饮食记录",
+      "日常健康",
+      "运动健身",
+      "数据与隐私",
+    ]) {
       fireEvent.click(screen.getByRole("button", { name: new RegExp(name) }));
       await expectNoBlocking(container);
       fireEvent.click(screen.getByRole("button", { name: "返回健康首页" }));

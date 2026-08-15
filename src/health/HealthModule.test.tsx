@@ -1,13 +1,94 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HealthModule } from "./HealthModule";
 
 describe("HealthModule", () => {
   beforeEach(() => window.localStorage.clear());
+  it("uses a today-first home and one accessible quick-record chooser", () => {
+    render(<HealthModule />);
+
+    expect(
+      screen.getByRole("heading", { name: "今天，记录一点真实变化" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("今日概览")).toBeInTheDocument();
+    expect(screen.queryByText("进入")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "一键记录" }));
+    const chooser = screen.getByRole("dialog", { name: "一键记录" });
+    expect(chooser).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "记录身体" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "记录身体" }));
+    expect(chooser).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "身体状态" })).toBeInTheDocument();
+  });
+
+  it("returns the module to the top when entering a child page", () => {
+    const scrollIntoView = vi.fn();
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+    render(<HealthModule />);
+    scrollIntoView.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: /身体状态/ }));
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+  });
+
+  it("imports a backup from a file instead of requiring pasted JSON", () => {
+    render(<HealthModule />);
+    fireEvent.click(screen.getByRole("button", { name: "数据与隐私" }));
+
+    expect(screen.getByLabelText("选择健康备份文件")).toHaveAttribute(
+      "type",
+      "file",
+    );
+    expect(screen.queryByLabelText("导入备份内容")).not.toBeInTheDocument();
+  });
+
+  it("keeps body corrections inside an accessible, cancellable dialog", () => {
+    render(<HealthModule />);
+    fireEvent.click(screen.getByRole("button", { name: /身体状态/ }));
+    fireEvent.change(screen.getByLabelText("体重（kg）"), {
+      target: { value: "70" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存身体记录" }));
+    fireEvent.click(screen.getByRole("button", { name: "更正" }));
+
+    const dialog = screen.getByRole("dialog", { name: "更正身体记录" });
+    expect(dialog).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("更正后的体重（kg）"), {
+      target: { value: "69.5" },
+    });
+    fireEvent.change(screen.getByLabelText("更正原因（可选）"), {
+      target: { value: "补录修正" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存更正" }));
+
+    expect(dialog).not.toBeInTheDocument();
+    expect(screen.getByText("69.5 kg")).toBeInTheDocument();
+  });
+
+  it("confirms destructive actions in an in-product dialog", () => {
+    render(<HealthModule />);
+    fireEvent.click(screen.getByRole("button", { name: /运动健身/ }));
+    fireEvent.change(screen.getByLabelText("训练项目名称"), {
+      target: { value: "慢跑" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "创建训练项目" }));
+    fireEvent.click(screen.getByRole("button", { name: "归档" }));
+
+    expect(
+      screen.getByRole("dialog", { name: "归档训练项目" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "确认归档" }));
+    expect(screen.queryByText("慢跑")).not.toBeInTheDocument();
+  });
   it("presents one calm dashboard with progressively disclosed sections", () => {
     render(<HealthModule />);
     expect(
-      screen.getByRole("heading", { name: "健康状况" }),
+      screen.getByRole("heading", { name: "今天，记录一点真实变化" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/随便从一项开始/)).toBeInTheDocument();
     expect(
@@ -46,7 +127,9 @@ describe("HealthModule", () => {
       target: { value: "weight-reps" },
     });
     fireEvent.click(screen.getByRole("button", { name: "创建训练项目" }));
-    expect(screen.getByText("卧推")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /^卧推$/ }),
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("第 1 组重量（kg）"), {
       target: { value: "50" },
     });
