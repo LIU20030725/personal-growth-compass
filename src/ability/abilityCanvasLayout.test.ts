@@ -163,10 +163,11 @@ describe('ability canvas layout', () => {
     const movedGrowth = moved.nodes.find((item) => item.id === 'growth')!;
     const movedAnalysis = moved.nodes.find((item) => item.id === 'analysis')!;
     const movedOutcome = moved.nodes.find((item) => item.id === 'outcome-analysis')!;
-    const phaseDelta = { x: movedPhase.x - autoPhase.x, y: movedPhase.y - autoPhase.y };
+    const requestedPhaseDelta = { x: 992 - autoPhase.x, y: 416 - autoPhase.y };
 
     expect(movedAnalysis).toMatchObject({ x: 1200, y: 304 });
-    expect({ x: movedGrowth.x - autoGrowth.x, y: movedGrowth.y - autoGrowth.y }).toEqual(phaseDelta);
+    expect({ x: movedGrowth.x - autoGrowth.x, y: movedGrowth.y - autoGrowth.y }).toEqual(requestedPhaseDelta);
+    expect(movedPhase.y).toBeLessThanOrEqual(movedAnalysis.y - 80);
     expect({ x: movedOutcome.x - movedAnalysis.x, y: movedOutcome.y - movedAnalysis.y }).toEqual({ x: 32, y: 96 });
   });
 
@@ -190,6 +191,40 @@ describe('ability canvas layout', () => {
     expect(reloadedPhase.y + reloadedPhase.height).toBeGreaterThanOrEqual(reloadedAnalysis.y + 80 + 64);
     expect(phaseEdgeCoordinates.every(Number.isFinite)).toBe(true);
     expect(phaseEdgeCoordinates.every((value) => value % 16 === 0)).toBe(true);
+  });
+
+  it.each([
+    ['left', { x: -401, y: 144 }],
+    ['right', { x: 1601, y: 144 }],
+    ['top', { x: 96, y: -401 }],
+    ['bottom', { x: 96, y: 1201 }]
+  ] as const)('expands the assigned phase toward a node dragged %s without changing membership', (_, point) => {
+    const canvasState = state();
+    const layout = layoutAbilityCanvas(canvasState, 'tree', { manualPositions: { root: point } });
+    const phase = layout.phases.find((item) => item.id === 'phase')!;
+    const root = layout.nodes.find((item) => item.id === 'root')!;
+
+    expect(canvasState.nodes.find((item) => item.id === 'root')?.phaseId).toBe('phase');
+    expect(root.x).toBeGreaterThanOrEqual(phase.x + 32);
+    expect(root.y).toBeGreaterThanOrEqual(phase.y + 80);
+    expect(root.x + 176 + 32).toBeLessThanOrEqual(phase.x + phase.width);
+    expect(root.y + 80 + 64).toBeLessThanOrEqual(phase.y + phase.height);
+    expect([phase.x, phase.y, phase.width, phase.height].every((value) => Number.isFinite(value) && value % 16 === 0)).toBe(true);
+  });
+
+  it('shrinks a phase back to its automatic rectangle after an outlying node returns', () => {
+    const canvasState = state();
+    const automatic = layoutAbilityCanvas(canvasState, 'tree');
+    const expanded = layoutAbilityCanvas(canvasState, 'tree', {
+      manualPositions: { root: { x: -401, y: -401 } }
+    });
+    const returned = layoutAbilityCanvas(canvasState, 'tree', {
+      manualPositions: { root: automatic.nodes.find((item) => item.id === 'root')! }
+    });
+
+    expect(expanded.phases[0].width).toBeGreaterThan(automatic.phases[0].width);
+    expect(expanded.phases[0].height).toBeGreaterThan(automatic.phases[0].height);
+    expect(returned.phases).toEqual(automatic.phases);
   });
 
   it('restores automatic phase and member alignment when phase positions are cleared', () => {
