@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   CalendarDays,
   Check,
@@ -84,6 +85,43 @@ function TodayModuleCard(props: ModuleCardProps) {
 }
 
 export function TodayOverview({ model, onOpenModule, onQuickAction, onCompleteTask }: TodayOverviewProps) {
+  const [quickMenuOpen, setQuickMenuOpen] = useState(false);
+  const quickTriggerRef = useRef<HTMLButtonElement>(null);
+  const quickMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!quickMenuOpen) return;
+    quickMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+  }, [quickMenuOpen]);
+
+  const closeQuickMenu = (restoreFocus = false) => {
+    setQuickMenuOpen(false);
+    if (restoreFocus) quickTriggerRef.current?.focus();
+  };
+
+  const chooseQuickAction = (action: TodayQuickAction) => {
+    closeQuickMenu();
+    onQuickAction(action);
+  };
+
+  const handleQuickMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(quickMenuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []);
+    const current = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeQuickMenu(true);
+      return;
+    }
+    if (event.key !== 'Tab' || items.length === 0) return;
+    if (event.shiftKey && current === 0) {
+      event.preventDefault();
+      items[items.length - 1].focus();
+    } else if (!event.shiftKey && current === items.length - 1) {
+      event.preventDefault();
+      items[0].focus();
+    }
+  };
+
   return (
     <section className="today-overview" aria-labelledby="today-overview-title">
       <header className="today-overview-header">
@@ -91,9 +129,26 @@ export function TodayOverview({ model, onOpenModule, onQuickAction, onCompleteTa
           <h1 id="today-overview-title">今日总览</h1>
           <p>随便从一项开始。少填也有价值，没有填写不代表失败。</p>
         </div>
-        <button className="today-record-now" type="button" aria-label="打开快捷记录" onClick={() => onQuickAction('emotion.record')}>
-          <PenLine aria-hidden="true" />记录此刻
-        </button>
+        <div className="today-overview-primary-wrap">
+          <button
+            ref={quickTriggerRef}
+            className="today-record-now"
+            type="button"
+            aria-label="打开快捷记录"
+            aria-haspopup="menu"
+            aria-expanded={quickMenuOpen}
+            onClick={() => setQuickMenuOpen((open) => !open)}
+          >
+            <PenLine aria-hidden="true" />记录此刻
+          </button>
+          {quickMenuOpen && (
+            <div ref={quickMenuRef} className="today-quick-menu" role="menu" aria-label="快捷记录" onKeyDown={handleQuickMenuKeyDown}>
+              <button type="button" role="menuitem" onClick={() => chooseQuickAction('emotion.record')}><Smile aria-hidden="true" /><span><strong>记录情绪</strong><small>留下此刻的感受</small></span></button>
+              <button type="button" role="menuitem" onClick={() => chooseQuickAction('health.quick-record')}><Heart aria-hidden="true" /><span><strong>记录健康</strong><small>快速补录身体状态</small></span></button>
+              <button type="button" role="menuitem" onClick={() => chooseQuickAction('tasks.create')}><Plus aria-hidden="true" /><span><strong>添加今日任务</strong><small>安排一项微行动</small></span></button>
+            </div>
+          )}
+        </div>
       </header>
 
       <section className="today-status-strip" aria-label="今日状态">

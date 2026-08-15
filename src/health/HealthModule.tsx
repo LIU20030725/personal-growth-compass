@@ -28,6 +28,7 @@ import {
   MealsWorkspace,
   WorkoutWorkspace,
 } from "./Revision2083Workspaces";
+import type { IntentProps } from "../today/todayIntent";
 
 type View = "home" | "body" | "meals" | "daily" | "workouts" | "data";
 const cards: Array<{
@@ -52,7 +53,7 @@ const cards: Array<{
   },
 ];
 
-export function HealthModule() {
+export function HealthModule({ intent, onIntentConsumed }: IntentProps<'health.quick-record'> = {}) {
   const health = useHealthSystem();
   const moduleRef = useRef<HTMLElement>(null);
   const [view, setView] = useState<View>("home");
@@ -91,6 +92,11 @@ export function HealthModule() {
   }>();
   const [status, setStatus] = useState("");
   const [mealPhotos, setMealPhotos] = useState<File[]>([]);
+  useEffect(() => {
+    if (intent?.type !== 'health.quick-record') return;
+    setQuickOpen(true);
+    onIntentConsumed?.();
+  }, [intent?.id]);
   const latest = health.bodyRecords[0];
   const todayMealCount = health.meals.filter((record) => isLocalToday(record.eatenAt)).length;
   const todayWorkoutCount = health.workouts.filter((record) => isLocalToday(record.startedAt)).length;

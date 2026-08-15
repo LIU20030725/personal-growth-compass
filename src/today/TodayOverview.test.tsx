@@ -70,4 +70,28 @@ describe('TodayOverview', () => {
     fireEvent.click(screen.getByRole('button', { name: '记录完成：整理案例' }));
     expect(handlers.onCompleteTask).toHaveBeenCalledWith('task-1');
   });
+
+  it('opens an accessible quick menu and restores focus after Escape', () => {
+    render(<TodayOverview model={emptyTodayOverviewModel} {...callbacks()} />);
+    const trigger = screen.getByRole('button', { name: '打开快捷记录' });
+
+    fireEvent.click(trigger);
+    const menu = screen.getByRole('menu', { name: '快捷记录' });
+    expect(within(menu).getByRole('menuitem', { name: /记录情绪/ })).toHaveFocus();
+
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('menu', { name: '快捷记录' })).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('dispatches the selected quick action', () => {
+    const handlers = callbacks();
+    render(<TodayOverview model={emptyTodayOverviewModel} {...handlers} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '打开快捷记录' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /添加今日任务/ }));
+
+    expect(handlers.onQuickAction).toHaveBeenCalledWith('tasks.create');
+    expect(screen.queryByRole('menu', { name: '快捷记录' })).not.toBeInTheDocument();
+  });
 });

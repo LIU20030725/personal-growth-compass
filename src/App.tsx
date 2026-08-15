@@ -42,6 +42,7 @@ import { HealthModule } from './health/HealthModule';
 import { parseAbilityPath, pushAbilityTree, replaceAbilityTree } from './ability/abilityRoute';
 import { TodayOverview, type TodayModule, type TodayQuickAction } from './today/TodayOverview';
 import { useTodayOverview } from './today/useTodayOverview';
+import type { ModuleIntent } from './today/todayIntent';
 
 const AbilityModule = lazy(() => import('./ability/AbilityModule').then((module) => ({ default: module.AbilityModule })));
 
@@ -615,6 +616,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<MainView>(() =>
     window.location.pathname.startsWith('/ability') ? 'ability' : 'today'
   );
+  const [moduleIntent, setModuleIntent] = useState<ModuleIntent | null>(null);
 
   const openView = (view: MainView) => {
     setActiveView(view);
@@ -635,9 +637,15 @@ export default function App() {
   };
 
   const openTodayQuickAction = (action: TodayQuickAction) => {
+    setModuleIntent({ id: Date.now(), type: action });
     if (action === 'emotion.record') openView('emotion');
     else if (action === 'health.quick-record') openView('body');
     else openView('quests');
+  };
+
+  const completeTodayTask = (taskId: string) => {
+    setModuleIntent({ id: Date.now(), type: 'tasks.complete', taskId });
+    openView('quests');
   };
 
   useEffect(() => {
@@ -992,7 +1000,7 @@ export default function App() {
         <TodayOverviewContainer
           onOpenModule={openTodayModule}
           onQuickAction={openTodayQuickAction}
-          onCompleteTask={() => openView('quests')}
+          onCompleteTask={completeTodayTask}
         />
       ) : activeView === 'finance' ? (
       <>
@@ -1112,11 +1120,20 @@ export default function App() {
       ) : activeView === 'character' ? (
         <CharacterStatusView />
       ) : activeView === 'quests' ? (
-        <TaskBoard />
+        <TaskBoard
+          intent={moduleIntent?.type === 'tasks.create' || moduleIntent?.type === 'tasks.complete' ? moduleIntent : null}
+          onIntentConsumed={() => setModuleIntent(null)}
+        />
       ) : activeView === 'body' ? (
-        <HealthModule />
+        <HealthModule
+          intent={moduleIntent?.type === 'health.quick-record' ? moduleIntent : null}
+          onIntentConsumed={() => setModuleIntent(null)}
+        />
       ) : activeView === 'emotion' ? (
-        <EmotionModule />
+        <EmotionModule
+          intent={moduleIntent?.type === 'emotion.record' ? moduleIntent : null}
+          onIntentConsumed={() => setModuleIntent(null)}
+        />
       ) : activeView === 'journal' ? (
         <AdventureJournalPage onGoToTasks={() => openView('quests')} />
       ) : activeView === 'ability' ? (
