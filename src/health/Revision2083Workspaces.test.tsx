@@ -12,7 +12,13 @@ describe("health revision 2083 workspaces", () => {
     expect(screen.getByText("练前热身")).toBeInTheDocument();
     expect(screen.getByText("训练动作")).toBeInTheDocument();
     expect(screen.getByText("练后拉伸")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "添加训练动作动作" }));
+    expect(
+      screen.getByRole("button", { name: "添加训练动作" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "添加训练动作动作" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "添加训练动作" }));
     const dialog = screen.getByRole("dialog", { name: "动作库" });
     fireEvent.change(within(dialog).getByRole("textbox", { name: "搜索动作" }), { target: { value: "卧推" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "添加" }));

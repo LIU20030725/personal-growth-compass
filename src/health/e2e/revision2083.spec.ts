@@ -71,7 +71,7 @@ test("captures the five revised workspaces at all required sizes", async ({ page
 test("completes workout, meal, daily and body primary journeys with keyboard-accessible dialogs", async ({ page }) => {
   await openHealth(page);
   await page.getByRole("button", { name: /运动健身/ }).first().click();
-  await page.getByRole("button", { name: "添加训练动作动作" }).click();
+  await page.getByRole("button", { name: "添加训练动作" }).click();
   await page.getByRole("textbox", { name: "搜索动作" }).fill("卧推");
   await page.getByRole("button", { name: "添加", exact: true }).click();
   await page.getByRole("button", { name: "完成添加" }).click();
