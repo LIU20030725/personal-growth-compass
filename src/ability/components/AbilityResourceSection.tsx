@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { ExternalLink, MoreHorizontal, Plus, X } from 'lucide-react';
 import { inferResourceType, normalizeResourceUrl } from '../abilityResources';
 import type { ResourceType, SkillResource, SkillResourceLink } from '../types';
@@ -40,6 +40,19 @@ export function AbilityResourceSection(props: Props) {
   const [error, setError] = useState('');
   const managedTriggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const errorId = `ability-resource-error-${props.nodeId}`;
+
+  useEffect(() => {
+    if (!managedResourceId) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (managedTriggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setManagedResourceId(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [managedResourceId]);
 
   const closeMenu = () => {
     setManagedResourceId(null);
@@ -96,11 +109,11 @@ export function AbilityResourceSection(props: Props) {
 
     {composer === 'new' ? <form className="ability-resource-composer" onSubmit={saveNew}>
       <div className="ability-resource-composer-title"><strong>粘贴新链接</strong><button type="button" aria-label="关闭资源表单" onClick={() => setComposer(null)}><X size={15} /></button></div>
-      <label><span>链接</span><input autoFocus aria-label="资源链接" inputMode="url" value={url} onBlur={() => { if (url.trim()) { try { setType(inferResourceType(url)); } catch { /* Show the validation on submit. */ } } }} onChange={(event) => { setUrl(event.target.value); setError(''); }} placeholder="https://" /></label>
+      <label><span>链接</span><input autoFocus aria-label="资源链接" aria-invalid={Boolean(error)} aria-describedby={error ? errorId : undefined} inputMode="url" value={url} onBlur={() => { if (url.trim()) { try { setType(inferResourceType(url)); } catch { /* Show the validation on submit. */ } } }} onChange={(event) => { setUrl(event.target.value); setError(''); }} placeholder="https://" /></label>
       <label><span>标题</span><input aria-label="资源标题" value={title} onChange={(event) => setTitle(event.target.value)} /></label>
       <label><span>类型</span><select aria-label="资源类型" value={type} onChange={(event) => setType(event.target.value as ResourceType)}>{Object.entries(RESOURCE_TYPE_LABELS).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
       <label><span>学习备注</span><textarea aria-label="资源学习备注" value={note} onChange={(event) => setNote(event.target.value)} /></label>
-      {error ? <p className="ability-form-error" role="alert">{error}</p> : null}
+      {error ? <p id={errorId} className="ability-form-error" role="alert">{error}</p> : null}
       <div className="ability-resource-composer-actions"><button type="button" onClick={() => setComposer('existing')}>从资源库选择</button><button className="ability-primary" type="submit">保存资源</button></div>
     </form> : null}
 
@@ -136,6 +149,5 @@ export function AbilityResourceSection(props: Props) {
       </li>;
     })}</ul> : <p className="ability-muted">还没有收藏学习资源。</p>}
     {linkedResources.length > 3 ? <button className="ability-resource-expand" type="button" onClick={() => setExpanded((value) => !value)}>{expanded ? '收起' : '查看全部'}</button> : null}
-    {!composer ? <button className="ability-resource-library-link" type="button" onClick={() => setComposer('existing')}>从资源库选择</button> : null}
   </section>;
 }

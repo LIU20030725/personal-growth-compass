@@ -560,8 +560,8 @@ export function AbilityTreeStage(props: Props) {
     const related = selectedIds.has(item.fromId) || selectedIds.has(item.toId);
     const auxiliary = item.kind === 'auxiliary';
     const stroke = auxiliary
-      ? (related ? '#667b91' : '#9aa7b4')
-      : (related ? '#3d4650' : '#5f6872');
+      ? (related ? '#6f9587' : '#a7b7b0')
+      : (related ? '#4d665e' : '#789087');
     return [{
       id: item.id,
       source: item.fromId,
@@ -582,8 +582,8 @@ export function AbilityTreeStage(props: Props) {
       target: `phase:${item.toPhaseId}`,
       type: 'default',
       className: 'ability-edge-phase-order',
-      markerEnd: { type: MarkerType.ArrowClosed, width: 13, height: 13, color: '#858b91' },
-      style: { stroke: '#858b91', strokeWidth: 1.6 },
+      markerEnd: { type: MarkerType.ArrowClosed, width: 13, height: 13, color: '#a7b7b0' },
+      style: { stroke: '#a7b7b0', strokeWidth: 1.4 },
       zIndex: -3
     }));
     return [...phaseEdges, ...nodeEdges];
@@ -710,7 +710,6 @@ export function AbilityTreeStage(props: Props) {
   };
 
   return <section className="ability-tree-stage" aria-label={`${props.tree.name}技能树舞台`}>
-    <div className="ability-canvas-instructions"><span>拖动画布移动 · 滚轮平移 · Ctrl + 滚轮缩放</span><span>单击查看详情 · 双击改名 · Ctrl + Enter 新建子技能</span></div>
     <div
       ref={shellRef}
       className="ability-flow-shell"
@@ -823,15 +822,15 @@ export function AbilityTreeStage(props: Props) {
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#dedbd2" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#dce7e2" />
         <Controls position="bottom-right" showInteractive={false} fitViewOptions={{ padding: 0.2, maxZoom: 1.15 }} />
         <MiniMap
           position="bottom-right"
           pannable
           zoomable
           nodeStrokeWidth={2}
-          nodeColor={(node) => node.type === 'phase' ? '#f5f3ec' : node.type === 'parallelGroup' ? '#f4ead1' : node.selected ? '#f4b400' : '#d9dde0'}
-          maskColor="rgba(249, 248, 244, .76)"
+          nodeColor={(node) => node.type === 'phase' ? '#f1f7f4' : node.type === 'parallelGroup' ? '#edf5f1' : node.selected ? '#f2d66b' : '#d9ece5'}
+          maskColor="rgba(247, 250, 248, .78)"
         />
         <Panel position="top-right" className="ability-canvas-toolbar">
           <button type="button" onClick={props.onAddPhase}><Plus size={15} />添加下一阶段</button>

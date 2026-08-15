@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Archive, ArrowDown, ArrowUp, Ellipsis, Pin, PinOff, Plus, RotateCcw, Search } from 'lucide-react';
 import { getCurrentPhase, getTreeProgress } from '../abilityGraph';
 import type { AbilityState, SkillRole } from '../types';
@@ -33,6 +33,17 @@ export function SkillLibrary(props: Props) {
   const [managedTreeId, setManagedTreeId] = useState<string | null>(null);
   const managedTriggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!managedTreeId) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (managedTriggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
+      setManagedTreeId(null);
+    };
+    document.addEventListener('pointerdown', closeOnOutsidePointer);
+    return () => document.removeEventListener('pointerdown', closeOnOutsidePointer);
+  }, [managedTreeId]);
   const handleMenuKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [])];
     if (event.key === 'Escape') {
@@ -84,7 +95,7 @@ export function SkillLibrary(props: Props) {
       <label className="ability-library-search"><Search size={15} /><input aria-label="搜索技能树或节点" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索技能或节点" /></label>
       <div className="ability-library-rail-actions">
         <button type="button" onClick={() => setExpanded((value) => !value)}>{expanded ? '收起' : '查看全部'}</button>
-        <button className="ability-primary" type="button" onClick={props.onCreateTree}><Plus size={15} />新建</button>
+        <button className="ability-secondary" type="button" onClick={props.onCreateTree}><Plus size={15} />新建</button>
       </div>
     </header>
     {expanded ? <div className="ability-library-filters">

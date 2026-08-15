@@ -647,6 +647,8 @@ describe('AbilityModule', () => {
     expect(within(summary).queryByRole('button', { name: '编辑技能树' })).not.toBeInTheDocument();
     expect(within(summary).getByRole('button', { name: '修改技能树资料' })).toBeInTheDocument();
     expect(within(summary).getByRole('button', { name: '添加阶段' })).toBeInTheDocument();
+    expect(within(summary).getByRole('button', { name: '下一步 · 1' })).toHaveClass('ability-next-action');
+    expect(screen.getByRole('button', { name: '新建技能树' })).not.toHaveClass('ability-primary');
     expect(screen.getByRole('button', { name: '更多技能树操作' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '设置并行组' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '专注当前阶段' })).not.toBeInTheDocument();
@@ -738,6 +740,11 @@ describe('AbilityModule', () => {
     fireEvent.keyDown(item, { key: 'Escape' });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     await waitFor(() => expect(trigger).toHaveFocus());
+
+    fireEvent.click(trigger);
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: '重新自动布局' })).toHaveFocus());
+    fireEvent.pointerDown(screen.getByRole('heading', { name: 'React 全栈' }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('uses the same keyboard menu semantics for skill-library and resource actions', async () => {
@@ -750,6 +757,9 @@ describe('AbilityModule', () => {
     await waitFor(() => expect(pin).toHaveFocus());
     fireEvent.keyDown(pin, { key: 'Escape' });
     await waitFor(() => expect(libraryTrigger).toHaveFocus());
+    fireEvent.click(libraryTrigger);
+    fireEvent.pointerDown(screen.getByRole('heading', { name: 'React 全栈' }));
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
     const panel = screen.getByLabelText('技能节点详情');
@@ -765,6 +775,28 @@ describe('AbilityModule', () => {
     fireEvent.keyDown(edit, { key: 'Escape' });
     expect(within(panel).queryByRole('menu')).not.toBeInTheDocument();
     await waitFor(() => expect(resourceTrigger).toHaveFocus());
+    fireEvent.click(resourceTrigger);
+    fireEvent.pointerDown(within(panel).getByRole('heading', { name: '掌握标准' }));
+    expect(within(panel).queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('uses one resource entry point and associates URL errors with the field', async () => {
+    saveAbilityState(localStorage, seededState());
+    render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
+
+    fireEvent.click(await screen.findByRole('group', { name: /React 状态管理/ }));
+    const panel = screen.getByLabelText('技能节点详情');
+    expect(within(panel).getAllByRole('button', { name: '收藏资源' })).toHaveLength(1);
+    expect(within(panel).queryByRole('button', { name: '从资源库选择' })).not.toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole('button', { name: '收藏资源' }));
+    const urlField = within(panel).getByLabelText('资源链接');
+    fireEvent.change(urlField, { target: { value: 'javascript:alert(1)' } });
+    fireEvent.change(within(panel).getByLabelText('资源标题'), { target: { value: '不安全资源' } });
+    fireEvent.click(within(panel).getByRole('button', { name: '保存资源' }));
+    const error = within(panel).getByRole('alert');
+    expect(error).toHaveAttribute('id');
+    expect(urlField).toHaveAttribute('aria-describedby', error.id);
   });
 
   it('edits the current tree and archives a related skill node without deleting history', async () => {
