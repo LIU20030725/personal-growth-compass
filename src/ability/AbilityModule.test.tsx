@@ -92,12 +92,23 @@ describe('AbilityModule', () => {
     await waitFor(() => expect(container.querySelectorAll('.react-flow__edge.ability-edge-phase-order')).toHaveLength(2));
   });
 
-  it('keeps every node add-child action visible before selection', async () => {
+  it('keeps branch ports quiet until their connector is hovered or focused', async () => {
     saveAbilityState(localStorage, seededState());
     render(<AbilityModule abilityStorage={localStorage} taskStorage={localStorage} />);
 
-    expect(await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '为 React 状态管理 添加子节点' })).toBeInTheDocument();
+    const htmlPort = await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' });
+    const reactPort = screen.getByRole('button', { name: '为 React 状态管理 添加子节点' });
+
+    expect(htmlPort).toHaveAttribute('data-revealed', 'false');
+    expect(htmlPort.querySelector('svg')).toBeNull();
+    fireEvent.mouseEnter(htmlPort);
+    expect(htmlPort).toHaveAttribute('data-revealed', 'true');
+    expect(htmlPort.querySelector('svg')).not.toBeNull();
+    fireEvent.mouseLeave(htmlPort);
+    expect(htmlPort).toHaveAttribute('data-revealed', 'false');
+    fireEvent.focus(reactPort);
+    expect(reactPort).toHaveAttribute('data-revealed', 'true');
+    expect(reactPort.querySelector('svg')).not.toBeNull();
   });
 
   it('focuses and cycles through next action candidates in a stable order', async () => {
@@ -786,11 +797,13 @@ describe('AbilityModule', () => {
     const addChild = await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' });
 
     fireEvent.click(addChild);
-    fireEvent.click(await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' }));
+    const refreshedAddChild = await screen.findByRole('button', { name: '为 HTML 基础 添加子节点' });
+    fireEvent.keyDown(refreshedAddChild, { key: 'Enter' });
+    fireEvent.keyDown(refreshedAddChild, { key: ' ' });
 
     const saved = JSON.parse(localStorage.getItem('dice-life.ability.v1') ?? '{}');
     const children = saved.dependencies.filter((edge: { prerequisiteNodeId: string; kind?: string }) => edge.prerequisiteNodeId === 'html' && (edge.kind ?? 'primary') === 'primary');
-    expect(children).toHaveLength(3);
-    await waitFor(() => expect(screen.getAllByRole('group', { name: /新技能 可开始/ })).toHaveLength(2));
+    expect(children).toHaveLength(4);
+    await waitFor(() => expect(screen.getAllByRole('group', { name: /新技能 可开始/ })).toHaveLength(3));
   });
 });

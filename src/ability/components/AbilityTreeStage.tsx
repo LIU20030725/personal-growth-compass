@@ -138,6 +138,8 @@ export function consumeAbilityFocusRequest(
 function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(data.label);
+  const [branchPortHovered, setBranchPortHovered] = useState(false);
+  const [branchPortFocused, setBranchPortFocused] = useState(false);
   useEffect(() => setDraft(data.label), [data.label]);
   useEffect(() => {
     if (data.renameRequest > 0) setEditing(true);
@@ -148,6 +150,8 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
     else setDraft(data.label);
     setEditing(false);
   };
+  const branchPortRevealed = branchPortHovered || branchPortFocused;
+  const addChild = () => data.onAddChild();
 
   return <div
     className={`ability-flow-node state-${data.progress} ${data.selected ? 'selected' : ''} ${data.dropTarget ? 'drop-target' : ''}`}
@@ -178,13 +182,27 @@ function SkillCanvasNode({ data }: NodeProps<Node<SkillNodeData>>) {
       aria-label={`${data.hiddenChildCount ? '展开' : '折叠'} ${data.label} 分支`}
       onClick={(event) => { event.stopPropagation(); data.onToggleCollapse(); }}
     >{data.hiddenChildCount ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}{data.hiddenChildCount ? data.hiddenChildCount : ''}</button> : null}
-    <button
-      className="nodrag ability-add-child"
-      type="button"
+    <Handle
+      className="nodrag ability-flow-handle ability-branch-port"
+      type="source"
+      position={Position.Right}
+      role="button"
+      tabIndex={0}
       aria-label={`为 ${data.label} 添加子节点`}
-      onClick={(event) => { event.stopPropagation(); data.onAddChild(); }}
-    ><Plus size={18} /></button>
-    <Handle className="ability-flow-handle" type="source" position={Position.Right} />
+      aria-keyshortcuts="Enter Space"
+      data-revealed={branchPortRevealed}
+      onMouseEnter={() => setBranchPortHovered(true)}
+      onMouseLeave={() => setBranchPortHovered(false)}
+      onFocus={() => setBranchPortFocused(true)}
+      onBlur={() => setBranchPortFocused(false)}
+      onClick={(event) => { event.stopPropagation(); addChild(); }}
+      onKeyDown={(event: ReactKeyboardEvent) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        event.stopPropagation();
+        addChild();
+      }}
+    >{branchPortRevealed ? <Plus aria-hidden="true" size={16} /> : null}</Handle>
   </div>;
 }
 
