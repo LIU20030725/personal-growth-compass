@@ -7,7 +7,7 @@ describe("Dice Life health navigation", () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "健康状况" }));
     expect(
-      screen.getByRole("heading", { name: "健康状况" }),
+      screen.getByRole("heading", { name: "今天，记录一点真实变化" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /身体状态/ }),

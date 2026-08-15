@@ -230,6 +230,23 @@
 .health-panel h2 {
   font-size: 20px;
 }
+.health-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.health-panel-heading h2 {
+  margin: 3px 0 0;
+}
+.health-secondary-action {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #bfd1c8 !important;
+  border-radius: 11px !important;
+  background: var(--health-soft) !important;
+  color: var(--health-text);
+}
 .health-panel label {
   display: grid;
   gap: 6px;
@@ -481,6 +498,131 @@
   margin: 16px 0 0;
   color: var(--health-muted);
   font-size: 13px;
+}
+.health-current-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 9px;
+  background: #fbf2c9;
+  color: #67591e;
+  font-size: 13px;
+  font-weight: 800;
+}
+.health-workout-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: workout-step;
+}
+.health-workout-steps li {
+  counter-increment: workout-step;
+  padding: 10px;
+  border: 1px solid var(--health-line);
+  border-radius: 10px;
+  color: var(--health-muted);
+  font-size: 13px;
+}
+.health-workout-steps li::before {
+  content: counter(workout-step) ". ";
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+.health-workout-steps li.is-current {
+  border-color: #d8bf57;
+  background: #fff9df;
+  color: #4a431f;
+  font-weight: 800;
+}
+.health-workout-steps li.is-done::before {
+  content: "✓ ";
+  color: var(--health-sage);
+}
+.health-exercise-list {
+  display: grid;
+  gap: 2px;
+}
+.health-recorder-heading {
+  margin-top: 6px;
+  padding-top: 18px;
+  border-top: 1px solid var(--health-line);
+}
+.health-recorder-heading h3 {
+  margin: 4px 0 6px;
+  font-size: 19px;
+}
+.health-recorder-heading p {
+  margin: 0;
+  color: var(--health-muted);
+  font-size: 13px;
+}
+.health-metric-toggle input {
+  width: 20px;
+  height: 20px;
+}
+.health-dialog-form {
+  display: grid;
+  gap: 16px;
+}
+.health-dialog-form > p {
+  margin: 0;
+  color: var(--health-muted);
+  line-height: 1.6;
+}
+.health-dialog-form > label {
+  display: grid;
+  gap: 7px;
+  color: #465b51;
+  font-weight: 700;
+}
+.health-dialog-form input,
+.health-dialog-form textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #bfd1c8;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--health-text);
+}
+.health-dialog-form textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+.health-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.health-dialog-footer button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #bfd1c8;
+  border-radius: 11px;
+  background: var(--health-soft);
+  font-weight: 750;
+}
+.health-dialog-footer button[type="submit"] {
+  border-color: #d1bb52;
+  background: var(--health-yellow);
+}
+.health-confirm-dialog {
+  display: grid;
+  gap: 18px;
+  width: min(480px, 100%);
+}
+.health-confirm-dialog > p {
+  margin: 0;
+  color: var(--health-muted);
+  line-height: 1.65;
+}
+.health-dialog-footer .health-danger-action {
+  border-color: #b98c7c;
+  background: #fff5f1;
+  color: #6c382c;
 }
 @media (max-width: 900px) {
   .health-card-grid {
