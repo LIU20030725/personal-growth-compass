@@ -12,13 +12,15 @@
 
 ## 当前版本
 
-- V4.0 实现规格：`specs/2026-08-14-dice-life-ability-v4-direct-manipulation-design.md`
-- V4.0 实施计划：`plans/2026-08-14-dice-life-ability-v4-direct-manipulation.md`
-- V4.0 实现归档：`releases/2026-08-14-ability-v4.0-implementation.md`
-- V4.0 开发 smoke：`evidence/2026-08-14-v4-implementation-smoke/screenshots/`
-- 当前状态：等待总控测试方案；不得将实现级回归等同于最终验收。
+- V5.0 设计规格：`specs/2026-08-15-dice-life-ability-v5-calm-command-center-design.md`
+- V5.0 实施计划：`plans/2026-08-15-dice-life-ability-v5-calm-command-center.md`
+- V5.1 可见效果归档：`releases/2026-08-15-ability-v5.1-visible-reality.md`
+- V5.1 前后对照与完整审计：`evidence/2026-08-15-ui-v5-visible-reality/visible-reality-audit.md`
+- 当前状态：等待总控独立视觉验收；不得以自测结果替代最终视觉结论。
 
 ## 历史连续版本
 
+- V5.0：`releases/2026-08-15-ability-v5.0-calm-command-center.md`
+- V4.0：`releases/2026-08-14-ability-v4.0-implementation.md`
 - V3.0：`releases/2026-08-12-ability-v3.0-implementation.md`
 - V2.1：`releases/2026-08-03-ability-canvas-v2.1.md`
